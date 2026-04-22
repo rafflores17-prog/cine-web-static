@@ -15,13 +15,10 @@
         .btn-voltar { color: #fff; text-decoration: none; font-weight: bold; }
         .poster-img { border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 2px solid #222; }
         .box-info { background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(10px); border-radius: 15px; padding: 25px; border: 1px solid #333; }
-        
-        .btn-play { background: #e50914; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
-        .btn-play:hover { background: #b20710; color: white; }
-        
-        .btn-torrent { background: #28a745; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
-        .btn-torrent:hover { background: #218838; color: white; }
-        
+        .btn-google { background: #4285F4; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
+        .btn-google:hover { background: #3367D6; color: white; }
+        .btn-torrent-br { background: #00a859; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
+        .btn-torrent-br:hover { background: #007c42; color: white; }
         .btn-secundario { background: #333; color: white; font-weight: bold; border-radius: 8px; transition: 0.3s; }
         .btn-secundario:hover { background: #444; color: white; }
     </style>
@@ -40,7 +37,7 @@
             <img src="{{ img_base }}{{ filme.poster_path }}" class="img-fluid poster-img mb-4" alt="Poster">
             
             {% if trailer %}
-            <h5 class="fw-bold text-start mb-2">🎬 Ver Trailer</h5>
+            <h5 class="fw-bold text-start mb-2">🎬 Trailer Oficial</h5>
             <div class="ratio ratio-16x9 rounded overflow-hidden shadow">
                 <iframe src="https://www.youtube.com/embed/{{ trailer }}" allowfullscreen></iframe>
             </div>
@@ -55,24 +52,30 @@
                 
                 <hr style="border-color: #444; my-4;">
                 
-                <h5 class="fw-bold mb-3">📺 Assistir Online</h5>
+                <h5 class="fw-bold mb-3">📺 Assistir Online (Dublado)</h5>
                 <div class="d-grid gap-2 d-md-flex">
-                    <a href="{{ links.player_1 }}" target="_blank" class="btn btn-play p-2 px-4">▶️ Player Principal</a>
-                    <a href="{{ links.player_2 }}" target="_blank" class="btn btn-secundario p-2 px-4">▶️ Player Alternativo</a>
+                    <a href="{{ links.busca_online }}" target="_blank" class="btn btn-google p-2 px-4 flex-fill">
+                        🔍 Buscar nos Melhores Sites (Recomendado)
+                    </a>
+                    <a href="{{ links.player_embed }}" target="_blank" class="btn btn-secundario p-2 px-4 text-muted">
+                        ▶️ Player Alternativo
+                    </a>
                 </div>
 
-                <h5 class="fw-bold mt-4 mb-3">📥 Baixar via Torrent</h5>
+                <h5 class="fw-bold mt-4 mb-3">📥 Download de Torrent (PT-BR)</h5>
                 <div class="d-grid gap-2">
-                    <a href="{{ links.torrent_br }}" target="_blank" class="btn btn-torrent p-3">
-                        🇧🇷 Buscar Torrent Dublado (PT-BR)
-                    </a>
                     <div class="d-flex gap-2">
-                        <a href="{{ links.piratebay }}" target="_blank" class="btn btn-secundario flex-fill">☠️ The Pirate Bay</a>
-                        <a href="{{ links.yts }}" target="_blank" class="btn btn-secundario flex-fill">🍿 YTS (Em Inglês)</a>
+                        <a href="{{ links.comando_torrent }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
+                            🇧🇷 Comando Torrents
+                        </a>
+                        <a href="{{ links.bludv }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
+                            🇧🇷 BluDV Bluray
+                        </a>
                     </div>
+                    <a href="{{ links.magnet }}" target="_blank" class="btn btn-secundario p-3 mt-1">
+                        🧲 Busca Geral de Magnet Link
+                    </a>
                 </div>
-                
-                <p class="text-muted small mt-3">* O CineTor apenas organiza links encontrados na internet.</p>
             </div>
         </div>
     </div>
