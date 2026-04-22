@@ -53,21 +53,17 @@ def detalhes_filme(filme_id):
     trailer_key = get_trailer(filme_id)
     titulo = filme.get('title', '')
     
-    # Prepara o título com aspas para forçar o Google/Duck a buscar o nome exato
+    # Prepara o título com aspas para forçar a busca exata do nome do filme
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
+    titulo_limpo = urllib.parse.quote(titulo)
     
-    # LINKS INTELIGENTES (O SEGREDO ESTÁ AQUI)
+    # LINKS INTELIGENTES (Com as suas recomendações)
     links = {
-        # Busca exata no Google para assistir online dublado
-        "busca_online": f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis",
-        # Player de testes (pode ter anúncios, mas é bom ter)
-        "player_embed": f"https://embed.warezcdn.net/filme/{filme_id}",
-        # Busca DIRETO no site Comando Torrents (Maior do BR)
-        "comando_torrent": f"https://www.google.com/search?q=site:comandotorrent.tv+{titulo_exato}",
-        # Busca DIRETO no site BluDV (Muito bom para Bluray)
-        "bludv": f"https://www.google.com/search?q=site:bludv.tv+{titulo_exato}",
-        # Busca Magnet no DuckDuckGo (Foge do filtro de pirataria do Google)
-        "magnet": f"https://duckduckgo.com/?q={titulo_exato}+torrent+dublado+1080p+magnet"
+        "busca_online": f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd",
+        "semtorrent": f"https://www.google.com/search?q=site:semtorrent.com+{titulo_exato}",
+        "vingadores": f"https://www.google.com/search?q=site:vingadorestorrent.site+{titulo_exato}",
+        # Busca agressiva com novas tags focadas em torrents brasileiros
+        "magnet": f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv+download+magnet"
     }
     
     return render_template("detalhes.html", filme=filme, img_base=IMG_PATH, bg_base=BG_PATH, trailer=trailer_key, links=links)
