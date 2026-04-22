@@ -19,11 +19,14 @@
         .btn-google { background: #e50914; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
         .btn-google:hover { background: #b20710; color: white; }
         
-        .btn-torrent-br { background: #00a859; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
-        .btn-torrent-br:hover { background: #007c42; color: white; }
-        
         .btn-secundario { background: #333; color: white; font-weight: bold; border-radius: 8px; transition: 0.3s; }
         .btn-secundario:hover { background: #444; color: white; }
+        
+        /* Estilo da lista de Torrents */
+        .torrent-item { background: #1a1a1a; border: 1px solid #333; margin-bottom: 8px; border-radius: 8px; transition: 0.3s;}
+        .torrent-item:hover { border-color: #00a859; background: #222;}
+        .btn-magnet { background: #00a859; color: white; border-radius: 5px; font-weight: bold; padding: 5px 15px; text-decoration: none;}
+        .btn-magnet:hover { background: #007c42; color: white; }
     </style>
 </head>
 <body>
@@ -57,25 +60,37 @@
                 
                 <h5 class="fw-bold mb-3">📺 Assistir Online (Dublado)</h5>
                 <div class="d-grid gap-2">
-                    <a href="{{ links.busca_online }}" target="_blank" class="btn btn-google p-3">
-                        ▶️ Buscar nos Melhores Sites
+                    <a href="{{ busca_online }}" target="_blank" class="btn btn-google p-3">
+                        ▶️ Buscar nos Melhores Sites (Recomendado)
                     </a>
                 </div>
 
-                <h5 class="fw-bold mt-4 mb-3">📥 Download de Torrent (PT-BR)</h5>
-                <div class="d-grid gap-2">
-                    <div class="d-flex gap-2">
-                        <a href="{{ links.semtorrent }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
-                            🎯 Buscar no SemTorrent
-                        </a>
-                        <a href="{{ links.vingadores }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
-                            🛡️ Buscar no Vingadores Torrent
-                        </a>
+                <h5 class="fw-bold mt-4 mb-3">📥 Lista de Torrents Encontrados</h5>
+                
+                {% if lista_torrents %}
+                    <div class="d-flex flex-column">
+                    {% for t in lista_torrents %}
+                        <div class="torrent-item p-3 d-flex justify-content-between align-items-center">
+                            <div style="width: 70%;">
+                                <span class="d-block small text-muted text-truncate">{{ t.nome }}</span>
+                                <span class="badge bg-secondary mt-1">{{ t.tamanho }}</span>
+                            </div>
+                            <a href="{{ t.magnet }}" class="btn-magnet">🧲 Baixar</a>
+                        </div>
+                    {% endfor %}
                     </div>
-                    <a href="{{ links.magnet }}" target="_blank" class="btn btn-secundario p-3 mt-1">
-                        🧲 Busca Profunda de Magnet Link (Tags Ocultas)
+                {% else %}
+                    <div class="alert alert-dark border-secondary text-center small">
+                        ⚠️ A API não localizou magnets diretos no momento. Use a busca profunda abaixo.
+                    </div>
+                {% endif %}
+                
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{{ busca_magnet }}" target="_blank" class="btn btn-secundario p-3">
+                        🔍 Busca Profunda na Web (Dual Audio / MKV)
                     </a>
                 </div>
+
             </div>
         </div>
     </div>
