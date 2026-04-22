@@ -23,6 +23,33 @@ def get_trailer(filme_id):
             return video.get('key')
     return None
 
+def buscar_torrents_api(titulo):
+    """Consulta a API de Torrents que você encontrou para puxar os Magnets diretos"""
+    try:
+        # Busca focado em dublado/dual áudio
+        query = urllib.parse.quote(f"{titulo} dublado")
+        url = f"https://torrent-api-py-nx0x.onrender.com/api/v1/search?query={query}"
+        
+        # Faz a requisição para a API externa
+        resposta = requests.get(url, timeout=8).json()
+        
+        # Se a API retornar uma lista, formatamos os resultados (limitado a 5)
+        torrents = []
+        if isinstance(resposta, list):
+            for item in resposta[:5]:
+                # Tenta capturar o magnet, name e size baseados em padrões de APIs
+                magnet = item.get('magnet') or item.get('link')
+                if magnet and magnet.startswith('magnet:?'):
+                    torrents.append({
+                        "nome": item.get('name', 'Torrent Encontrado')[:50] + "...", # Limita o nome pra não quebrar o layout
+                        "tamanho": item.get('size', 'N/A'),
+                        "magnet": magnet
+                    })
+        return torrents
+    except Exception as e:
+        print("Erro na API de Torrent:", e)
+        return []
+
 @app.route('/')
 def index():
     query = request.args.get('q')
@@ -53,20 +80,25 @@ def detalhes_filme(filme_id):
     trailer_key = get_trailer(filme_id)
     titulo = filme.get('title', '')
     
-    # Prepara o título com aspas para forçar a busca exata do nome do filme
+    # 1. Puxa a lista de torrents direto da API
+    lista_torrents = buscar_torrents_api(titulo)
+    
+    # 2. Mantém a busca online poderosa que você gostou
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
+    link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
+    
+    # 3. Busca de segurança caso a API caia (Usando tags agressivas como você pediu)
     titulo_limpo = urllib.parse.quote(titulo)
+    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv+download+magnet"
     
-    # LINKS INTELIGENTES (Com as suas recomendações)
-    links = {
-        "busca_online": f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd",
-        "semtorrent": f"https://www.google.com/search?q=site:semtorrent.com+{titulo_exato}",
-        "vingadores": f"https://www.google.com/search?q=site:vingadorestorrent.site+{titulo_exato}",
-        # Busca agressiva com novas tags focadas em torrents brasileiros
-        "magnet": f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv+download+magnet"
-    }
-    
-    return render_template("detalhes.html", filme=filme, img_base=IMG_PATH, bg_base=BG_PATH, trailer=trailer_key, links=links)
+    return render_template("detalhes.html", 
+                           filme=filme, 
+                           img_base=IMG_PATH, 
+                           bg_base=BG_PATH, 
+                           trailer=trailer_key, 
+                           busca_online=link_busca_online,
+                           lista_torrents=lista_torrents,
+                           busca_magnet=busca_magnet)
 
 if __name__ == "__main__":
     app.run()
