@@ -27,12 +27,12 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# 🔥 NOVO: API TORRENT (NODE)
+# 🔥 API TORRENT ONLINE (SUA)
 # ==========================================================
 def buscar_torrents_api(titulo):
     try:
-        url = f"http://127.0.0.1:3000/streams?q={urllib.parse.quote(titulo)}"
-        r = requests.get(url, timeout=10)
+        url = f"https://torrent-api-t1ml.onrender.com/streams?q={urllib.parse.quote(titulo)}"
+        r = requests.get(url, timeout=15)
         data = r.json()
 
         torrents = []
@@ -43,9 +43,6 @@ def buscar_torrents_api(titulo):
                 "tamanho": item.get("size", "N/A"),
                 "magnet": item.get("magnet")
             })
-
-        # Ordena (melhores primeiro)
-        torrents.sort(key=lambda x: x['nome'], reverse=True)
 
         return torrents
 
@@ -68,7 +65,10 @@ def index():
         listas.append({"titulo": f"🔍 Resultados para: '{query}'", "filmes": filmes})
 
     elif genero:
-        filmes = get_tmdb_data("discover/movie", {"with_genres": genero, "sort_by": "popularity.desc"}).get('results', [])
+        filmes = get_tmdb_data("discover/movie", {
+            "with_genres": genero,
+            "sort_by": "popularity.desc"
+        }).get('results', [])
         listas.append({"titulo": "🎭 Filmes Encontrados", "filmes": filmes})
 
     elif ano:
@@ -80,10 +80,22 @@ def index():
         listas.append({"titulo": f"🎞️ Clássicos dos Anos {ano}", "filmes": filmes})
 
     else:
-        listas.append({"titulo": "🔥 Lançamentos", "filmes": get_tmdb_data("movie/now_playing", {"region": "BR"}).get('results', [])[:15]})
-        listas.append({"titulo": "🌟 Mais Populares", "filmes": get_tmdb_data("movie/popular", {"region": "BR"}).get('results', [])[:15]})
-        listas.append({"titulo": "👻 Terror e Suspense", "filmes": get_tmdb_data("discover/movie", {"with_genres": "27,53"}).get('results', [])[:15]})
-        listas.append({"titulo": "💥 Ação e Aventura", "filmes": get_tmdb_data("discover/movie", {"with_genres": "28,12"}).get('results', [])[:15]})
+        listas.append({
+            "titulo": "🔥 Lançamentos",
+            "filmes": get_tmdb_data("movie/now_playing", {"region": "BR"}).get('results', [])[:15]
+        })
+        listas.append({
+            "titulo": "🌟 Mais Populares",
+            "filmes": get_tmdb_data("movie/popular", {"region": "BR"}).get('results', [])[:15]
+        })
+        listas.append({
+            "titulo": "👻 Terror e Suspense",
+            "filmes": get_tmdb_data("discover/movie", {"with_genres": "27,53"}).get('results', [])[:15]
+        })
+        listas.append({
+            "titulo": "💥 Ação e Aventura",
+            "filmes": get_tmdb_data("discover/movie", {"with_genres": "28,12"}).get('results', [])[:15]
+        })
 
     return render_template("index.html", listas=listas, img_base=IMG_PATH)
 
@@ -95,7 +107,7 @@ def detalhes_filme(filme_id):
 
     titulo = filme.get('title', '')
 
-    # 🔥 USA API NOVA
+    # 🔥 BUSCA TORRENT NA SUA API
     lista_torrents = buscar_torrents_api(titulo)
 
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
