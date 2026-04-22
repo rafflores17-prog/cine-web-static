@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request
-from bs4 import BeautifulSoup
 import requests
 import urllib.parse
 
@@ -25,47 +24,35 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# 🕷️ SEU PRÓPRIO SCRAPER DE TORRENT (O "MOTOR DE BUSCA")
+# 🛡️ MOTOR DE BUSCA SEGURO (YTS API VIA IMDB_ID)
 # ==========================================================
-def buscar_torrents_1377x(titulo):
-    """Raspa o site 1377x para encontrar magnets diretos"""
-    try:
-        # Pesquisa com foco em dublado/dual áudio
-        query = urllib.parse.quote(f"{titulo} dublado")
-        url_busca = f"https://www.1377x.to/search/{query}/1/"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"}
+def buscar_torrents_seguros(imdb_id, titulo):
+    """Busca Torrents usando o ID exato do filme em uma base 100% segura"""
+    if not imdb_id:
+        return []
         
-        # 1. Faz a busca inicial
-        r = requests.get(url_busca, headers=headers, timeout=8)
-        soup = BeautifulSoup(r.text, 'html.parser')
+    try:
+        # A API do YTS busca pelo ID exato do IMDb, margem de erro zero.
+        url_yts = f"https://yts.mx/api/v2/movie_details.json?imdb_id={imdb_id}"
+        resposta = requests.get(url_yts, timeout=8).json()
         
         torrents = []
-        # Pega apenas os 4 primeiros resultados para o site não demorar muito a carregar
-        for tr in soup.select("table tbody tr")[:4]:
-            links = tr.select("td.name a")
-            if len(links) >= 2:
-                nome = links[1].text
-                link_detalhe = "https://www.1377x.to" + links[1]['href']
-                
-                # Pega o tamanho do arquivo limpando as tags em volta
-                tamanho_bruto = tr.select_one("td.size").text
-                tamanho = tamanho_bruto.split("B")[0] + "B" if "B" in tamanho_bruto else "N/A"
-                
-                # 2. Entra na página do torrent para roubar o Magnet Link
-                r_det = requests.get(link_detalhe, headers=headers, timeout=5)
-                soup_det = BeautifulSoup(r_det.text, 'html.parser')
-                magnet_tag = soup_det.select_one('a[href^="magnet:?xt="]')
-                
-                if magnet_tag:
+        # Verifica se o filme foi encontrado e tem torrents
+        if resposta.get('status') == 'ok' and 'movie' in resposta['data']:
+            movie_data = resposta['data']['movie']
+            if 'torrents' in movie_data:
+                titulo_encode = urllib.parse.quote(titulo)
+                for t in movie_data['torrents']:
+                    # Monta o magnet link manualmente
+                    magnet = f"magnet:?xt=urn:btih:{t['hash']}&dn={titulo_encode}"
                     torrents.append({
-                        "nome": nome[:50] + "...", 
-                        "tamanho": tamanho,
-                        "magnet": magnet_tag['href']
+                        "nome": f"Qualidade: {t['quality']} {t['type'].upper()} (Áudio Original)",
+                        "tamanho": t['size'],
+                        "magnet": magnet
                     })
-                    
         return torrents
     except Exception as e:
-        print("Erro no Raspador:", e)
+        print("Erro na Busca Segura:", e)
         return []
 
 # ==========================================================
@@ -97,13 +84,17 @@ def index():
 
 @app.route('/filme/<int:filme_id>')
 def detalhes_filme(filme_id):
+    # Puxa os dados completos, incluindo o IMDb ID que é a nossa chave de segurança
     filme = get_tmdb_data(f"movie/{filme_id}")
     trailer_key = get_trailer(filme_id)
+    
     titulo = filme.get('title', '')
+    imdb_id = filme.get('imdb_id', '')
     
-    # Executa o SEU raspador
-    lista_torrents = buscar_torrents_1377x(titulo)
+    # 1. Busca os Torrents de forma 100% limpa e exata
+    lista_torrents = buscar_torrents_seguros(imdb_id, titulo)
     
+    # 2. Mantém as buscas secundárias intactas
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
     
