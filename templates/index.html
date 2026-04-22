@@ -8,13 +8,16 @@
     <style>
         body { background: #0b0b0b; color: white; font-family: sans-serif; overflow-x: hidden; }
         .navbar { background: rgba(0,0,0,0.9); border-bottom: 2px solid #db0000; }
+        .menu-filtros { background: #111; padding: 10px 0; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #333; }
+        .menu-filtros::-webkit-scrollbar { display: none; }
+        .btn-filtro { border: 1px solid #555; color: #ccc; border-radius: 20px; padding: 5px 15px; text-decoration: none; margin: 0 5px; font-size: 0.9rem; transition: 0.3s; }
+        .btn-filtro:hover { background: #db0000; color: white; border-color: #db0000; }
         .row-horizontal { display: flex; overflow-x: auto; padding-bottom: 15px; gap: 15px; scrollbar-width: none; }
         .row-horizontal::-webkit-scrollbar { display: none; }
-        .card-filme { flex: 0 0 auto; width: 140px; background: none; border: none; transition: 0.3s; }
-        .card-filme:hover { transform: scale(1.05); }
+        .card-filme { flex: 0 0 auto; width: 140px; transition: 0.3s; text-decoration: none; color: white; }
+        .card-filme:hover { transform: scale(1.05); color: #db0000; }
         .card-filme img { border-radius: 8px; width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.6); }
         .secao-titulo { border-left: 4px solid #db0000; padding-left: 10px; margin-top: 30px; font-weight: bold; }
-        a { text-decoration: none; color: inherit; }
     </style>
 </head>
 <body>
@@ -28,45 +31,31 @@
     </div>
 </nav>
 
+<div class="menu-filtros px-3">
+    <a href="/" class="btn-filtro">🏠 Início</a>
+    <a href="/?ano=1980" class="btn-filtro">🎸 Anos 80</a>
+    <a href="/?ano=1990" class="btn-filtro">💾 Anos 90</a>
+    <a href="/?ano=2000" class="btn-filtro">💿 Anos 2000</a>
+    <a href="/?genero=28" class="btn-filtro">🔥 Ação</a>
+    <a href="/?genero=27" class="btn-filtro">👻 Terror</a>
+    <a href="/?genero=35" class="btn-filtro">🤡 Comédia</a>
+</div>
+
 <div class="container mt-3">
-    {% if query %}
-        <h4 class="secao-titulo mb-3">Resultados para: {{ query }}</h4>
-        <div class="d-flex flex-wrap gap-3">
-            {% for m in pesquisa %}
-            <a href="/filme/{{ m.id }}" class="card-filme">
-                <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
-                <p class="small text-center mt-2 text-truncate">{{ m.title }}</p>
-            </a>
-            {% endfor %}
-        </div>
-    {% else %}
-        <h4 class="secao-titulo">🔥 Filmes em Cartaz</h4>
+    {% for lista in listas %}
+        <h4 class="secao-titulo">{{ lista.titulo }}</h4>
         <div class="row-horizontal mt-3">
-            {% for m in cartaz %}
+            {% for m in lista.filmes %}
             <a href="/filme/{{ m.id }}" class="card-filme">
+                {% if m.poster_path %}
                 <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
+                {% else %}
+                <div style="width:100%; height:210px; background:#222; border-radius:8px; display:flex; align-items:center; text-align:center; padding:10px;">{{ m.title }}</div>
+                {% endif %}
             </a>
             {% endfor %}
         </div>
-
-        <h4 class="secao-titulo">🌟 Mais Populares</h4>
-        <div class="row-horizontal mt-3">
-            {% for m in populares %}
-            <a href="/filme/{{ m.id }}" class="card-filme">
-                <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
-            </a>
-            {% endfor %}
-        </div>
-
-        <h4 class="secao-titulo">📺 Séries Populares</h4>
-        <div class="row-horizontal mt-3">
-            {% for s in series %}
-            <a href="#" class="card-filme">
-                <img src="{{ img_base }}{{ s.poster_path }}" alt="{{ s.name }}">
-            </a>
-            {% endfor %}
-        </div>
-    {% endif %}
+    {% endfor %}
 </div>
 
 </body>
