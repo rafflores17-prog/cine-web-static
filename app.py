@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request
+from bs4 import BeautifulSoup
 import requests
 import urllib.parse
 
@@ -7,14 +8,6 @@ app = Flask(__name__)
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG_PATH = "https://image.tmdb.org/t/p/w500"
 BG_PATH = "https://image.tmdb.org/t/p/original"
-
-# Trackers públicos ultra-rápidos (Baseados na sua análise!)
-TRACKERS = (
-    "&tr=udp://tracker.openbittorrent.com:80/announce"
-    "&tr=udp://tracker.opentrackr.org:1337/announce"
-    "&tr=udp://tracker.coppersurfer.tk:6969/announce"
-    "&tr=udp://p4p.arenabg.com:1337/announce"
-)
 
 def get_tmdb_data(endpoint, params={}):
     base = "https://api.themoviedb.org/3"
@@ -32,58 +25,56 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# 🚀 MOTOR TORRENTIO (O Motor do Stremio - Focado em DUAL/PT-BR)
+# 🕷️ RASPADOR SEGURO 1337X (BLOQUEADO NA CATEGORIA FILMES)
 # ==========================================================
-def buscar_torrents_stremio(imdb_id, titulo):
-    if not imdb_id:
-        return []
-        
-    try:
-        # A API do Torrentio raspa todos os indexadores do mundo pelo ID do IMDB
-        url = f"https://torrentio.strem.fun/stream/movie/{imdb_id}.json"
-        resposta = requests.get(url, timeout=8).json()
-        streams = resposta.get('streams', [])
-        
-        torrents_br = []
-        torrents_originais = []
-        titulo_encode = urllib.parse.quote(titulo)
-        
-        for s in streams:
-            info_hash = s.get('infoHash')
-            if not info_hash:
-                continue
-                
-            # O nome do arquivo e os detalhes vêm misturados no título
-            title_completo = s.get('title', '')
-            nome_fonte = s.get('name', 'Torrent')
+def buscar_torrents_1377x_seguro(titulo):
+    """Raspa o site 1377x mas com um cadeado na categoria 'Movies'"""
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"}
+    
+    def fazer_busca(query):
+        # O Segredo: O URL usa /category-search/ e termina em /Movies/1/
+        url_busca = f"https://www.1377x.to/category-search/{urllib.parse.quote(query)}/Movies/1/"
+        try:
+            r = requests.get(url_busca, headers=headers, timeout=8)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            torrents = []
             
-            # Formata o nome para ficar bonito no layout
-            partes = title_completo.split('\n')
-            nome_limpo = partes[0][:50] + "..." if len(partes[0]) > 50 else partes[0]
-            detalhes = partes[1] if len(partes) > 1 else "Tamanho não informado"
-            
-            # Monta o magnet link com os trackers que você descobriu
-            magnet = f"magnet:?xt=urn:btih:{info_hash}&dn={titulo_encode}{TRACKERS}"
-            
-            item = {
-                "nome": f"[{nome_fonte}] {nome_limpo}",
-                "tamanho": detalhes.replace('👤', 'Seeds:').replace('💾', '| Tamanho:'),
-                "magnet": magnet
-            }
-            
-            # Filtra separando o que é do Brasil e o que é Gringo
-            if 'dublado' in title_completo.lower() or 'dual' in title_completo.lower() or 'pt-br' in title_completo.lower():
-                torrents_br.append(item)
-            else:
-                torrents_originais.append(item)
+            for tr in soup.select("table tbody tr")[:4]:
+                links = tr.select("td.name a")
+                if len(links) >= 2:
+                    nome = links[1].text
+                    link_detalhe = "https://www.1377x.to" + links[1]['href']
+                    tamanho_bruto = tr.select_one("td.size").text
+                    tamanho = tamanho_bruto.split("B")[0] + "B" if "B" in tamanho_bruto else "N/A"
+                    
+                    # Entra na página do ficheiro para puxar o Magnet Link
+                    r_det = requests.get(link_detalhe, headers=headers, timeout=5)
+                    soup_det = BeautifulSoup(r_det.text, 'html.parser')
+                    magnet_tag = soup_det.select_one('a[href^="magnet:?xt="]')
+                    
+                    if magnet_tag:
+                        torrents.append({
+                            "nome": nome[:55] + "..." if len(nome) > 55 else nome, 
+                            "tamanho": tamanho,
+                            "magnet": magnet_tag['href']
+                        })
+            return torrents
+        except Exception as e:
+            print("Erro no Raspador:", e)
+            return []
 
-        # Retorna primeiro os Brasileiros (se tiver). Se não, manda os originais.
-        resultados = torrents_br[:5] if torrents_br else torrents_originais[:5]
-        return resultados
-
-    except Exception as e:
-        print("Erro no Torrentio:", e)
-        return []
+    # 1. Tentativa principal: Procura por cópias dubladas no Brasil
+    resultados = fazer_busca(f"{titulo} dublado")
+    
+    # 2. Resgate 1: Tenta procurar por "dual" áudio
+    if not resultados:
+        resultados = fazer_busca(f"{titulo} dual")
+        
+    # 3. Resgate final: Se não houver dublado, traz o filme original (inglês)
+    if not resultados:
+        resultados = fazer_busca(titulo)
+        
+    return resultados
 
 # ==========================================================
 # ROTAS DO SITE
@@ -118,10 +109,9 @@ def detalhes_filme(filme_id):
     trailer_key = get_trailer(filme_id)
     
     titulo = filme.get('title', '')
-    imdb_id = filme.get('imdb_id', '')
     
-    # Executa a nova busca do Torrentio
-    lista_torrents = buscar_torrents_stremio(imdb_id, titulo)
+    # Executa o SEU raspador blindado
+    lista_torrents = buscar_torrents_1377x_seguro(titulo)
     
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
