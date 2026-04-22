@@ -15,10 +15,13 @@
         .btn-voltar { color: #fff; text-decoration: none; font-weight: bold; }
         .poster-img { border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 2px solid #222; }
         .box-info { background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(10px); border-radius: 15px; padding: 25px; border: 1px solid #333; }
-        .btn-google { background: #4285F4; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
-        .btn-google:hover { background: #3367D6; color: white; }
+        
+        .btn-google { background: #e50914; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
+        .btn-google:hover { background: #b20710; color: white; }
+        
         .btn-torrent-br { background: #00a859; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
         .btn-torrent-br:hover { background: #007c42; color: white; }
+        
         .btn-secundario { background: #333; color: white; font-weight: bold; border-radius: 8px; transition: 0.3s; }
         .btn-secundario:hover { background: #444; color: white; }
     </style>
@@ -53,27 +56,24 @@
                 <hr style="border-color: #444; my-4;">
                 
                 <h5 class="fw-bold mb-3">📺 Assistir Online (Dublado)</h5>
-                <div class="d-grid gap-2 d-md-flex">
-                    <a href="{{ links.busca_online }}" target="_blank" class="btn btn-google p-2 px-4 flex-fill">
-                        🔍 Buscar nos Melhores Sites (Recomendado)
-                    </a>
-                    <a href="{{ links.player_embed }}" target="_blank" class="btn btn-secundario p-2 px-4 text-muted">
-                        ▶️ Player Alternativo
+                <div class="d-grid gap-2">
+                    <a href="{{ links.busca_online }}" target="_blank" class="btn btn-google p-3">
+                        ▶️ Buscar nos Melhores Sites
                     </a>
                 </div>
 
                 <h5 class="fw-bold mt-4 mb-3">📥 Download de Torrent (PT-BR)</h5>
                 <div class="d-grid gap-2">
                     <div class="d-flex gap-2">
-                        <a href="{{ links.comando_torrent }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
-                            🇧🇷 Comando Torrents
+                        <a href="{{ links.semtorrent }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
+                            🎯 Buscar no SemTorrent
                         </a>
-                        <a href="{{ links.bludv }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
-                            🇧🇷 BluDV Bluray
+                        <a href="{{ links.vingadores }}" target="_blank" class="btn btn-torrent-br flex-fill p-3">
+                            🛡️ Buscar no Vingadores Torrent
                         </a>
                     </div>
                     <a href="{{ links.magnet }}" target="_blank" class="btn btn-secundario p-3 mt-1">
-                        🧲 Busca Geral de Magnet Link
+                        🧲 Busca Profunda de Magnet Link (Tags Ocultas)
                     </a>
                 </div>
             </div>
