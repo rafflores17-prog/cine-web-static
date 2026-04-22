@@ -8,13 +8,14 @@
     <style>
         body { 
             background-color: #000; color: white; 
-            background-image: linear-gradient(to right, rgba(0,0,0,1) 20%, rgba(0,0,0,0.5)), url('{{ bg_base }}{{ filme.backdrop_path }}');
+            background-image: linear-gradient(to right, rgba(0,0,0,1) 30%, rgba(0,0,0,0.6)), url('{{ bg_base }}{{ filme.backdrop_path }}');
             background-size: cover; background-position: center; background-attachment: fixed;
+            min-height: 100vh;
         }
         .navbar { background: rgba(0,0,0,0.8); }
-        .player-container { margin-top: 30px; background: black; padding: 5px; border-radius: 10px; box-shadow: 0 0 20px rgba(219,0,0,0.4); }
-        .sinopse-box { background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; margin-top: 20px; }
         .btn-voltar { color: white; text-decoration: none; font-size: 1.2rem; }
+        .poster-img { border-radius: 10px; box-shadow: 0 0 20px rgba(219,0,0,0.4); border: 2px solid #333; }
+        .btn-assistir { font-weight: bold; font-size: 1.1rem; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -25,21 +26,35 @@
     </div>
 </nav>
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-4">
-            <img src="{{ img_base }}{{ filme.poster_path }}" class="img-fluid rounded shadow" alt="Poster">
-            <div class="sinopse-box mt-3">
-                <h2 class="fw-bold">{{ filme.title }}</h2>
-                <p class="text-warning">⭐ {{ filme.vote_average | round(1) }}/10 | 📅 {{ filme.release_date }}</p>
-                <p>{{ filme.overview }}</p>
-            </div>
+<div class="container mt-5 pb-5">
+    <div class="row align-items-center">
+        <div class="col-md-4 text-center mb-4">
+            <img src="{{ img_base }}{{ filme.poster_path }}" class="img-fluid poster-img" alt="Poster">
         </div>
         
         <div class="col-md-8">
-            <h4 class="fw-bold mb-3">▶️ Assistir Agora</h4>
-            <div class="player-container ratio ratio-16x9">
-                <iframe src="https://embed.warezcdn.net/filme/{{ filme.id }}" allowfullscreen></iframe>
+            <h1 class="fw-bold text-uppercase" style="color: #db0000; text-shadow: 2px 2px 4px #000;">{{ filme.title }}</h1>
+            <p class="text-warning fs-5">⭐ {{ filme.vote_average | round(1) }}/10 | 📅 Lançamento: {{ filme.release_date }}</p>
+            <p class="fs-6 bg-dark bg-opacity-75 p-3 rounded border border-secondary">{{ filme.overview }}</p>
+            
+            <div class="mt-4 d-grid gap-3">
+                <a href="https://embed.warezcdn.net/filme/{{ filme.id }}" target="_blank" class="btn btn-danger btn-assistir p-3">
+                    ▶️ ASSISTIR ONLINE (Servidor 1)
+                </a>
+                
+                <a href="{{ link_busca }}" target="_blank" class="btn btn-outline-light btn-assistir p-3">
+                    🔍 PROCURAR EM OUTROS SITES
+                </a>
+
+                {% if torrent %}
+                <a href="{{ torrent }}" class="btn btn-success btn-assistir p-3 mt-2">
+                    📥 BAIXAR VIA TORRENT (Magnet Link)
+                </a>
+                {% else %}
+                <button class="btn btn-secondary btn-assistir p-3 mt-2" disabled>
+                    ❌ Torrent indisponível
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
