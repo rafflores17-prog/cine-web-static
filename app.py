@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request
+from bs4 import BeautifulSoup
 import requests
 import urllib.parse
 
@@ -23,33 +24,53 @@ def get_trailer(filme_id):
             return video.get('key')
     return None
 
-def buscar_torrents_api(titulo):
-    """Consulta a API de Torrents que você encontrou para puxar os Magnets diretos"""
+# ==========================================================
+# 🕷️ SEU PRÓPRIO SCRAPER DE TORRENT (O "MOTOR DE BUSCA")
+# ==========================================================
+def buscar_torrents_1377x(titulo):
+    """Raspa o site 1377x para encontrar magnets diretos"""
     try:
-        # Busca focado em dublado/dual áudio
+        # Pesquisa com foco em dublado/dual áudio
         query = urllib.parse.quote(f"{titulo} dublado")
-        url = f"https://torrent-api-py-nx0x.onrender.com/api/v1/search?query={query}"
+        url_busca = f"https://www.1377x.to/search/{query}/1/"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"}
         
-        # Faz a requisição para a API externa
-        resposta = requests.get(url, timeout=8).json()
+        # 1. Faz a busca inicial
+        r = requests.get(url_busca, headers=headers, timeout=8)
+        soup = BeautifulSoup(r.text, 'html.parser')
         
-        # Se a API retornar uma lista, formatamos os resultados (limitado a 5)
         torrents = []
-        if isinstance(resposta, list):
-            for item in resposta[:5]:
-                # Tenta capturar o magnet, name e size baseados em padrões de APIs
-                magnet = item.get('magnet') or item.get('link')
-                if magnet and magnet.startswith('magnet:?'):
+        # Pega apenas os 4 primeiros resultados para o site não demorar muito a carregar
+        for tr in soup.select("table tbody tr")[:4]:
+            links = tr.select("td.name a")
+            if len(links) >= 2:
+                nome = links[1].text
+                link_detalhe = "https://www.1377x.to" + links[1]['href']
+                
+                # Pega o tamanho do arquivo limpando as tags em volta
+                tamanho_bruto = tr.select_one("td.size").text
+                tamanho = tamanho_bruto.split("B")[0] + "B" if "B" in tamanho_bruto else "N/A"
+                
+                # 2. Entra na página do torrent para roubar o Magnet Link
+                r_det = requests.get(link_detalhe, headers=headers, timeout=5)
+                soup_det = BeautifulSoup(r_det.text, 'html.parser')
+                magnet_tag = soup_det.select_one('a[href^="magnet:?xt="]')
+                
+                if magnet_tag:
                     torrents.append({
-                        "nome": item.get('name', 'Torrent Encontrado')[:50] + "...", # Limita o nome pra não quebrar o layout
-                        "tamanho": item.get('size', 'N/A'),
-                        "magnet": magnet
+                        "nome": nome[:50] + "...", 
+                        "tamanho": tamanho,
+                        "magnet": magnet_tag['href']
                     })
+                    
         return torrents
     except Exception as e:
-        print("Erro na API de Torrent:", e)
+        print("Erro no Raspador:", e)
         return []
 
+# ==========================================================
+# ROTAS DO SITE
+# ==========================================================
 @app.route('/')
 def index():
     query = request.args.get('q')
@@ -80,14 +101,12 @@ def detalhes_filme(filme_id):
     trailer_key = get_trailer(filme_id)
     titulo = filme.get('title', '')
     
-    # 1. Puxa a lista de torrents direto da API
-    lista_torrents = buscar_torrents_api(titulo)
+    # Executa o SEU raspador
+    lista_torrents = buscar_torrents_1377x(titulo)
     
-    # 2. Mantém a busca online poderosa que você gostou
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
     
-    # 3. Busca de segurança caso a API caia (Usando tags agressivas como você pediu)
     titulo_limpo = urllib.parse.quote(titulo)
     busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv+download+magnet"
     
