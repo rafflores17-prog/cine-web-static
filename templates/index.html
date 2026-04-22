@@ -3,48 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineSky Web - StartStatic</title>
+    <title>StartStatic - CineWeb</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #141414; color: white; font-family: 'Arial', sans-serif; }
-        .navbar { background-color: rgba(0,0,0,0.9); }
-        .movie-card { transition: transform 0.3s; cursor: pointer; margin-bottom: 20px; }
-        .movie-card:hover { transform: scale(1.05); }
-        .movie-img { border-radius: 8px; width: 100%; }
-        h2 { margin-top: 30px; font-weight: bold; color: #E50914; }
+        body { background: #0b0b0b; color: white; font-family: sans-serif; overflow-x: hidden; }
+        .navbar { background: rgba(0,0,0,0.9); border-bottom: 2px solid #db0000; }
+        .row-horizontal { display: flex; overflow-x: auto; padding-bottom: 15px; gap: 15px; scrollbar-width: none; }
+        .row-horizontal::-webkit-scrollbar { display: none; }
+        .card-filme { flex: 0 0 auto; width: 140px; background: none; border: none; transition: 0.3s; }
+        .card-filme:hover { transform: scale(1.05); }
+        .card-filme img { border-radius: 8px; width: 100%; box-shadow: 0 4px 8px rgba(0,0,0,0.6); }
+        .secao-titulo { border-left: 4px solid #db0000; padding-left: 10px; margin-top: 30px; font-weight: bold; }
+        a { text-decoration: none; color: inherit; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark p-3">
-    <a class="navbar-brand" href="#">🎬 <b>CineSky Web</b></a>
+<nav class="navbar navbar-dark p-3 sticky-top">
+    <div class="container d-flex justify-content-between align-items-center">
+        <a class="navbar-brand" href="/">🎬 <b>CineWeb</b></a>
+        <form class="d-flex" action="/">
+            <input class="form-control bg-dark text-white border-secondary" type="search" name="q" placeholder="Buscar filmes...">
+        </form>
+    </div>
 </nav>
 
-<div class="container">
-    <h2>🔥 Filmes em Cartaz</h2>
-    <div class="row">
-        {% for m in cartaz %}
-        <div class="col-6 col-md-2 movie-card">
-            <img src="{{ img_base }}{{ m.poster_path }}" class="movie-img" alt="{{ m.title }}">
-            <p class="text-center mt-2 small">{{ m.title }}</p>
+<div class="container mt-3">
+    {% if query %}
+        <h4 class="secao-titulo mb-3">Resultados para: {{ query }}</h4>
+        <div class="d-flex flex-wrap gap-3">
+            {% for m in pesquisa %}
+            <a href="/filme/{{ m.id }}" class="card-filme">
+                <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
+                <p class="small text-center mt-2 text-truncate">{{ m.title }}</p>
+            </a>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+    {% else %}
+        <h4 class="secao-titulo">🔥 Filmes em Cartaz</h4>
+        <div class="row-horizontal mt-3">
+            {% for m in cartaz %}
+            <a href="/filme/{{ m.id }}" class="card-filme">
+                <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
+            </a>
+            {% endfor %}
+        </div>
 
-    <h2>🌟 Mais Populares</h2>
-    <div class="row">
-        {% for m in populares %}
-        <div class="col-6 col-md-2 movie-card">
-            <img src="{{ img_base }}{{ m.poster_path }}" class="movie-img" alt="{{ m.title }}">
-            <p class="text-center mt-2 small">{{ m.title }}</p>
+        <h4 class="secao-titulo">🌟 Mais Populares</h4>
+        <div class="row-horizontal mt-3">
+            {% for m in populares %}
+            <a href="/filme/{{ m.id }}" class="card-filme">
+                <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
+            </a>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+
+        <h4 class="secao-titulo">📺 Séries Populares</h4>
+        <div class="row-horizontal mt-3">
+            {% for s in series %}
+            <a href="#" class="card-filme">
+                <img src="{{ img_base }}{{ s.poster_path }}" alt="{{ s.name }}">
+            </a>
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>
-
-<footer class="text-center p-5 text-muted">
-    Desenvolvido por @ericDfp | StartStatic 2026
-</footer>
 
 </body>
 </html>
