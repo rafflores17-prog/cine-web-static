@@ -24,36 +24,55 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# 🛡️ MOTOR DE BUSCA SEGURO (YTS API VIA IMDB_ID)
+# 🚀 MOTOR APIBAY (O Maior do Mundo + Filtro de Segurança)
 # ==========================================================
-def buscar_torrents_seguros(imdb_id, titulo):
-    """Busca Torrents usando o ID exato do filme em uma base 100% segura"""
-    if not imdb_id:
-        return []
+def buscar_torrents_apibay(titulo_br, titulo_original):
+    """Busca no PirateBay filtrando apenas Vídeos/Filmes (Categoria 200+)"""
+    
+    def fazer_busca(query):
+        url = f"https://apibay.org/q.php?q={urllib.parse.quote(query)}"
+        try:
+            return requests.get(url, timeout=8).json()
+        except:
+            return []
+
+    # 1. Tenta achar Dublado primeiro
+    resultados = fazer_busca(f"{titulo_br} dublado")
+    
+    # Se a API retornar vazio ou com id '0' (No results), tenta o nome original
+    if not resultados or resultados[0].get('id') == '0':
+        resultados = fazer_busca(titulo_original)
         
-    try:
-        # A API do YTS busca pelo ID exato do IMDb, margem de erro zero.
-        url_yts = f"https://yts.mx/api/v2/movie_details.json?imdb_id={imdb_id}"
-        resposta = requests.get(url_yts, timeout=8).json()
-        
-        torrents = []
-        # Verifica se o filme foi encontrado e tem torrents
-        if resposta.get('status') == 'ok' and 'movie' in resposta['data']:
-            movie_data = resposta['data']['movie']
-            if 'torrents' in movie_data:
-                titulo_encode = urllib.parse.quote(titulo)
-                for t in movie_data['torrents']:
-                    # Monta o magnet link manualmente
-                    magnet = f"magnet:?xt=urn:btih:{t['hash']}&dn={titulo_encode}"
-                    torrents.append({
-                        "nome": f"Qualidade: {t['quality']} {t['type'].upper()} (Áudio Original)",
-                        "tamanho": t['size'],
-                        "magnet": magnet
-                    })
-        return torrents
-    except Exception as e:
-        print("Erro na Busca Segura:", e)
-        return []
+    torrents = []
+    if resultados and resultados[0].get('id') != '0':
+        for t in resultados:
+            # FILTRO DE BLINDAGEM: Apenas categorias de Vídeo (Começam com 2)
+            cat = str(t.get('category', '0'))
+            if cat.startswith('2'): 
+                nome = t.get('name', 'Sem nome')
+                hash_str = t.get('info_hash', '')
+                
+                # Monta o magnet link original do PirateBay
+                magnet = f"magnet:?xt=urn:btih:{hash_str}&dn={urllib.parse.quote(nome)}"
+                
+                # Calcula o tamanho de Bytes para GB ou MB
+                try:
+                    size_bytes = int(t.get('size', 0))
+                    tamanho = f"{size_bytes / 1073741824:.2f} GB" if size_bytes > 1073741824 else f"{size_bytes / 1048576:.2f} MB"
+                except:
+                    tamanho = "N/A"
+
+                torrents.append({
+                    "nome": nome[:55] + "..." if len(nome) > 55 else nome,
+                    "tamanho": tamanho,
+                    "magnet": magnet
+                })
+            
+            # Pára quando tiver 5 resultados válidos e limpos
+            if len(torrents) >= 5:
+                break
+                
+    return torrents
 
 # ==========================================================
 # ROTAS DO SITE
@@ -84,21 +103,20 @@ def index():
 
 @app.route('/filme/<int:filme_id>')
 def detalhes_filme(filme_id):
-    # Puxa os dados completos, incluindo o IMDb ID que é a nossa chave de segurança
     filme = get_tmdb_data(f"movie/{filme_id}")
     trailer_key = get_trailer(filme_id)
     
-    titulo = filme.get('title', '')
-    imdb_id = filme.get('imdb_id', '')
+    titulo_br = filme.get('title', '')
+    # Tenta pegar o nome em inglês para ter plano B, se não tiver, usa o BR mesmo
+    titulo_original = filme.get('original_title', titulo_br)
     
-    # 1. Busca os Torrents de forma 100% limpa e exata
-    lista_torrents = buscar_torrents_seguros(imdb_id, titulo)
+    # Executa a busca blindada do PirateBay
+    lista_torrents = buscar_torrents_apibay(titulo_br, titulo_original)
     
-    # 2. Mantém as buscas secundárias intactas
-    titulo_exato = urllib.parse.quote(f'"{titulo}"')
+    titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
     
-    titulo_limpo = urllib.parse.quote(titulo)
+    titulo_limpo = urllib.parse.quote(titulo_br)
     busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv+download+magnet"
     
     return render_template("detalhes.html", 
