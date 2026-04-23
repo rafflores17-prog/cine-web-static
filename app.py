@@ -30,10 +30,8 @@ def buscar_no_iptv(titulo_filme):
             lista_vod = r.json()
             for item in lista_vod:
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                # Validação aproximada para filmes com nomes longos
                 if titulo_busca == nome_iptv or (titulo_busca in nome_iptv and len(nome_iptv) < len(titulo_busca) + 12):
                     stream_id = item.get('stream_id')
-                    # Forçamos MP4 para o player do navegador ler sem erro
                     return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
         except: continue
     return None
