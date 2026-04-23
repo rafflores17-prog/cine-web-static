@@ -3,58 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>{{ filme.title }}</title>
 
 <style>
 body {
   margin:0;
   font-family:Arial;
-  background:#0f0f0f;
   color:white;
+  overflow-x:hidden;
 }
 
-/* HERO FUNDO */
-.hero {
-  background: linear-gradient(to right, rgba(0,0,0,0.9), rgba(0,0,0,0.4)),
-              url('{{ bg }}{{ filme.backdrop_path }}');
-  background-size: cover;
-  background-position: center;
-  padding: 30px;
+/* FUNDO CINEMA (BLUR + MOVIMENTO) */
+.bg {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background-image:url('{{ bg }}{{ filme.backdrop_path }}');
+  background-size:cover;
+  background-position:center;
+  filter:blur(20px) brightness(0.4);
+  transform:scale(1.2);
+  z-index:-1;
 }
 
-/* LAYOUT PRINCIPAL */
+/* OVERLAY ESCURO */
+.overlay {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
+  z-index:-1;
+}
+
+/* CARD GLASS */
 .container {
   display:flex;
   gap:20px;
-  padding:20px;
+  padding:40px;
   flex-wrap:wrap;
+  align-items:center;
+}
+
+.glass {
+  background:rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px);
+  border-radius:15px;
+  padding:20px;
+  border:1px solid rgba(255,255,255,0.1);
 }
 
 /* POSTER */
 .poster {
   width:250px;
-  border-radius:10px;
-}
-
-/* INFO */
-.info {
-  flex:1;
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.5);
 }
 
 /* TRAILER */
-.trailer {
-  margin-top:20px;
-}
-
 iframe {
   width:100%;
-  height:250px;
+  height:300px;
   border-radius:10px;
+  margin-top:10px;
 }
 
 /* MOBILE */
-@media (max-width:768px) {
+@media(max-width:768px){
   .container {
     flex-direction:column;
     align-items:center;
@@ -69,28 +87,24 @@ iframe {
 
 <body>
 
-<div class="hero">
-  <h1>{{ filme.title }}</h1>
-  <p>⭐ {{ filme.vote_average }}</p>
-</div>
+<div class="bg"></div>
+<div class="overlay"></div>
 
 <div class="container">
 
-  <!-- POSTER -->
   <img class="poster" src="{{ img }}{{ filme.poster_path }}">
 
-  <!-- INFO -->
-  <div class="info">
-    <h2>Sinopse</h2>
+  <div class="glass" style="flex:1;">
+    <h1>{{ filme.title }}</h1>
+    <p>⭐ {{ filme.vote_average }}</p>
+
+    <h3>Sinopse</h3>
     <p>{{ filme.overview }}</p>
 
     {% if trailer %}
-    <div class="trailer">
-      <h3>🎬 Trailer</h3>
-      <iframe src="https://www.youtube.com/embed/{{ trailer }}" allowfullscreen></iframe>
-    </div>
+    <h3>🎬 Trailer</h3>
+    <iframe src="https://www.youtube.com/embed/{{ trailer }}" allowfullscreen></iframe>
     {% endif %}
-
   </div>
 
 </div>
