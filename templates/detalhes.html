@@ -2,149 +2,64 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>{{ filme.title }}</title>
 
 <style>
 body {
   margin:0;
   font-family:Arial;
+  background:black;
   color:white;
-  overflow-x:hidden;
-  background:#000;
 }
 
-/* FUNDO PRINCIPAL */
+.container {
+  padding:20px;
+}
+
 .bg {
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background-image:url('{{ bg }}{{ filme.backdrop_path }}');
   background-size:cover;
   background-position:center;
-  filter:blur(18px) brightness(0.45) saturate(1.3);
-  transform:scale(1.2);
-  animation: moveBg 18s ease-in-out infinite alternate;
-  z-index:-2;
+  height:300px;
+  filter:blur(2px) brightness(0.5);
 }
 
-/* MOVIMENTO SUAVE DO FUNDO */
-@keyframes moveBg {
-  0% { transform:scale(1.2) translateY(0px); }
-  100% { transform:scale(1.25) translateY(-15px); }
+.content {
+  margin-top:-200px;
+  position:relative;
+  padding:20px;
 }
 
-/* OVERLAY CINEMA */
-.overlay {
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:radial-gradient(circle at top, rgba(255,0,0,0.15), transparent 60%),
-             radial-gradient(circle at bottom, rgba(0,0,0,0.8), #000);
-  z-index:-1;
+img {
+  width:200px;
+  border-radius:10px;
 }
 
-/* CONTAINER */
-.container {
-  display:flex;
-  gap:25px;
-  padding:40px;
-  flex-wrap:wrap;
-  align-items:flex-start;
-}
-
-/* POSTER */
-.poster {
-  width:260px;
-  border-radius:14px;
-  box-shadow:0 15px 40px rgba(0,0,0,0.6);
-  transform:translateY(0);
-  transition:0.3s;
-}
-
-.poster:hover {
-  transform:scale(1.03);
-}
-
-/* CARD GLASS MELHORADO */
-.glass {
-  flex:1;
-  background:rgba(20,20,20,0.55);
-  backdrop-filter: blur(14px);
-  border-radius:16px;
-  padding:25px;
-  border:1px solid rgba(255,255,255,0.08);
-  box-shadow:0 10px 40px rgba(0,0,0,0.4);
-}
-
-/* SINOPSE MELHOR LEITURA */
-.glass p {
-  line-height:1.6;
-  color:#eaeaea;
-}
-
-/* TITULO */
-h1 {
-  margin-top:0;
-  color:#ff3b3b;
-}
-
-/* TRAILER */
-iframe {
-  width:100%;
-  height:320px;
-  border-radius:12px;
-  margin-top:15px;
-  border:2px solid rgba(255,255,255,0.05);
-}
-
-/* MOBILE */
-@media(max-width:768px){
-  .container {
-    flex-direction:column;
-    align-items:center;
-    padding:20px;
-  }
-
-  .poster {
-    width:85%;
-  }
-
-  iframe {
-    height:220px;
-  }
+.trailer {
+  margin-top:20px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="bg"></div>
-<div class="overlay"></div>
+<div class="bg" style="background-image:url('{{ bg }}{{ filme.backdrop_path }}')"></div>
 
-<div class="container">
+<div class="content">
 
-  <img class="poster" src="{{ img }}{{ filme.poster_path }}">
+  <h1>{{ filme.title }}</h1>
 
-  <div class="glass">
+  <img src="{{ img }}{{ filme.poster_path }}">
 
-    <h1>{{ filme.title }}</h1>
-    <p>⭐ {{ filme.vote_average }}</p>
+  <p>{{ filme.overview }}</p>
 
-    <h3>Sinopse</h3>
-    <p>{{ filme.overview }}</p>
-
-    {% if trailer %}
-      <h3>🎬 Trailer</h3>
-      <iframe src="https://www.youtube.com/embed/{{ trailer }}" allowfullscreen></iframe>
-    {% endif %}
-
+  {% if trailer %}
+  <div class="trailer">
+    <iframe width="100%" height="300"
+      src="https://www.youtube.com/embed/{{ trailer }}"
+      frameborder="0" allowfullscreen>
+    </iframe>
   </div>
+  {% endif %}
 
 </div>
 
