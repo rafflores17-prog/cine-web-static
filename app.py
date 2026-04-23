@@ -5,7 +5,6 @@ import re
 
 app = Flask(__name__)
 
-# Configurações do Cine Mega
 NOME_SITE = "Cine Mega"
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
@@ -31,38 +30,29 @@ def buscar_no_iptv(titulo_filme):
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
                 if titulo_busca == nome_iptv or (titulo_busca in nome_iptv and len(nome_iptv) < len(titulo_busca) + 12):
                     stream_id = item.get('stream_id')
+                    # Retornamos o link puro. O HTML vai cuidar de tentar burlar o Chrome.
                     return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
         except: continue
     return None
-
-def tmdb(endpoint, params=None):
-    if params is None: params = {}
-    url = f"https://api.themoviedb.org/3/{endpoint}"
-    params.update({"api_key": TMDB_API_KEY, "language": "pt-BR"})
-    try: return requests.get(url, params=params, timeout=10).json()
-    except: return {}
 
 @app.route("/")
 def home():
     query = request.args.get("q")
     if query:
-        filmes = tmdb("search/movie", {"query": query}).get("results", [])
+        filmes = requests.get(f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&language=pt-BR&query={query}").json().get("results", [])
     else:
-        p, t, tr = tmdb("movie/popular").get("results", []), tmdb("movie/top_rated").get("results", []), tmdb("trending/movie/week").get("results", [])
-        vistos, mistura = set(), []
-        for f in (p + t + tr):
-            if f['id'] not in vistos:
-                mistura.append(f); vistos.add(f['id'])
-        random.shuffle(mistura)
-        filmes = mistura[:20]
+        # Puxa populares e embaralha (Anti-Repetição)
+        res = requests.get(f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR").json().get("results", [])
+        random.shuffle(res)
+        filmes = res[:20]
     return render_template("index.html", filmes=filmes, img=IMG, nome_site=NOME_SITE)
 
 @app.route("/filme/<int:id>")
 def filme(id):
-    f_data = tmdb(f"movie/{id}")
+    f_data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR").json()
     play_link = buscar_no_iptv(f_data.get('title', ''))
-    videos = tmdb(f"movie/{id}/videos").get("results", [])
-    trailer = next((v['key'] for v in videos if v['type'] == 'Trailer' and v['site'] == 'YouTube'), None)
+    videos = requests.get(f"https://api.themoviedb.org/3/movie/{id}/videos?api_key={TMDB_API_KEY}&language=pt-BR").json().get("results", [])
+    trailer = next((v['key'] for v in videos if v['type'] == 'Trailer'), None)
     return render_template("detalhes.html", filme=f_data, img=IMG, bg=BG, trailer=trailer, play_link=play_link, nome_site=NOME_SITE)
 
 if __name__ == "__main__":
