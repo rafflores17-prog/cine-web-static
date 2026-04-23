@@ -4,13 +4,14 @@ import urllib.parse
 
 app = Flask(__name__)
 
+# 🔑 SUA API TMDB (MANTIDA)
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 
 IMG_PATH = "https://image.tmdb.org/t/p/w500"
 BG_PATH = "https://image.tmdb.org/t/p/original"
 
 # ==========================================================
-# TMDB
+# 🎬 TMDB
 # ==========================================================
 def get_tmdb_data(endpoint, params={}):
     base = "https://api.themoviedb.org/3"
@@ -28,67 +29,65 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# FILTRO
+# 🔥 API TORRENT MELHORADA
 # ==========================================================
-def filtro(nome, titulo_ref):
-    nome = nome.lower()
-
-    lixo = ["app", "software", "crack", "android", "game", "setup"]
-    if any(x in nome for x in lixo):
-        return False
-
-    # garante que tem relação com o filme
-    palavras = titulo_ref.lower().split()
-    return any(p in nome for p in palavras)
-
-# ==========================================================
-# BUSCA INTELIGENTE
-# ==========================================================
-def buscar_torrents_api(titulo, titulo_original, ano):
+def buscar_torrents_api(titulo, ano=None):
     try:
+        base_url = "https://torrent-api-t1ml.onrender.com/streams"
+
         buscas = [
-            f"{titulo_original} {ano} 1080p",
-            f"{titulo_original} {ano} BluRay",
-            f"{titulo_original} {ano}",
+            f"{titulo} {ano} 1080p dublado",
+            f"{titulo} {ano} 1080p dual audio",
+            f"{titulo} {ano} 720p dublado",
+            f"{titulo} {ano} 1080p",
             f"{titulo} {ano}"
         ]
 
-        torrents = []
+        resultados = []
 
         for busca in buscas:
-            url = f"https://torrent-api-t1ml.onrender.com/streams?q={urllib.parse.quote(busca)}"
+            url = f"{base_url}?q={urllib.parse.quote(busca)}"
             r = requests.get(url, timeout=15)
-
-            if r.status_code != 200:
-                continue
-
             data = r.json()
 
             for item in data.get("streams", []):
-                nome = item.get("title", "")
+                nome = item.get("title", "").lower()
 
-                if not filtro(nome, titulo_original):
+                # 🚫 filtra lixo
+                if titulo.lower() not in nome:
                     continue
 
-                torrents.append({
-                    "nome": nome[:70],
+                score = 0
+
+                # 🇧🇷 prioridade idioma
+                if any(x in nome for x in ["dublado", "dual", "pt-br", "portuguese"]):
+                    score += 5
+
+                # 🎬 qualidade
+                if "1080p" in nome:
+                    score += 3
+                elif "720p" in nome:
+                    score += 2
+
+                resultados.append({
+                    "nome": item.get("title")[:70],
                     "tamanho": item.get("size", "N/A"),
                     "magnet": item.get("magnet"),
-                    "seeders": item.get("seeders", 0)
+                    "score": score
                 })
 
-        torrents.sort(key=lambda x: x["seeders"], reverse=True)
-
-        # remove duplicados
+        # 🔁 remove duplicados
         vistos = set()
-        final = []
+        unicos = []
+        for t in resultados:
+            if t["magnet"] not in vistos:
+                vistos.add(t["magnet"])
+                unicos.append(t)
 
-        for t in torrents:
-            if t["nome"] not in vistos:
-                vistos.add(t["nome"])
-                final.append(t)
+        # 🔥 ordena melhores
+        unicos.sort(key=lambda x: x["score"], reverse=True)
 
-        return final[:12]
+        return unicos[:10]
 
     except Exception as e:
         print("Erro API:", e)
@@ -100,11 +99,28 @@ def buscar_torrents_api(titulo, titulo_original, ano):
 @app.route('/')
 def index():
     query = request.args.get('q')
+    genero = request.args.get('genero')
+    ano = request.args.get('ano')
     listas = []
 
     if query:
         filmes = get_tmdb_data("search/movie", {"query": query}).get('results', [])
-        listas.append({"titulo": f"🔍 {query}", "filmes": filmes})
+        listas.append({"titulo": f"🔍 Resultados para: '{query}'", "filmes": filmes})
+
+    elif genero:
+        filmes = get_tmdb_data("discover/movie", {
+            "with_genres": genero,
+            "sort_by": "popularity.desc"
+        }).get('results', [])
+        listas.append({"titulo": "🎭 Filmes Encontrados", "filmes": filmes})
+
+    elif ano:
+        filmes = get_tmdb_data("discover/movie", {
+            "primary_release_date.gte": f"{ano}-01-01",
+            "primary_release_date.lte": f"{int(ano)+9}-12-31",
+            "sort_by": "popularity.desc"
+        }).get('results', [])
+        listas.append({"titulo": f"🎞️ Clássicos dos Anos {ano}", "filmes": filmes})
 
     else:
         listas.append({
@@ -112,8 +128,16 @@ def index():
             "filmes": get_tmdb_data("movie/now_playing", {"region": "BR"}).get('results', [])[:15]
         })
         listas.append({
-            "titulo": "🌟 Populares",
-            "filmes": get_tmdb_data("movie/popular").get('results', [])[:15]
+            "titulo": "🌟 Mais Populares",
+            "filmes": get_tmdb_data("movie/popular", {"region": "BR"}).get('results', [])[:15]
+        })
+        listas.append({
+            "titulo": "👻 Terror e Suspense",
+            "filmes": get_tmdb_data("discover/movie", {"with_genres": "27,53"}).get('results', [])[:15]
+        })
+        listas.append({
+            "titulo": "💥 Ação e Aventura",
+            "filmes": get_tmdb_data("discover/movie", {"with_genres": "28,12"}).get('results', [])[:15]
         })
 
     return render_template("index.html", listas=listas, img_base=IMG_PATH)
@@ -122,21 +146,29 @@ def index():
 @app.route('/filme/<int:filme_id>')
 def detalhes_filme(filme_id):
     filme = get_tmdb_data(f"movie/{filme_id}")
-    trailer = get_trailer(filme_id)
+    trailer_key = get_trailer(filme_id)
 
     titulo = filme.get('title', '')
-    titulo_original = filme.get('original_title', titulo)
     ano = filme.get('release_date', '')[:4]
 
-    torrents = buscar_torrents_api(titulo, titulo_original, ano)
+    # 🔥 busca melhorada
+    lista_torrents = buscar_torrents_api(titulo, ano)
+
+    titulo_exato = urllib.parse.quote(f'"{titulo}"')
+    link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
+
+    titulo_limpo = urllib.parse.quote(titulo)
+    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv"
 
     return render_template(
         "detalhes.html",
         filme=filme,
         img_base=IMG_PATH,
         bg_base=BG_PATH,
-        trailer=trailer,
-        lista_torrents=torrents
+        trailer=trailer_key,
+        busca_online=link_busca_online,
+        lista_torrents=lista_torrents,
+        busca_magnet=busca_magnet
     )
 
 # ==========================================================
