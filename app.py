@@ -36,19 +36,20 @@ def remover_acentos_e_pontuacao(txt):
     return re.sub(r'[^\w\s]', '', txt).lower()
 
 # ==========================================================
-# ⚡ API TORRENT + O SEGURANÇA DE ELITE (Filtro AND)
+# ⚡ API TORRENT + SEGURANÇA DE ELITE + INTEGRAÇÃO BRAZUCA
 # ==========================================================
-def buscar_torrents_api(titulo_br, titulo_original):
+def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
-        url = f"{base_url}?q={urllib.parse.quote(titulo_br)}"
+        
+        # 🔥 ENVIA O TÍTULO E O IMDB PARA A SUA API NODE.JS!
+        url = f"{base_url}?q={urllib.parse.quote(titulo_br)}&imdb={imdb_id}"
         r = requests.get(url, timeout=15)
         data = r.json()
 
         resultados = []
 
         palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 2][:3]
-        
         palavras_orig = []
         if titulo_original:
             palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 2][:3]
@@ -64,14 +65,15 @@ def buscar_torrents_api(titulo_br, titulo_original):
                 valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
                 valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
                 
-                if not (valido_br or valido_orig):
+                # 🛡️ Se for link do Brazuca, a gente deixa passar direto na blindagem!
+                if not (valido_br or valido_orig or "brazuca" in nome_lower):
                     continue
 
                 score = 0
                 is_br = False
                 
-                # 🔥 CORREÇÃO DO WEBRIP: Apenas palavras completas que indicam Brasil!
-                if any(x in nome_lower for x in ["dublado", "dual", "ptbr", "portuguese"]):
+                # 🔥 Incluído "brazuca" para ganhar o selo verde e ir pro topo!
+                if any(x in nome_lower for x in ["dublado", "dual", "ptbr", "portuguese", "brazuca"]):
                     score += 5
                     is_br = True
                     
@@ -91,8 +93,9 @@ def buscar_torrents_api(titulo_br, titulo_original):
 
         processar_resultados(data.get("streams", []))
 
+        # PLANO B (Busca em Inglês mantendo o IMDB)
         if not resultados and titulo_original and titulo_br.lower() != titulo_original.lower():
-            url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}"
+            url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}&imdb={imdb_id}"
             r_orig = requests.get(url_orig, timeout=15)
             processar_resultados(r_orig.json().get("streams", []))
 
@@ -166,9 +169,12 @@ def detalhes_filme(filme_id):
 
     titulo_br = filme.get('title', '')
     titulo_original = filme.get('original_title', titulo_br)
+    
+    # 🔥 PEGA O ID DO IMDB PARA MANDAR PRO BRAZUCA!
+    imdb_id = filme.get('imdb_id', '')
 
     # ⚡ Busca
-    lista_torrents = buscar_torrents_api(titulo_br, titulo_original)
+    lista_torrents = buscar_torrents_api(titulo_br, titulo_original, imdb_id)
 
     titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
