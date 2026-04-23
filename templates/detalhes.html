@@ -72,8 +72,8 @@
                     {% for t in lista_torrents %}
                         <div class="torrent-item p-3 d-flex justify-content-between align-items-center">
                             <div style="width: 70%;">
-                                <span class="d-block small text-muted text-truncate">{{ t.nome }}</span>
-                                <span class="badge bg-secondary mt-1">{{ t.tamanho }}</span>
+                                <span class="d-block small text-white text-truncate mb-1">{{ t.nome }}</span>
+                                <span class="badge bg-secondary">{{ t.tamanho }}</span>
                             </div>
                             <a href="{{ t.magnet }}" class="btn-magnet">🧲 Baixar</a>
                         </div>
