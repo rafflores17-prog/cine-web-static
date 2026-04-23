@@ -5,11 +5,12 @@ import re
 
 app = Flask(__name__)
 
+# Configurações TMDB
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
-# 📺 LISTA DE SERVIDORES (MULTI-HOST)
+# 📺 LISTA DE SERVIDORES VIP (XTREAM)
 SERVIDORES = [
     {"host": "http://serv99.xyz:8880", "user": "261491762", "pass": "2516895925"},
     {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
@@ -20,23 +21,24 @@ SERVIDORES = [
 ]
 
 def buscar_no_iptv(titulo_filme):
-    # Limpa o título para busca precisa
+    # Limpa o título para uma busca mais precisa (evita erros com acentos/pontos)
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
     
-    # Testa um servidor por vez
     for srv in SERVIDORES:
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
         try:
-            r = requests.get(url_api, timeout=5) # Timeout curto para não travar
+            r = requests.get(url_api, timeout=5)
             lista_vod = r.json()
             for item in lista_vod:
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                if titulo_busca in nome_iptv:
+                
+                # Se o nome bater ou estiver contido de forma muito próxima
+                if titulo_busca == nome_iptv or (titulo_busca in nome_iptv and len(nome_iptv) < len(titulo_busca) + 15):
                     stream_id = item.get('stream_id')
-                    ext = item.get('container_extension', 'mp4')
-                    return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.{ext}"
+                    # 🔥 Forçamos .mp4 para garantir compatibilidade de áudio/vídeo
+                    return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
         except:
-            continue # Se um servidor falhar, pula pro próximo
+            continue
     return None
 
 def tmdb(endpoint, params=None):
@@ -53,11 +55,12 @@ def home():
     if query:
         filmes = tmdb("search/movie", {"query": query}).get("results", [])
     else:
+        # Puxa várias listas para a Home
         populares = tmdb("movie/popular").get("results", [])
         top = tmdb("movie/top_rated").get("results", [])
         trending = tmdb("trending/movie/week").get("results", [])
         
-        # 🛡️ REMOVE DUPLICADOS (Capa repetida)
+        # 🛡️ FILTRO ANTI-REPETIÇÃO: Garante que o mesmo filme não apareça 2 vezes
         vistos = set()
         mistura = []
         for f in (populares + top + trending):
@@ -72,7 +75,7 @@ def home():
 @app.route("/filme/<int:id>")
 def filme(id):
     f_data = tmdb(f"movie/{id}")
-    # Busca em todos os servidores até achar
+    # Busca o link nos 6 servidores
     play_link = buscar_no_iptv(f_data.get('title', ''))
     
     videos = tmdb(f"movie/{id}/videos").get("results", [])
