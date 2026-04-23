@@ -5,94 +5,164 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ filme.title }} - CineTor</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
-        body { 
-            background-color: #050505; color: white; 
-            background-image: linear-gradient(to top, rgba(5,5,5,1) 10%, rgba(5,5,5,0.7) 100%), url('{{ bg_base }}{{ filme.backdrop_path }}');
-            background-size: cover; background-position: center; background-attachment: fixed;
+        body {
+            background-color: #050505;
+            color: white;
+            background-image: linear-gradient(to top, rgba(5,5,5,1) 10%, rgba(5,5,5,0.7) 100%),
+            url('{{ bg }}{{ filme.backdrop_path }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
+
         .navbar { background: rgba(0,0,0,0.5); }
-        .btn-voltar { color: #fff; text-decoration: none; font-weight: bold; }
-        .poster-img { border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 2px solid #222; }
-        .box-info { background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(10px); border-radius: 15px; padding: 25px; border: 1px solid #333; }
-        
-        .btn-google { background: #e50914; color: white; border: none; font-weight: bold; border-radius: 8px; transition: 0.3s; }
-        .btn-google:hover { background: #b20710; color: white; }
-        
-        .btn-secundario { background: #333; color: white; font-weight: bold; border-radius: 8px; transition: 0.3s; }
-        .btn-secundario:hover { background: #444; color: white; }
-        
-        /* Estilo da lista de Torrents */
-        .torrent-item { background: #1a1a1a; border: 1px solid #333; margin-bottom: 8px; border-radius: 8px; transition: 0.3s;}
-        .torrent-item:hover { border-color: #00a859; background: #222;}
-        .btn-magnet { background: #00a859; color: white; border-radius: 5px; font-weight: bold; padding: 5px 15px; text-decoration: none;}
-        .btn-magnet:hover { background: #007c42; color: white; }
+
+        .btn-voltar {
+            color: #fff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .poster-img {
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 2px solid #222;
+        }
+
+        .box-info {
+            background: rgba(15, 15, 15, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #333;
+        }
+
+        .btn-google {
+            background: #e50914;
+            color: white;
+            border: none;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+
+        .btn-google:hover {
+            background: #b20710;
+        }
+
+        .btn-secundario {
+            background: #333;
+            color: white;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+
+        .btn-secundario:hover {
+            background: #444;
+        }
+
+        .torrent-item {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .torrent-item:hover {
+            border-color: #00a859;
+            background: #222;
+        }
+
+        .btn-magnet {
+            background: #00a859;
+            color: white;
+            border-radius: 5px;
+            font-weight: bold;
+            padding: 5px 15px;
+            text-decoration: none;
+        }
+
+        .btn-magnet:hover {
+            background: #007c42;
+            color: white;
+        }
     </style>
 </head>
+
 <body>
 
 <nav class="navbar navbar-dark p-3">
     <div class="container">
-        <a class="btn-voltar" href="/">⬅️ Voltar para o CineTor</a>
+        <a class="btn-voltar" href="/">⬅️ Voltar</a>
     </div>
 </nav>
 
 <div class="container mt-4 pb-5">
     <div class="row">
+
+        <!-- POSTER -->
         <div class="col-md-4 text-center mb-4">
-            <img src="{{ img_base }}{{ filme.poster_path }}" class="img-fluid poster-img mb-4" alt="Poster">
-            
-            {% if trailer %}
-            <h5 class="fw-bold text-start mb-2">🎬 Trailer Oficial</h5>
-            <div class="ratio ratio-16x9 rounded overflow-hidden shadow">
-                <iframe src="https://www.youtube.com/embed/{{ trailer }}" allowfullscreen></iframe>
-            </div>
+            {% if filme.poster_path %}
+            <img src="{{ img }}{{ filme.poster_path }}" class="img-fluid poster-img mb-4">
             {% endif %}
         </div>
-        
+
+        <!-- INFO -->
         <div class="col-md-8">
             <div class="box-info">
-                <h1 class="fw-bold" style="color: #e50914;">{{ filme.title }}</h1>
-                <p class="text-warning fs-5">⭐ {{ filme.vote_average | round(1) }}/10 | 📅 Ano: {{ filme.release_date[:4] if filme.release_date else 'N/A' }}</p>
-                <p class="fs-6" style="color: #ccc; line-height: 1.6;">{{ filme.overview }}</p>
-                
-                <hr style="border-color: #444; my-4;">
-                
-                <h5 class="fw-bold mb-3">📺 Assistir Online (Dublado)</h5>
-                <div class="d-grid gap-2">
-                    <a href="{{ busca_online }}" target="_blank" class="btn btn-google p-3">
-                        ▶️ Buscar nos Melhores Sites (Recomendado)
-                    </a>
-                </div>
 
-                <h5 class="fw-bold mt-4 mb-3">📥 Lista de Torrents Encontrados</h5>
-                
-                {% if lista_torrents %}
-                    <div class="d-flex flex-column">
-                    {% for t in lista_torrents %}
-                        <div class="torrent-item p-3 d-flex justify-content-between align-items-center">
-                            <div style="width: 70%;">
-                                <span class="d-block small text-white text-truncate mb-1">{{ t.nome }}</span>
-                                <span class="badge bg-secondary">{{ t.tamanho }}</span>
-                            </div>
-                            <a href="{{ t.magnet }}" class="btn-magnet">🧲 Baixar</a>
+                <h1 style="color:#e50914;">{{ filme.title }}</h1>
+
+                <p class="text-warning">
+                    ⭐ {{ filme.vote_average | round(1) }}/10 |
+                    📅 {{ filme.release_date[:4] if filme.release_date else 'N/A' }}
+                </p>
+
+                <p style="color:#ccc;">
+                    {{ filme.overview }}
+                </p>
+
+                <hr>
+
+                <!-- BOTÃO BUSCA -->
+                <a href="{{ busca_online }}" target="_blank" class="btn btn-google p-3 w-100">
+                    ▶️ Buscar Online
+                </a>
+
+                <h5 class="mt-4">📥 Torrents</h5>
+
+                {% if torrents %}
+                    {% for t in torrents %}
+                    <div class="torrent-item p-3 d-flex justify-content-between align-items-center">
+
+                        <div style="width:70%;">
+                            <span class="d-block text-truncate">{{ t.title }}</span>
+                            <small class="text-secondary">{{ t.origin }}</small>
                         </div>
-                    {% endfor %}
+
+                        {% if t.magnet %}
+                        <a href="{{ t.magnet }}" class="btn-magnet">Baixar</a>
+                        {% else %}
+                        <span class="text-muted">Sem link</span>
+                        {% endif %}
+
                     </div>
+                    {% endfor %}
                 {% else %}
-                    <div class="alert alert-dark border-secondary text-center small">
-                        ⚠️ A API não localizou magnets diretos no momento. Use a busca profunda abaixo.
+                    <div class="alert alert-dark text-center">
+                        Nenhum torrent encontrado
                     </div>
                 {% endif %}
-                
-                <div class="d-grid gap-2 mt-3">
-                    <a href="{{ busca_magnet }}" target="_blank" class="btn btn-secundario p-3">
-                        🔍 Busca Profunda na Web (Dual Audio / MKV)
-                    </a>
-                </div>
+
+                <a href="{{ busca_magnet }}" target="_blank" class="btn btn-secundario w-100 mt-3 p-3">
+                    🔍 Busca profunda
+                </a>
 
             </div>
         </div>
+
     </div>
 </div>
 
