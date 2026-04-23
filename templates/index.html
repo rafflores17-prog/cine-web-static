@@ -16,75 +16,86 @@ body {
 /* HERO */
 .hero {
   text-align:center;
-  padding:40px 20px;
-  background:linear-gradient(180deg,#1a1a1a,#0f0f0f);
+  padding:50px 20px;
+  background:#111;
 }
 
 .hero h1 {
   margin-bottom:15px;
 }
 
-/* INPUT */
-form {
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-input {
-  width:60%;
-  max-width:500px;
-  padding:12px;
-  border-radius:25px;
+/* SEARCH GRANDE */
+.search-box input {
+  width:70%;
+  padding:14px;
+  border-radius:30px;
   border:none;
-  outline:none;
 }
 
-button {
-  padding:12px 18px;
-  border-radius:25px;
+.search-box button {
+  padding:14px 20px;
+  border-radius:30px;
   border:none;
   background:#e50914;
   color:white;
-  font-weight:bold;
 }
 
-/* BOTÕES DÉCADA */
-.decadas {
+/* GÊNEROS */
+.genres {
   display:flex;
   justify-content:center;
-  gap:10px;
   flex-wrap:wrap;
+  gap:8px;
   margin-top:15px;
 }
 
-.decadas button {
+.genres a {
+  padding:6px 12px;
   background:#222;
-  border:1px solid #333;
-  padding:10px 14px;
   border-radius:20px;
-  cursor:pointer;
-  transition:0.2s;
+  color:white;
+  text-decoration:none;
+  font-size:13px;
 }
 
-.decadas button:hover {
+/* ABAS */
+.tabs {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-top:20px;
+}
+
+.tab {
+  padding:10px 15px;
+  background:#222;
+  border-radius:20px;
+  cursor:pointer;
+}
+
+.tab:hover {
   background:#e50914;
 }
 
-/* LISTA */
+/* SEÇÕES */
+.section {
+  padding:20px;
+}
+
+.section h2 {
+  border-left:4px solid #e50914;
+  padding-left:10px;
+}
+
+/* CARDS */
 .row {
   display:flex;
   overflow-x:auto;
   gap:12px;
-  padding:20px;
 }
 
-.row::-webkit-scrollbar {
-  display:none;
-}
+.row::-webkit-scrollbar { display:none; }
 
-/* CARD */
 .card {
   min-width:140px;
   text-align:center;
@@ -99,17 +110,8 @@ button {
 
 .card p {
   font-size:13px;
-  margin-top:5px;
   white-space:nowrap;
   overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-/* LOADING */
-.loading {
-  text-align:center;
-  padding:20px;
-  color:#aaa;
 }
 </style>
 </head>
@@ -119,74 +121,61 @@ button {
 <div class="hero">
   <h1>🎬 CineMega</h1>
 
-  <form method="GET">
-    <input name="q" placeholder="Buscar filme...">
+  <form method="GET" class="search-box">
+    <input name="q" placeholder="Pesquise seu filme favorito aqui">
     <button>Buscar</button>
   </form>
 
-  <div class="decadas">
-    <button onclick="carregar('80')">80s</button>
-    <button onclick="carregar('90')">90s</button>
-    <button onclick="carregar('2000')">2000</button>
-    <button onclick="carregar('2010')">2010</button>
-    <button onclick="carregar('2020')">2020+</button>
+  <div class="genres">
+    <a href="/?genre=28">Ação</a>
+    <a href="/?genre=35">Comédia</a>
+    <a href="/?genre=27">Terror</a>
+    <a href="/?genre=18">Drama</a>
+    <a href="/?genre=878">Ficção</a>
   </div>
 </div>
 
-<h3 style="padding-left:15px;">🎥 Filmes</h3>
-
-<div id="lista" class="row">
-
-  {% for f in filmes %}
-  <div class="card">
-    <img src="{{ img }}{{ f.poster_path }}">
-    <p>{{ f.title }}</p>
+<div class="section">
+  <h2>🔥 Em Alta</h2>
+  <div class="row">
+    {% for f in em_alta %}
+    <a href="/filme/{{ f.id }}">
+      <div class="card">
+        <img src="{{ img }}{{ f.poster_path }}">
+        <p>{{ f.title }}</p>
+      </div>
+    </a>
+    {% endfor %}
   </div>
-  {% endfor %}
-
 </div>
 
-<div id="status" class="loading"></div>
+<div class="section">
+  <h2>🎬 Em Cartaz</h2>
+  <div class="row">
+    {% for f in em_cartaz %}
+    <a href="/filme/{{ f.id }}">
+      <div class="card">
+        <img src="{{ img }}{{ f.poster_path }}">
+        <p>{{ f.title }}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
 
-<script>
-function carregar(decada){
-
-  const lista = document.getElementById("lista");
-  const status = document.getElementById("status");
-
-  status.innerText = "Carregando...";
-
-  fetch(`/decada/${decada}`)
-    .then(r => r.json())
-    .then(data => {
-
-      lista.innerHTML = "";
-
-      let filmes = data.filmes || [];
-
-      if (filmes.length === 0) {
-        status.innerText = "Sem dados, tentando novamente...";
-        return;
-      }
-
-      status.innerText = "";
-
-      filmes.forEach(f => {
-        lista.innerHTML += `
-          <div class="card">
-            <img src="https://image.tmdb.org/t/p/w500${f.poster_path}">
-            <p>${f.title}</p>
-          </div>
-        `;
-      });
-
-    })
-    .catch(() => {
-      status.innerText = "Erro ao carregar dados";
-    });
-
-}
-</script>
+<div class="section">
+  <h2>📅 Estreias</h2>
+  <div class="row">
+    {% for f in estreias %}
+    <a href="/filme/{{ f.id }}">
+      <div class="card">
+        <img src="{{ img }}{{ f.poster_path }}">
+        <p>{{ f.title }}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
 
 </body>
 </html>
