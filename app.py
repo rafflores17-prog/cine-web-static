@@ -31,7 +31,7 @@ def remover_acentos_e_pontuacao(txt):
     return re.sub(r'[^\w\s]', '', txt).lower()
 
 # ==========================================================
-# ⚡ SCRIPT UNIVERSAL (FILTRO FLEXÍVEL INTELIGENTE)
+# ⚡ SCRIPT UNIVERSAL - O TAPETE VERMELHO PARA O TORRENTIO
 # ==========================================================
 def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
     try:
@@ -41,8 +41,6 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
         data = r.json()
 
         resultados = []
-
-        # 🧠 Pega TODAS as palavras fortes (mais de 1 letra) do título BR e do Original
         palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1]
         palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1]
         palavras_fortes = palavras_br + palavras_orig
@@ -55,26 +53,37 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 if len(nome_completo) < 5:
                     continue
 
-                is_trusted = "brazuca" in nome_lower or "torrentio" in nome_lower
+                # 🛡️ VIA EXPRESSA: Nossos motores baseados no IMDB
+                is_brazuca = "brazuca" in nome_lower
+                is_torrentio = "torrentio" in nome_lower
+                is_trusted = is_brazuca or is_torrentio
 
-                # 🛡️ FILTRO MÁGICO: Se PELO MENOS UMA palavra estiver no nome, o filme é verdadeiro!
-                tem_palavra_do_filme = False
+                tem_palavra = False
                 if palavras_fortes:
                     for p in palavras_fortes:
                         if p in nome_lower:
-                            tem_palavra_do_filme = True
+                            tem_palavra = True
                             break
                 else:
-                    tem_palavra_do_filme = True # Se o filme tiver nome muito curto (ex: "X"), passa.
+                    tem_palavra = True 
 
-                # Se não veio do Brazuca/Torrentio e não tem NENHUMA palavra do filme -> Joga no lixo!
-                if not is_trusted and not tem_palavra_do_filme:
+                # Filtro: Se for gringo (PirateBay) e não tiver NENHUMA palavra do filme, lixo!
+                if not is_trusted and not tem_palavra:
                     continue
 
                 score = 0
                 is_br = False
                 
-                if any(x in nome_lower for x in ["dublado", "dual", "ptbr", "portuguese", "brazuca"]):
+                # 🔥 PONTUAÇÃO MÁXIMA PARA OS MOTORES VIP!
+                if is_brazuca:
+                    score += 100
+                    is_br = True
+                elif is_torrentio:
+                    score += 50
+                    if "comando" in nome_lower or "micoleao" in nome_lower:
+                        is_br = True
+
+                if any(x in nome_lower for x in ["dublado", "dual", "ptbr", "portuguese"]):
                     score += 5
                     is_br = True
                 
@@ -109,8 +118,9 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 vistos.add(t["magnet"])
                 unicos.append(t)
 
+        # Ordena sempre pelo maior Score! (Brazuca 100 -> Torrentio 50 -> Gringos)
         unicos.sort(key=lambda x: x["score"], reverse=True)
-        return unicos[:10]
+        return unicos[:15]
 
     except Exception as e:
         print("Erro API:", e)
