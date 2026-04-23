@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>CineMega</title>
 
 <style>
@@ -17,24 +16,38 @@ body {
 /* HERO */
 .hero {
   text-align:center;
-  padding:50px 20px;
-  background:#111;
+  padding:40px 20px;
+  background:linear-gradient(180deg,#1a1a1a,#0f0f0f);
+}
+
+.hero h1 {
+  margin-bottom:15px;
+}
+
+/* INPUT */
+form {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
 input {
-  padding:12px;
   width:60%;
-  border-radius:20px;
+  max-width:500px;
+  padding:12px;
+  border-radius:25px;
   border:none;
+  outline:none;
 }
 
 button {
   padding:12px 18px;
+  border-radius:25px;
   border:none;
-  border-radius:20px;
   background:#e50914;
   color:white;
-  cursor:pointer;
+  font-weight:bold;
 }
 
 /* BOTÕES DÉCADA */
@@ -49,14 +62,17 @@ button {
 .decadas button {
   background:#222;
   border:1px solid #333;
-  padding:10px 15px;
+  padding:10px 14px;
+  border-radius:20px;
+  cursor:pointer;
+  transition:0.2s;
 }
 
 .decadas button:hover {
   background:#e50914;
 }
 
-/* FILMES */
+/* LISTA */
 .row {
   display:flex;
   overflow-x:auto;
@@ -64,6 +80,11 @@ button {
   padding:20px;
 }
 
+.row::-webkit-scrollbar {
+  display:none;
+}
+
+/* CARD */
 .card {
   min-width:140px;
   text-align:center;
@@ -72,6 +93,23 @@ button {
 .card img {
   width:100%;
   border-radius:10px;
+  height:210px;
+  object-fit:cover;
+}
+
+.card p {
+  font-size:13px;
+  margin-top:5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* LOADING */
+.loading {
+  text-align:center;
+  padding:20px;
+  color:#aaa;
 }
 </style>
 </head>
@@ -95,37 +133,45 @@ button {
   </div>
 </div>
 
-<h2 style="padding-left:15px;">🎥 Filmes</h2>
+<h3 style="padding-left:15px;">🎥 Filmes</h3>
 
-<div class="row" id="lista">
+<div id="lista" class="row">
+
   {% for f in filmes %}
   <div class="card">
     <img src="{{ img }}{{ f.poster_path }}">
     <p>{{ f.title }}</p>
   </div>
   {% endfor %}
+
 </div>
 
-<script>
-let usados = [];
+<div id="status" class="loading"></div>
 
+<script>
 function carregar(decada){
+
+  const lista = document.getElementById("lista");
+  const status = document.getElementById("status");
+
+  status.innerText = "Carregando...";
 
   fetch(`/decada/${decada}`)
     .then(r => r.json())
     .then(data => {
 
-      let lista = document.getElementById("lista");
       lista.innerHTML = "";
 
       let filmes = data.filmes || [];
 
-      // evita repetição enquanto página aberta
-      filmes = filmes.filter(f => !usados.includes(f.id));
+      if (filmes.length === 0) {
+        status.innerText = "Sem dados, tentando novamente...";
+        return;
+      }
+
+      status.innerText = "";
 
       filmes.forEach(f => {
-        usados.push(f.id);
-
         lista.innerHTML += `
           <div class="card">
             <img src="https://image.tmdb.org/t/p/w500${f.poster_path}">
@@ -134,6 +180,9 @@ function carregar(decada){
         `;
       });
 
+    })
+    .catch(() => {
+      status.innerText = "Erro ao carregar dados";
     });
 
 }
