@@ -23,19 +23,19 @@ h1 { font-size:24px; color:#e50914; margin:10px 0; text-shadow: 2px 2px 10px rgb
   border: 1px solid rgba(255,255,255,0.1);
 }
 
-/* BOTÃO DE PLAY PRINCIPAL */
+/* BOTÃO PLAY */
 .btn-play {
   display:block; background: linear-gradient(45deg, #00a859, #008f4c);
   color:white; text-decoration:none; padding:18px; border-radius:50px;
   font-weight:bold; font-size:18px; box-shadow: 0 10px 20px rgba(0,168,89,0.3);
-  transition: 0.3s; margin-bottom:15px;
+  transition: 0.3s; margin-bottom:10px;
 }
 
-/* BOTÃO DE DOWNLOAD "POR BAIXO DOS PANOS" */
+/* BOTÃO DOWNLOAD DISCRETO */
 .btn-down {
-  display:inline-block; color:#00ff88; text-decoration:none;
-  font-size:13px; font-weight:bold; border: 1px solid #00a859;
-  padding: 8px 20px; border-radius:20px; background: rgba(0,168,89,0.1);
+  display:block; width:100%; background:none; border:1px solid #00a859;
+  color:#00ff88; padding:12px; border-radius:50px; font-weight:bold;
+  font-size:14px; cursor:pointer; text-transform:uppercase; letter-spacing:1px;
 }
 
 .no-link {
@@ -71,13 +71,26 @@ iframe { width:100%; height:230px; border:none; }
   {% if play_link %}
     <a href="{{ play_link }}" target="_blank" class="btn-play">▶️ ASSISTIR AGORA</a>
 
-    <a href="{{ play_link }}" download="{{ filme.title }}.mp4" class="btn-down">
-      📥 BAIXAR PARA O DISPOSITIVO
-    </a>
+    <button onclick="baixar('{{ play_link }}', '{{ filme.title }}')" class="btn-down">
+      📥 BAIXAR FILME
+    </button>
     
-    <p style="font-size:10px; color:#00a859; margin-top:10px; font-weight:bold;">LINHA DIRETA DISPONÍVEL ✅</p>
+    <script>
+      function baixar(url, nome) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nome + ".mp4";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        // Pequeno aviso silencioso
+        console.log("Download solicitado em segundo plano.");
+      }
+    </script>
+
+    <p style="font-size:10px; color:#00a859; margin-top:10px; font-weight:bold;">SINAL VIP ATIVO ✅</p>
   {% else %}
-    <div class="no-link">🔍 Filme em processo de indexação nos servidores VIP.</div>
+    <div class="no-link">🔍 Buscando nos servidores VIP...</div>
   {% endif %}
 
   {% if trailer %}
