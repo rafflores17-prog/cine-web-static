@@ -3,165 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineTor - O Maior Acervo Torrent</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { 
-            background-color: #0f0f0f; 
-            color: #ffffff; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        /* 🦸‍♂️ HERO BANNER (A BUSCA GIGANTE) */
-        .hero-section {
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), #0f0f0f), url('https://image.tmdb.org/t/p/original/9yBVqNruk6Ykrwc32qrK2TIE5xw.jpg');
-            background-size: cover;
-            background-position: center;
-            padding: 100px 20px;
-            text-align: center;
-            border-bottom: 2px solid #e50914;
-        }
-        .hero-title { font-weight: 900; font-size: 3rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }
-        .hero-subtitle { color: #cccccc; font-size: 1.2rem; margin-bottom: 30px; }
-        
-        /* BARRA DE PESQUISA ESTILOSA */
-        .search-box {
-            max-width: 650px;
-            margin: 0 auto;
-            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.3);
-            border-radius: 50px;
-        }
-        .search-input {
-            border-radius: 50px 0 0 50px !important;
-            padding: 15px 25px;
-            font-size: 1.2rem;
-            border: 2px solid #e50914;
-            background-color: rgba(20, 20, 20, 0.9);
-            color: white;
-        }
-        .search-input:focus {
-            background-color: #222;
-            color: white;
-            border-color: #ff1e27;
-            box-shadow: none;
-        }
-        .search-btn {
-            border-radius: 0 50px 50px 0 !important;
-            padding: 15px 35px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            background-color: #e50914;
-            border: 2px solid #e50914;
-        }
-        .search-btn:hover { background-color: #b20710; }
+    <title>CineTor - Filmes</title>
 
-        /* 🎬 CARROSSEL ESTILO NETFLIX (FILMES) */
-        .section-title {
-            border-left: 5px solid #e50914;
-            padding-left: 10px;
-            margin-top: 40px;
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: #0f0f0f;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .hero {
+            padding: 80px 20px;
+            text-align: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), #0f0f0f);
+        }
+
+        .search-box {
+            max-width: 600px;
+            margin: auto;
+            display: flex;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 30px 0 0 30px;
+            outline: none;
+        }
+
+        .search-box button {
+            padding: 15px 25px;
+            border: none;
+            background: #e50914;
+            color: white;
+            border-radius: 0 30px 30px 0;
             font-weight: bold;
         }
-        .movie-scroll {
-            display: flex;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 20px;
-            padding-top: 10px;
-            scroll-behavior: smooth;
-        }
-        /* Esconde a barra de rolagem mas permite o touch/mouse deslizar */
-        .movie-scroll::-webkit-scrollbar { display: none; }
-        .movie-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 
         .movie-card {
-            flex: 0 0 auto;
-            width: 160px; /* Tamanho do pôster no celular */
-            margin-right: 15px;
-            position: relative;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        @media (min-width: 768px) {
-            .movie-card { width: 200px; } /* Pôster maior no PC */
-        }
-        .movie-card:hover {
-            transform: scale(1.08);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
-            z-index: 10;
-        }
-        .movie-poster {
-            width: 100%;
-            border-radius: 10px;
-            object-fit: cover;
-        }
-        
-        /* OVERLAY DA NOTA (Aparece em cima da capa) */
-        .movie-rating {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #ffc107;
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 0.9rem;
-            border: 1px solid #ffc107;
-        }
-        .movie-title {
-            margin-top: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #ddd;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            overflow: hidden;
+            width: 160px;
+            margin: 10px;
             text-align: center;
         }
-        a { text-decoration: none !important; }
+
+        .movie-card img {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .movie-title {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .scroll-row {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px;
+        }
+
+        .scroll-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        a {
+            text-decoration: none;
+            color: white;
+        }
     </style>
 </head>
+
 <body>
 
-    <nav class="navbar navbar-dark bg-dark py-3">
-        <div class="container">
-            <a class="navbar-brand fw-bold fs-4 text-danger" href="/">🍿 CineTor</a>
-        </div>
-    </nav>
+<!-- HEADER -->
+<div class="hero">
+    <h1>CineTor 🎬</h1>
+    <p>Filmes + Torrents em um só lugar</p>
 
-    <div class="hero-section">
-        <h1 class="hero-title">Encontre seu Filme. Baixe sem Limites.</h1>
-        <p class="hero-subtitle">Busque nos maiores servidores Torrent do Brasil e do Mundo em um só lugar.</p>
-        
-        <form action="/" method="GET">
-            <div class="input-group search-box">
-                <input type="text" name="q" class="form-control search-input" placeholder="Ex: Vingadores, Se Beber Não Case..." value="{{ request.args.get('q', '') }}" required>
-                <button class="btn btn-danger search-btn" type="submit">🔍 Buscar</button>
-            </div>
-        </form>
-    </div>
+    <form action="/" method="GET" class="search-box mt-4">
+        <input type="text" name="q" placeholder="Buscar filme..." value="{{ request.args.get('q','') }}">
+        <button type="submit">Buscar</button>
+    </form>
+</div>
 
-    <div class="container mt-4 mb-5">
-        {% for lista in listas %}
-            <h3 class="section-title">{{ lista.titulo }}</h3>
-            
-            <div class="movie-scroll">
-                {% for filme in lista.filmes %}
-                    {% if filme.poster_path %}
-                    <a href="/filme/{{ filme.id }}">
-                        <div class="movie-card">
-                            <img src="{{ img_base }}{{ filme.poster_path }}" class="movie-poster" alt="{{ filme.title }}">
-                            <div class="movie-rating">⭐ {{ filme.vote_average | round(1) }}</div>
-                            <div class="movie-title">{{ filme.title }}</div>
+<!-- LISTAS -->
+<div class="container mt-4">
+
+    {% for lista in listas %}
+
+        <h4 class="mt-4 mb-2">{{ lista.titulo }}</h4>
+
+        <div class="scroll-row">
+
+            {% for filme in lista.filmes %}
+
+                {% if filme.poster_path %}
+                <a href="/filme/{{ filme.id }}">
+                    <div class="movie-card">
+                        <img src="{{ img }}{{ filme.poster_path }}">
+                        <div class="movie-title">
+                            {{ filme.title }}
                         </div>
-                    </a>
-                    {% endif %}
-                {% endfor %}
-            </div>
-        {% endfor %}
-    </div>
+                    </div>
+                </a>
+                {% endif %}
+
+            {% endfor %}
+
+        </div>
+
+    {% endfor %}
+
+</div>
 
 </body>
 </html>
