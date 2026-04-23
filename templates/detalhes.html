@@ -9,13 +9,13 @@
 <style>
 body {
   margin:0;
-  font-family:Arial;
+  font-family:Arial, sans-serif;
   color:white;
   background:black;
   overflow-x:hidden;
 }
 
-/* 🔥 FUNDO ANIMADO (O efeito que você criou) */
+/* 🔥 FUNDO ANIMADO COM BLUR (O efeito que você criou) */
 .bg {
   position:fixed;
   top:0;
@@ -35,7 +35,7 @@ body {
   100% { transform:scale(1.25) translateY(-20px); }
 }
 
-/* CONTAINER CENTRALIZADO */
+/* CONTAINER CENTRALIZADO PARA MOBILE */
 .container {
   padding:20px;
   max-width:500px;
@@ -50,7 +50,7 @@ body {
 .poster img {
   width:180px;
   border-radius:12px;
-  box-shadow:0 10px 25px rgba(0,0,0,0.6);
+  box-shadow:0 10px 30px rgba(0,0,0,0.8);
 }
 
 /* TITULO */
@@ -58,11 +58,11 @@ h1 {
   font-size:22px;
   margin-top:15px;
   text-align:center;
-  color:#e50914;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  color:#e50914; /* Vermelho estilo Netflix */
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.7);
 }
 
-/* INFO */
+/* META DADOS (Estrela e Data) */
 .meta {
   text-align:center;
   font-size:13px;
@@ -72,16 +72,16 @@ h1 {
 
 /* SINOPSE */
 .overview {
-  background:rgba(0,0,0,0.6);
+  background:rgba(0,0,0,0.7);
   padding:15px;
   border-radius:12px;
   font-size:14px;
-  line-height:1.5;
+  line-height:1.6;
   margin-top:10px;
   border: 1px solid rgba(255,255,255,0.1);
 }
 
-/* 🚀 BOTÃO DE PLAY IPTV (ESTILO PREMIUM) */
+/* 🚀 BOTÃO DE PLAY (VERDE PREMIUM) */
 .btn-play {
   display:block;
   background:#00a859;
@@ -93,36 +93,51 @@ h1 {
   font-weight:bold;
   font-size:17px;
   margin-top: 20px;
-  box-shadow: 0 4px 20px rgba(0,168,89,0.4);
-  transition: transform 0.2s;
+  box-shadow: 0 5px 20px rgba(0,168,89,0.5);
+  transition: 0.2s;
 }
 
 .btn-play:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
+/* 📥 BOTÃO DE DOWNLOAD (MAIS DISCRETO) */
+.btn-download {
+  display:block;
+  background:rgba(255,255,255,0.1);
+  color:white;
+  text-align:center;
+  padding:12px;
+  border-radius:12px;
+  text-decoration:none;
+  font-size:14px;
+  margin-top:10px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* AVISO QUANDO NÃO ENCONTRA */
 .no-link {
   margin-top: 20px;
-  background: rgba(255,255,255,0.05);
-  border: 1px dashed #555;
-  padding: 12px;
+  background: rgba(0,0,0,0.5);
+  border: 1px dashed #e50914;
+  padding: 15px;
   border-radius: 12px;
   text-align: center;
   font-size: 13px;
-  color: #888;
+  color: #ff9b9b;
 }
 
-/* TRAILER */
+/* SEÇÃO DO TRAILER */
 .trailer {
-  margin-top:20px;
+  margin-top:25px;
   border-radius:12px;
   overflow:hidden;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.6);
 }
 
 iframe {
   width:100%;
-  height:220px;
+  height:230px;
   border:none;
 }
 
@@ -133,13 +148,12 @@ iframe {
   color:white;
   text-decoration:none;
   font-size:14px;
-  opacity:0.7;
-  padding: 5px 10px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.15);
+  padding: 6px 15px;
   border-radius: 20px;
 }
 
-/* RESPONSIVIDADE */
+/* AJUSTE PARA TELAS MAIORES */
 @media(min-width:700px){
   .container {
     max-width:450px;
@@ -157,7 +171,7 @@ iframe {
   <a class="back" href="/">⬅ Voltar</a>
 
   <div class="poster">
-    <img src="{{ img }}{{ filme.poster_path }}" alt="Poster de {{ filme.title }}">
+    <img src="{{ img }}{{ filme.poster_path }}" alt="Capa de {{ filme.title }}">
   </div>
 
   <h1>{{ filme.title }}</h1>
@@ -167,20 +181,30 @@ iframe {
   </div>
 
   <div class="overview">
-    {{ filme.overview if filme.overview else "Sinopse não disponível em português." }}
+    {{ filme.overview if filme.overview else "Sinopse não disponível para este título." }}
   </div>
 
   {% if play_link %}
+    
     <a href="{{ play_link }}" target="_blank" class="btn-play">
-      ▶️ ASSISTIR AGORA
+      ▶️ ASSISTIR AGORA (PLAY DIRETO)
     </a>
-    <p style="text-align:center; font-size:10px; color:#666; margin-top:8px; text-transform: uppercase; letter-spacing: 1px;">
-      Stream Direto via Servidor VIP
+    
+    <a href="{{ play_link }}" download="{{ filme.title }}.mp4" class="btn-download">
+      📥 BAIXAR PARA O CELULAR
+    </a>
+    
+    <p style="text-align:center; font-size:11px; color:#00a859; margin-top:10px; font-weight:bold; text-transform:uppercase;">
+      Sinal Localizado em Servidor VIP ✅
     </p>
+
   {% else %}
+    
     <div class="no-link">
-      ⚠️ Este título ainda não foi indexado no servidor VIP.
+      ⚠️ Buscando em 6 servidores...<br>
+      Aguardando indexação deste filme no catálogo VIP.
     </div>
+
   {% endif %}
 
   {% if trailer %}
