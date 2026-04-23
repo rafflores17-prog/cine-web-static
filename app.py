@@ -12,6 +12,9 @@ TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG_PATH = "https://image.tmdb.org/t/p/w500"
 BG_PATH = "https://image.tmdb.org/t/p/original"
 
+# ==========================================================
+# 🎬 TMDB
+# ==========================================================
 def get_tmdb_data(endpoint, params={}):
     base = "https://api.themoviedb.org/3"
     p = {"api_key": TMDB_API_KEY, "language": "pt-BR", **params}
@@ -44,10 +47,8 @@ def buscar_torrents_api(titulo_br, titulo_original):
 
         resultados = []
 
-        # 🛡️ Pega até as 3 principais palavras do Título BR
         palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 2][:3]
         
-        # 🛡️ Pega até as 3 principais palavras do Título Original
         palavras_orig = []
         if titulo_original:
             palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 2][:3]
@@ -60,21 +61,17 @@ def buscar_torrents_api(titulo_br, titulo_original):
                 if len(nome_completo) < 5:
                     continue
 
-                # 🛡️ BARREIRA DE ELITE:
-                # O arquivo TEM QUE TER TODAS as palavras principais do BR 
-                # OU TODAS as palavras principais do Original.
                 valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
                 valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
                 
-                # Se não bater todas as palavras exatas, expulsa!
                 if not (valido_br or valido_orig):
                     continue
 
-                # 📡 RADAR DE IDIOMA E SCORE
                 score = 0
                 is_br = False
                 
-                if any(x in nome_lower for x in ["dublado", "dual", "pt", "br", "portuguese"]):
+                # 🔥 CORREÇÃO DO WEBRIP: Apenas palavras completas que indicam Brasil!
+                if any(x in nome_lower for x in ["dublado", "dual", "ptbr", "portuguese"]):
                     score += 5
                     is_br = True
                     
@@ -92,16 +89,13 @@ def buscar_torrents_api(titulo_br, titulo_original):
                     "score": score
                 })
 
-        # 1. Tenta varrer os resultados da busca em Português
         processar_resultados(data.get("streams", []))
 
-        # 2. PLANO B (Se não achou em BR, busca em Inglês)
         if not resultados and titulo_original and titulo_br.lower() != titulo_original.lower():
             url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}"
             r_orig = requests.get(url_orig, timeout=15)
             processar_resultados(r_orig.json().get("streams", []))
 
-        # Remove duplicados
         vistos = set()
         unicos = []
         for t in resultados:
