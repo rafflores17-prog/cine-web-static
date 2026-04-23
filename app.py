@@ -5,6 +5,7 @@ app = Flask(__name__)
 
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
+BG = "https://image.tmdb.org/t/p/original"
 
 
 def tmdb(endpoint, params=None):
@@ -21,44 +22,43 @@ def tmdb(endpoint, params=None):
         return {}
 
 
-# 🎬 HOME REFORMULADA
+# ======================
+# HOME (ESTÁVEL)
+# ======================
 @app.route("/")
 def home():
     query = request.args.get("q")
-    genre = request.args.get("genre")
 
     if query:
         filmes = tmdb("search/movie", {"query": query}).get("results", [])
-        return render_template("index.html", img=IMG, filmes=filmes, modo="search")
+    else:
+        filmes = tmdb("movie/popular").get("results", [])
 
-    # 🔥 EM ALTA
-    em_alta = tmdb("movie/popular").get("results", [])
-
-    # 🎬 EM CARTAZ
-    em_cartaz = tmdb("movie/now_playing").get("results", [])
-
-    # 📅 ESTREIAS (PRÓXIMOS FILMES)
-    upcoming = tmdb("movie/upcoming").get("results", [])
-
-    # 🎭 FILTRO POR GÊNERO (opcional simples)
-    if genre:
-        em_alta = [f for f in em_alta if genre in str(f.get("genre_ids"))]
-
-    return render_template(
-        "index.html",
-        img=IMG,
-        em_alta=em_alta,
-        em_cartaz=em_cartaz,
-        estreias=upcoming,
-        modo="home"
-    )
+    return render_template("index.html", filmes=filmes, img=IMG)
 
 
-# 🎬 DETALHES (simples e estável)
+# ======================
+# DETALHES (COM TRAILER)
+# ======================
 @app.route("/filme/<int:id>")
 def filme(id):
     filme = tmdb(f"movie/{id}")
-    return render_template("detalhes.html", filme=filme, img=IMG)
+
+    videos = tmdb(f"movie/{id}/videos").get("results", [])
+    trailer = None
+
+    for v in videos:
+        if v.get("type") == "Trailer" and v.get("site") == "YouTube":
+            trailer = v.get("key")
+            break
+
+    return render_template(
+        "detalhes.html",
+        filme=filme,
+        img=IMG,
+        bg=BG,
+        trailer=trailer
+    )
 
 
 if __name__ == "__main__":
