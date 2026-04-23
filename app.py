@@ -4,7 +4,9 @@ import urllib.parse
 
 app = Flask(__name__)
 
+# 🔑 SUA API TMDB (mantida)
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
+
 IMG_PATH = "https://image.tmdb.org/t/p/w500"
 BG_PATH = "https://image.tmdb.org/t/p/original"
 
@@ -27,24 +29,62 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# 🔥 API TORRENT ONLINE (SUA)
+# 🔥 FILTRO LIXO (evita apps, vírus etc)
 # ==========================================================
-def buscar_torrents_api(titulo):
+def filtro_filme(nome):
+    nome = nome.lower()
+    lixo = ["app", "software", "crack", "android", "windows", "linux"]
+    return not any(x in nome for x in lixo)
+
+# ==========================================================
+# 🔥 BUSCA TORRENT MELHORADA
+# ==========================================================
+def buscar_torrents_api(titulo, ano):
     try:
-        url = f"https://torrent-api-t1ml.onrender.com/streams?q={urllib.parse.quote(titulo)}"
-        r = requests.get(url, timeout=15)
-        data = r.json()
+        buscas = [
+            f"{titulo} {ano} 1080p",
+            f"{titulo} {ano} BluRay",
+            f"{titulo} {ano} WEB-DL",
+            f"{titulo} {ano}"
+        ]
 
         torrents = []
 
-        for item in data.get("streams", []):
-            torrents.append({
-                "nome": item.get("title", "Sem nome")[:60],
-                "tamanho": item.get("size", "N/A"),
-                "magnet": item.get("magnet")
-            })
+        for busca in buscas:
+            url = f"https://torrent-api-t1ml.onrender.com/streams?q={urllib.parse.quote(busca)}"
+            r = requests.get(url, timeout=15)
 
-        return torrents
+            if r.status_code != 200:
+                continue
+
+            data = r.json()
+
+            for item in data.get("streams", []):
+                nome = item.get("title", "")
+
+                if not filtro_filme(nome):
+                    continue
+
+                torrents.append({
+                    "nome": nome[:70],
+                    "tamanho": item.get("size", "N/A"),
+                    "magnet": item.get("magnet"),
+                    "seeders": item.get("seeders", 0)
+                })
+
+        # 🔥 ordenar melhores primeiro
+        torrents.sort(key=lambda x: x["seeders"], reverse=True)
+
+        # 🔥 remover duplicados
+        vistos = set()
+        final = []
+
+        for t in torrents:
+            if t["nome"] not in vistos:
+                vistos.add(t["nome"])
+                final.append(t)
+
+        return final[:12]
 
     except Exception as e:
         print("Erro API:", e)
@@ -106,15 +146,16 @@ def detalhes_filme(filme_id):
     trailer_key = get_trailer(filme_id)
 
     titulo = filme.get('title', '')
+    ano = filme.get('release_date', '')[:4]
 
-    # 🔥 BUSCA TORRENT NA SUA API
-    lista_torrents = buscar_torrents_api(titulo)
+    # 🔥 AGORA COM FILTRO + ANO
+    lista_torrents = buscar_torrents_api(titulo, ano)
 
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
 
-    titulo_limpo = urllib.parse.quote(titulo)
-    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv+download+magnet"
+    titulo_limpo = urllib.parse.quote(f"{titulo} {ano}")
+    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio"
 
     return render_template(
         "detalhes.html",
