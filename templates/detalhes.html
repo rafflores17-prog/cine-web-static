@@ -3,45 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <title>{{ filme.title }}</title>
-
-<style>
-body {
-  background:#050505;
-  color:white;
-}
-
-.poster {
-  width:200px;
-}
-
-.torrent {
-  background:#222;
-  padding:10px;
-  margin:5px;
-  border-radius:10px;
-}
-
-a { color:#00ff88; }
-</style>
 </head>
 
-<body>
+<body style="background:#111;color:white;font-family:Arial">
+
+<a href="/">⬅ Voltar</a>
 
 <h1>{{ filme.title }}</h1>
-
-<img class="poster" src="{{ img }}{{ filme.poster_path }}">
-
 <p>{{ filme.overview }}</p>
 
-<h3>Torrents</h3>
+<h3>📥 Torrents</h3>
 
 {% for t in torrents %}
-<div class="torrent">
-  <b>{{ t.title }}</b><br>
-  <small>{{ t.origin }}</small><br>
-  {% if t.magnet %}
-    <a href="{{ t.magnet }}">Baixar</a>
-  {% endif %}
+<div style="background:#222;padding:10px;margin:10px;">
+  {{ t.title }} - {{ t.size or '' }}
 </div>
 {% endfor %}
 
