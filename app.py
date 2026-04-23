@@ -12,9 +12,6 @@ TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG_PATH = "https://image.tmdb.org/t/p/w500"
 BG_PATH = "https://image.tmdb.org/t/p/original"
 
-# ==========================================================
-# 🎬 TMDB
-# ==========================================================
 def get_tmdb_data(endpoint, params={}):
     base = "https://api.themoviedb.org/3"
     p = {"api_key": TMDB_API_KEY, "language": "pt-BR", **params}
@@ -30,17 +27,14 @@ def get_trailer(filme_id):
             return video.get('key')
     return None
 
-# ==========================================================
-# ⚡ API TORRENT + BLINDAGEM MÁXIMA ANTI-LIXO
-# ==========================================================
 def remover_acentos_e_pontuacao(txt):
-    """Limpa o texto tirando acentos, vírgulas e pontos para a comparação ser perfeita"""
     txt = str(txt)
-    # Tira os acentos (ex: Demônio vira Demonio)
     txt = ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
-    # Tira pontuação e deixa tudo minúsculo
     return re.sub(r'[^\w\s]', '', txt).lower()
 
+# ==========================================================
+# ⚡ API TORRENT + O SEGURANÇA DE ELITE (Filtro AND)
+# ==========================================================
 def buscar_torrents_api(titulo_br, titulo_original):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
@@ -50,59 +44,64 @@ def buscar_torrents_api(titulo_br, titulo_original):
 
         resultados = []
 
-        # 🛡️ CRIA AS PALAVRAS-CHAVE LIMPAS (Sem acentos)
-        palavras = remover_acentos_e_pontuacao(titulo_br).split()
+        # 🛡️ Pega até as 3 principais palavras do Título BR
+        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 2][:3]
+        
+        # 🛡️ Pega até as 3 principais palavras do Título Original
+        palavras_orig = []
         if titulo_original:
-            palavras += remover_acentos_e_pontuacao(titulo_original).split()
-            
-        # Pega só palavras grandes (ignora 'o', 'de', 'as')
-        palavras_chave = [p for p in palavras if len(p) > 2]
+            palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 2][:3]
 
         def processar_resultados(streams_data):
             for item in streams_data:
                 nome_completo = item.get("title", "")
-                # Limpa o nome do arquivo pirata também
                 nome_lower = remover_acentos_e_pontuacao(nome_completo)
 
                 if len(nome_completo) < 5:
                     continue
 
-                # 🛡️ O SEGURANÇA DA BOATE: 
-                # Se o nome do arquivo não tiver NENHUMA palavra do título, JOGA NO LIXO!
-                valido = False
-                for palavra in palavras_chave:
-                    if palavra in nome_lower:
-                        valido = True
-                        break
+                # 🛡️ BARREIRA DE ELITE:
+                # O arquivo TEM QUE TER TODAS as palavras principais do BR 
+                # OU TODAS as palavras principais do Original.
+                valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
+                valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
                 
-                if not valido:
-                    continue  # ADEUS KUNG FU PANDA E DEADPOOL!
+                # Se não bater todas as palavras exatas, expulsa!
+                if not (valido_br or valido_orig):
+                    continue
 
+                # 📡 RADAR DE IDIOMA E SCORE
                 score = 0
+                is_br = False
+                
                 if any(x in nome_lower for x in ["dublado", "dual", "pt", "br", "portuguese"]):
                     score += 5
+                    is_br = True
+                    
                 if "1080p" in nome_lower:
                     score += 3
                 elif "720p" in nome_lower:
                     score += 2
 
+                idioma_tag = "🇧🇷 Dublado/Dual" if is_br else "🌐 Idioma Original"
+
                 resultados.append({
                     "nome": nome_completo,
-                    "tamanho": item.get("size", "N/A"),
+                    "tamanho": f"{item.get('size', 'N/A')} | {idioma_tag}",
                     "magnet": item.get("magnet"),
                     "score": score
                 })
 
-        # 1. Processa a busca em Português
+        # 1. Tenta varrer os resultados da busca em Português
         processar_resultados(data.get("streams", []))
 
-        # 2. PLANO B AUTOMÁTICO (Busca em Inglês se o BR vier vazio)
+        # 2. PLANO B (Se não achou em BR, busca em Inglês)
         if not resultados and titulo_original and titulo_br.lower() != titulo_original.lower():
             url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}"
             r_orig = requests.get(url_orig, timeout=15)
             processar_resultados(r_orig.json().get("streams", []))
 
-        # 🔁 Remove duplicados e ordena (Dublados no topo)
+        # Remove duplicados
         vistos = set()
         unicos = []
         for t in resultados:
@@ -166,7 +165,6 @@ def index():
 
     return render_template("index.html", listas=listas, img_base=IMG_PATH)
 
-# ==========================================================
 @app.route('/filme/<int:filme_id>')
 def detalhes_filme(filme_id):
     filme = get_tmdb_data(f"movie/{filme_id}")
@@ -175,14 +173,14 @@ def detalhes_filme(filme_id):
     titulo_br = filme.get('title', '')
     titulo_original = filme.get('original_title', titulo_br)
 
-    # ⚡ Busca Blindada e Inteligente (Passa os dois nomes)
+    # ⚡ Busca
     lista_torrents = buscar_torrents_api(titulo_br, titulo_original)
 
     titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
 
     titulo_limpo = urllib.parse.quote(titulo_br)
-    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p"
+    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio"
 
     return render_template(
         "detalhes.html",
