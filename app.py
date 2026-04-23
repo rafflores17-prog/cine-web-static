@@ -1,6 +1,5 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 import requests
-import random
 
 app = Flask(__name__)
 
@@ -22,47 +21,44 @@ def tmdb(endpoint, params=None):
         return {}
 
 
-DECADES = {
-    "80": (1980, 1989),
-    "90": (1990, 1999),
-    "2000": (2000, 2009),
-    "2010": (2010, 2019),
-    "2020": (2020, 2030),
-}
-
-
+# 🎬 HOME REFORMULADA
 @app.route("/")
 def home():
-    filmes = tmdb("movie/popular").get("results", [])
-    return render_template("index.html", filmes=filmes, img=IMG)
+    query = request.args.get("q")
+    genre = request.args.get("genre")
+
+    if query:
+        filmes = tmdb("search/movie", {"query": query}).get("results", [])
+        return render_template("index.html", img=IMG, filmes=filmes, modo="search")
+
+    # 🔥 EM ALTA
+    em_alta = tmdb("movie/popular").get("results", [])
+
+    # 🎬 EM CARTAZ
+    em_cartaz = tmdb("movie/now_playing").get("results", [])
+
+    # 📅 ESTREIAS (PRÓXIMOS FILMES)
+    upcoming = tmdb("movie/upcoming").get("results", [])
+
+    # 🎭 FILTRO POR GÊNERO (opcional simples)
+    if genre:
+        em_alta = [f for f in em_alta if genre in str(f.get("genre_ids"))]
+
+    return render_template(
+        "index.html",
+        img=IMG,
+        em_alta=em_alta,
+        em_cartaz=em_cartaz,
+        estreias=upcoming,
+        modo="home"
+    )
 
 
-@app.route("/decada/<dec>")
-def decada(dec):
-    base = tmdb("movie/popular").get("results", []) + tmdb("movie/top_rated").get("results", [])
-
-    if dec not in DECADES:
-        return jsonify({"filmes": []})
-
-    inicio, fim = DECADES[dec]
-
-    filtrados = []
-
-    for f in base:
-        date = f.get("release_date")
-        if date and date[:4].isdigit():
-            ano = int(date[:4])
-            if inicio <= ano <= fim:
-                filtrados.append(f)
-
-    # 🔥 Fallback obrigatório (NUNCA vazio)
-    if not filtrados:
-        filtrados = base
-
-    # aleatório controlado
-    selecionados = random.sample(filtrados, min(12, len(filtrados)))
-
-    return jsonify({"filmes": selecionados})
+# 🎬 DETALHES (simples e estável)
+@app.route("/filme/<int:id>")
+def filme(id):
+    filme = tmdb(f"movie/{id}")
+    return render_template("detalhes.html", filme=filme, img=IMG)
 
 
 if __name__ == "__main__":
