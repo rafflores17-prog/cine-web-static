@@ -2,15 +2,13 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CineMega</title>
+<title>CineFinal</title>
 
 <style>
 body {
   background:#0f0f0f;
   color:white;
   font-family:Arial;
-  margin:0;
 }
 
 .hero {
@@ -22,7 +20,6 @@ input {
   width:70%;
   padding:12px;
   border-radius:20px;
-  border:none;
 }
 
 button {
@@ -36,13 +33,12 @@ button {
 .row {
   display:flex;
   overflow-x:auto;
-  padding:10px;
   gap:10px;
+  padding:10px;
 }
 
 .card {
   min-width:150px;
-  text-align:center;
 }
 
 .card img {
@@ -55,7 +51,7 @@ button {
 <body>
 
 <div class="hero">
-  <h1>CineMega 🍿</h1>
+  <h1>CineFinal 🍿</h1>
 
   <form>
     <input name="q" placeholder="Buscar filme...">
@@ -67,21 +63,20 @@ button {
 <h3>{{ lista.titulo }}</h3>
 
 <div class="row">
-
 {% for filme in lista.filmes %}
 {% if filme.poster_path %}
 
 <a href="/filme/{{ filme.id }}" style="color:white;text-decoration:none;">
-<div class="card">
-  <img src="{{ img }}{{ filme.poster_path }}">
-  <p>{{ filme.title }}</p>
-</div>
+  <div class="card">
+    <img src="{{ img }}{{ filme.poster_path }}">
+    <p>{{ filme.title }}</p>
+  </div>
 </a>
 
 {% endif %}
 {% endfor %}
-
 </div>
+
 {% endfor %}
 
 </body>
