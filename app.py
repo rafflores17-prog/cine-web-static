@@ -31,7 +31,7 @@ def remover_acentos_e_pontuacao(txt):
     return re.sub(r'[^\w\s]', '', txt).lower()
 
 # ==========================================================
-# ⚡ SCRIPT UNIVERSAL - O TAPETE VERMELHO PARA O TORRENTIO
+# ⚡ SCRIPT UNIVERSAL - FILTRO RIGOROSO ANTILIXO
 # ==========================================================
 def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
     try:
@@ -41,9 +41,10 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
         data = r.json()
 
         resultados = []
-        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1]
-        palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1]
-        palavras_fortes = palavras_br + palavras_orig
+        
+        # Pega as 2 primeiras palavras para a checagem rigorosa
+        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1][:2]
+        palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1][:2]
 
         def processar_resultados(streams_data):
             for item in streams_data:
@@ -53,28 +54,23 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 if len(nome_completo) < 5:
                     continue
 
-                # 🛡️ VIA EXPRESSA: Nossos motores baseados no IMDB
+                # 🛡️ VIA EXPRESSA: Brazuca e Torrentio entram direto!
                 is_brazuca = "brazuca" in nome_lower
                 is_torrentio = "torrentio" in nome_lower
                 is_trusted = is_brazuca or is_torrentio
 
-                tem_palavra = False
-                if palavras_fortes:
-                    for p in palavras_fortes:
-                        if p in nome_lower:
-                            tem_palavra = True
-                            break
-                else:
-                    tem_palavra = True 
+                # 🛡️ FILTRO RIGOROSO: Exige TODAS as palavras principais!
+                valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
+                valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
 
-                # Filtro: Se for gringo (PirateBay) e não tiver NENHUMA palavra do filme, lixo!
-                if not is_trusted and not tem_palavra:
+                # Se for PirateBay/1337x, e não bater perfeitamente, é LIXO, ignora!
+                if not is_trusted and not (valido_br or valido_orig):
                     continue
 
                 score = 0
                 is_br = False
                 
-                # 🔥 PONTUAÇÃO MÁXIMA PARA OS MOTORES VIP!
+                # 🔥 PONTUAÇÃO MÁXIMA PARA OS MOTORES VIP (Garante o topo)
                 if is_brazuca:
                     score += 100
                     is_br = True
@@ -118,7 +114,6 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 vistos.add(t["magnet"])
                 unicos.append(t)
 
-        # Ordena sempre pelo maior Score! (Brazuca 100 -> Torrentio 50 -> Gringos)
         unicos.sort(key=lambda x: x["score"], reverse=True)
         return unicos[:15]
 
