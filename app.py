@@ -6,15 +6,10 @@ import re
 
 app = Flask(__name__)
 
-# 🔑 SUA API TMDB
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
-
 IMG_PATH = "https://image.tmdb.org/t/p/w500"
 BG_PATH = "https://image.tmdb.org/t/p/original"
 
-# ==========================================================
-# 🎬 TMDB
-# ==========================================================
 def get_tmdb_data(endpoint, params={}):
     base = "https://api.themoviedb.org/3"
     p = {"api_key": TMDB_API_KEY, "language": "pt-BR", **params}
@@ -36,23 +31,20 @@ def remover_acentos_e_pontuacao(txt):
     return re.sub(r'[^\w\s]', '', txt).lower()
 
 # ==========================================================
-# ⚡ API TORRENT + SEGURANÇA DE ELITE + INTEGRAÇÃO BRAZUCA
+# ⚡ API TORRENT + BADGES + FILTRO FLEXÍVEL
 # ==========================================================
 def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
-        
-        # 🔥 ENVIA O TÍTULO E O IMDB PARA A SUA API NODE.JS!
         url = f"{base_url}?q={urllib.parse.quote(titulo_br)}&imdb={imdb_id}"
         r = requests.get(url, timeout=15)
         data = r.json()
 
         resultados = []
 
-        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 2][:3]
-        palavras_orig = []
-        if titulo_original:
-            palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 2][:3]
+        # 🔥 CORREÇÃO: Agora pega só as 2 primeiras palavras (> 1 letra) para salvar as Franquias!
+        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1][:2]
+        palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1][:2]
 
         def processar_resultados(streams_data):
             for item in streams_data:
@@ -65,35 +57,41 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
                 valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
                 
-                # 🛡️ Se for link do Brazuca, a gente deixa passar direto na blindagem!
                 if not (valido_br or valido_orig or "brazuca" in nome_lower):
                     continue
 
                 score = 0
                 is_br = False
                 
-                # 🔥 Incluído "brazuca" para ganhar o selo verde e ir pro topo!
                 if any(x in nome_lower for x in ["dublado", "dual", "ptbr", "portuguese", "brazuca"]):
                     score += 5
                     is_br = True
-                    
-                if "1080p" in nome_lower:
+                
+                # 🎨 CAPTURA DA QUALIDADE PARA OS BADGES
+                qualidade = "HD 📺"
+                if "2160p" in nome_lower or "4k" in nome_lower:
+                    qualidade = "4K 🌟"
+                    score += 4
+                elif "1080p" in nome_lower:
+                    qualidade = "1080p 📺"
                     score += 3
                 elif "720p" in nome_lower:
+                    qualidade = "720p 📱"
                     score += 2
 
-                idioma_tag = "🇧🇷 Dublado/Dual" if is_br else "🌐 Idioma Original"
+                idioma_tag = "🇧🇷 Dublado/Dual" if is_br else "🌐 Original"
 
                 resultados.append({
                     "nome": nome_completo,
-                    "tamanho": f"{item.get('size', 'N/A')} | {idioma_tag}",
+                    "tamanho": item.get('size', 'N/A'),
+                    "qualidade": qualidade,
+                    "idioma": idioma_tag,
                     "magnet": item.get("magnet"),
                     "score": score
                 })
 
         processar_resultados(data.get("streams", []))
 
-        # PLANO B (Busca em Inglês mantendo o IMDB)
         if not resultados and titulo_original and titulo_br.lower() != titulo_original.lower():
             url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}&imdb={imdb_id}"
             r_orig = requests.get(url_orig, timeout=15)
@@ -113,9 +111,6 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
         print("Erro API:", e)
         return []
 
-# ==========================================================
-# ROTAS DO SITE
-# ==========================================================
 @app.route('/')
 def index():
     query = request.args.get('q')
@@ -126,39 +121,17 @@ def index():
     if query:
         filmes = get_tmdb_data("search/movie", {"query": query}).get('results', [])
         listas.append({"titulo": f"🔍 Resultados para: '{query}'", "filmes": filmes})
-
     elif genero:
-        filmes = get_tmdb_data("discover/movie", {
-            "with_genres": genero,
-            "sort_by": "popularity.desc"
-        }).get('results', [])
+        filmes = get_tmdb_data("discover/movie", {"with_genres": genero, "sort_by": "popularity.desc"}).get('results', [])
         listas.append({"titulo": "🎭 Filmes Encontrados", "filmes": filmes})
-
     elif ano:
-        filmes = get_tmdb_data("discover/movie", {
-            "primary_release_date.gte": f"{ano}-01-01",
-            "primary_release_date.lte": f"{int(ano)+9}-12-31",
-            "sort_by": "popularity.desc"
-        }).get('results', [])
+        filmes = get_tmdb_data("discover/movie", {"primary_release_date.gte": f"{ano}-01-01", "primary_release_date.lte": f"{int(ano)+9}-12-31", "sort_by": "popularity.desc"}).get('results', [])
         listas.append({"titulo": f"🎞️ Clássicos dos Anos {ano}", "filmes": filmes})
-
     else:
-        listas.append({
-            "titulo": "🔥 Lançamentos",
-            "filmes": get_tmdb_data("movie/now_playing", {"region": "BR"}).get('results', [])[:15]
-        })
-        listas.append({
-            "titulo": "🌟 Mais Populares",
-            "filmes": get_tmdb_data("movie/popular", {"region": "BR"}).get('results', [])[:15]
-        })
-        listas.append({
-            "titulo": "👻 Terror e Suspense",
-            "filmes": get_tmdb_data("discover/movie", {"with_genres": "27,53"}).get('results', [])[:15]
-        })
-        listas.append({
-            "titulo": "💥 Ação e Aventura",
-            "filmes": get_tmdb_data("discover/movie", {"with_genres": "28,12"}).get('results', [])[:15]
-        })
+        listas.append({"titulo": "🔥 Lançamentos", "filmes": get_tmdb_data("movie/now_playing", {"region": "BR"}).get('results', [])[:15]})
+        listas.append({"titulo": "🌟 Mais Populares", "filmes": get_tmdb_data("movie/popular", {"region": "BR"}).get('results', [])[:15]})
+        listas.append({"titulo": "👻 Terror e Suspense", "filmes": get_tmdb_data("discover/movie", {"with_genres": "27,53"}).get('results', [])[:15]})
+        listas.append({"titulo": "💥 Ação e Aventura", "filmes": get_tmdb_data("discover/movie", {"with_genres": "28,12"}).get('results', [])[:15]})
 
     return render_template("index.html", listas=listas, img_base=IMG_PATH)
 
@@ -166,32 +139,17 @@ def index():
 def detalhes_filme(filme_id):
     filme = get_tmdb_data(f"movie/{filme_id}")
     trailer_key = get_trailer(filme_id)
-
     titulo_br = filme.get('title', '')
     titulo_original = filme.get('original_title', titulo_br)
-    
-    # 🔥 PEGA O ID DO IMDB PARA MANDAR PRO BRAZUCA!
     imdb_id = filme.get('imdb_id', '')
 
-    # ⚡ Busca
     lista_torrents = buscar_torrents_api(titulo_br, titulo_original, imdb_id)
-
     titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
-
     titulo_limpo = urllib.parse.quote(titulo_br)
     busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio"
 
-    return render_template(
-        "detalhes.html",
-        filme=filme,
-        img_base=IMG_PATH,
-        bg_base=BG_PATH,
-        trailer=trailer_key,
-        busca_online=link_busca_online,
-        lista_torrents=lista_torrents,
-        busca_magnet=busca_magnet
-    )
+    return render_template("detalhes.html", filme=filme, img_base=IMG_PATH, bg_base=BG_PATH, trailer=trailer_key, busca_online=link_busca_online, lista_torrents=lista_torrents, busca_magnet=busca_magnet)
 
 if __name__ == "__main__":
     app.run()
