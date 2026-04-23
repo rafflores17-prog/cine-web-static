@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request
 import requests
 import urllib.parse
+import unicodedata
+import re
 
 app = Flask(__name__)
 
@@ -29,34 +31,44 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# ⚡ API TORRENT + FILTRO DE BLINDAGEM ANTI-LIXO
+# ⚡ API TORRENT + BLINDAGEM MÁXIMA ANTI-LIXO
 # ==========================================================
+def remover_acentos_e_pontuacao(txt):
+    """Limpa o texto tirando acentos, vírgulas e pontos para a comparação ser perfeita"""
+    txt = str(txt)
+    # Tira os acentos (ex: Demônio vira Demonio)
+    txt = ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
+    # Tira pontuação e deixa tudo minúsculo
+    return re.sub(r'[^\w\s]', '', txt).lower()
+
 def buscar_torrents_api(titulo_br, titulo_original):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
-
-        # 1. TENTA BUSCAR PELO NOME EM PORTUGUÊS
         url = f"{base_url}?q={urllib.parse.quote(titulo_br)}"
         r = requests.get(url, timeout=15)
         data = r.json()
 
         resultados = []
 
-        # 🔥 CRIA AS PALAVRAS-CHAVE DE SEGURANÇA (Para descartar filmes errados)
-        # Pega palavras maiores que 2 letras para ignorar "o", "a", "de"
-        palavras_chave = [p.lower() for p in titulo_br.split() if len(p) > 2]
-        palavras_chave += [p.lower() for p in titulo_original.split() if len(p) > 2]
+        # 🛡️ CRIA AS PALAVRAS-CHAVE LIMPAS (Sem acentos)
+        palavras = remover_acentos_e_pontuacao(titulo_br).split()
+        if titulo_original:
+            palavras += remover_acentos_e_pontuacao(titulo_original).split()
+            
+        # Pega só palavras grandes (ignora 'o', 'de', 'as')
+        palavras_chave = [p for p in palavras if len(p) > 2]
 
         def processar_resultados(streams_data):
             for item in streams_data:
                 nome_completo = item.get("title", "")
-                nome_lower = nome_completo.lower()
+                # Limpa o nome do arquivo pirata também
+                nome_lower = remover_acentos_e_pontuacao(nome_completo)
 
                 if len(nome_completo) < 5:
                     continue
 
-                # 🛡️ BARREIRA DE SEGURANÇA ANTI-LIXO:
-                # Se o nome do torrent NÃO tiver NENHUMA palavra do título original ou BR, joga fora!
+                # 🛡️ O SEGURANÇA DA BOATE: 
+                # Se o nome do arquivo não tiver NENHUMA palavra do título, JOGA NO LIXO!
                 valido = False
                 for palavra in palavras_chave:
                     if palavra in nome_lower:
@@ -64,10 +76,10 @@ def buscar_torrents_api(titulo_br, titulo_original):
                         break
                 
                 if not valido:
-                    continue  # Aborta e vai pro próximo (Adeus, Deadpool!)
+                    continue  # ADEUS KUNG FU PANDA E DEADPOOL!
 
                 score = 0
-                if any(x in nome_lower for x in ["dublado", "dual", "pt", "br"]):
+                if any(x in nome_lower for x in ["dublado", "dual", "pt", "br", "portuguese"]):
                     score += 5
                 if "1080p" in nome_lower:
                     score += 3
@@ -81,17 +93,16 @@ def buscar_torrents_api(titulo_br, titulo_original):
                     "score": score
                 })
 
-        # Processa a primeira busca (Nome BR)
+        # 1. Processa a busca em Português
         processar_resultados(data.get("streams", []))
 
-        # 2. PLANO B AUTOMÁTICO (Se veio vazio e o nome original for diferente)
-        if not resultados and titulo_br.lower() != titulo_original.lower():
+        # 2. PLANO B AUTOMÁTICO (Busca em Inglês se o BR vier vazio)
+        if not resultados and titulo_original and titulo_br.lower() != titulo_original.lower():
             url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}"
             r_orig = requests.get(url_orig, timeout=15)
-            data_orig = r_orig.json()
-            processar_resultados(data_orig.get("streams", []))
+            processar_resultados(r_orig.json().get("streams", []))
 
-        # 🔁 remover duplicados
+        # 🔁 Remove duplicados e ordena (Dublados no topo)
         vistos = set()
         unicos = []
         for t in resultados:
@@ -99,9 +110,7 @@ def buscar_torrents_api(titulo_br, titulo_original):
                 vistos.add(t["magnet"])
                 unicos.append(t)
 
-        # 🔥 ordenar melhores (Dublados no topo)
         unicos.sort(key=lambda x: x["score"], reverse=True)
-
         return unicos[:10]
 
     except Exception as e:
@@ -166,7 +175,7 @@ def detalhes_filme(filme_id):
     titulo_br = filme.get('title', '')
     titulo_original = filme.get('original_title', titulo_br)
 
-    # ⚡ Busca Blindada e Inteligente (Enviando o Original para resgate)
+    # ⚡ Busca Blindada e Inteligente (Passa os dois nomes)
     lista_torrents = buscar_torrents_api(titulo_br, titulo_original)
 
     titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
@@ -187,4 +196,4 @@ def detalhes_filme(filme_id):
     )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
