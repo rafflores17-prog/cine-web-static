@@ -1,120 +1,62 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 import requests
-import urllib.parse
-import unicodedata
-import re
 
 app = Flask(__name__)
 
-# ================= SUA CHAVE ORIGINAL (DO SEU CÓDIGO) =================
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 
-IMG_PATH = "https://image.tmdb.org/t/p/w500"
-BG_PATH = "https://image.tmdb.org/t/p/original"
+IMG = "https://image.tmdb.org/t/p/w500"
+BG = "https://image.tmdb.org/t/p/original"
 
-NODE_API = "http://localhost:3000/streams"
 
-# ================= TMDB =================
-def get_tmdb(endpoint, params={}):
-    base = "https://api.themoviedb.org/3"
+def tmdb(endpoint, params=None):
+    if params is None:
+        params = {}
 
-    p = {
-        "api_key": TMDB_API_KEY,
-        "language": "pt-BR",
-        **params
-    }
+    url = f"https://api.themoviedb.org/3/{endpoint}"
+
+    params["api_key"] = TMDB_API_KEY
+    params["language"] = "pt-BR"
 
     try:
-        r = requests.get(f"{base}/{endpoint}", params=p, timeout=10)
+        r = requests.get(url, params=params, timeout=10)
         return r.json()
     except:
         return {}
 
-# ================= TRAILER =================
-def get_trailer(movie_id):
-    data = get_tmdb(f"movie/{movie_id}/videos")
 
-    for v in data.get("results", []):
-        if v.get("site") == "YouTube" and v.get("type") == "Trailer":
-            return v.get("key")
-
-    return None
-
-# ================= LIMPEZA =================
-def limpar(txt):
-    txt = str(txt)
-    txt = unicodedata.normalize('NFD', txt)
-    txt = ''.join(c for c in txt if unicodedata.category(c) != 'Mn')
-    return re.sub(r'[^\w\s]', '', txt).lower()
-
-# ================= HOME =================
 @app.route("/")
-def index():
-    query = request.args.get("q")
-    genero = request.args.get("genero")
-    ano = request.args.get("ano")
+def home():
+    filmes = tmdb("movie/popular").get("results", [])
+    return render_template("index.html", filmes=filmes, img=IMG)
 
-    listas = []
 
-    if query:
-        filmes = get_tmdb("search/movie", {"query": query}).get("results", [])
-        listas.append({"titulo": f"🔍 Resultados: {query}", "filmes": filmes})
-
-    elif genero:
-        filmes = get_tmdb("discover/movie", {"with_genres": genero}).get("results", [])
-        listas.append({"titulo": "🎬 Gênero", "filmes": filmes})
-
-    elif ano:
-        filmes = get_tmdb("discover/movie", {
-            "primary_release_date.gte": f"{ano}-01-01",
-            "primary_release_date.lte": f"{int(ano)+1}-12-31"
-        }).get("results", [])
-        listas.append({"titulo": f"📼 Ano {ano}", "filmes": filmes})
-
-    else:
-        listas.append({
-            "titulo": "🔥 Populares",
-            "filmes": get_tmdb("movie/popular").get("results", [])[:15]
-        })
-
-    return render_template("index.html", listas=listas, img_base=IMG_PATH)
-
-# ================= DETALHES =================
 @app.route("/filme/<int:id>")
-def detalhes(id):
+def filme(id):
+    filme = tmdb(f"movie/{id}")
 
-    filme = get_tmdb(f"movie/{id}")
-
-    titulo = filme.get("title", "")
-    imdb = filme.get("imdb_id") or ""
-
-    trailer = get_trailer(id)
+    imdb = filme.get("imdb_id")
 
     streams = []
 
-    # ================= NODE ENGINE =================
-    if imdb and titulo:
+    if imdb:
         try:
-            r = requests.get(NODE_API, params={
-                "imdb": imdb,
-                "title": titulo
-            }, timeout=10)
-
-            data = r.json()
-            streams = data.get("streams", [])
-
-        except Exception as e:
-            print("Erro Node:", e)
+            r = requests.get(
+                f"http://127.0.0.1:3000/streams?imdb={imdb}",
+                timeout=10
+            )
+            streams = r.json().get("streams", [])
+        except:
             streams = []
 
     return render_template(
         "detalhes.html",
         filme=filme,
-        img_base=IMG_PATH,
-        bg_base=BG_PATH,
-        trailer=trailer,
-        lista_torrents=streams
+        img=IMG,
+        bg=BG,
+        torrents=streams
     )
 
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
