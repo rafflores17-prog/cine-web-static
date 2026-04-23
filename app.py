@@ -5,13 +5,12 @@ import re
 
 app = Flask(__name__)
 
-# Configurações do Projeto
+# Configurações do Cine Mega
 NOME_SITE = "Cine Mega"
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
-# 📺 SERVIDORES VIP XTREAM
 SERVIDORES = [
     {"host": "http://serv99.xyz:8880", "user": "261491762", "pass": "2516895925"},
     {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
