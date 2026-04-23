@@ -1,14 +1,12 @@
 from flask import Flask, render_template, request
 import requests
 import random
-from datetime import datetime
 
 app = Flask(__name__)
 
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 
 IMG = "https://image.tmdb.org/t/p/w500"
-BG = "https://image.tmdb.org/t/p/original"
 
 
 def tmdb(endpoint, params=None):
@@ -26,79 +24,50 @@ def tmdb(endpoint, params=None):
         return {}
 
 
+# 🎬 MAPA DAS DÉCADAS
+DECADES = {
+    "80": (1980, 1989),
+    "90": (1990, 1999),
+    "2000": (2000, 2009),
+    "2010": (2010, 2019),
+    "2020": (2020, 2026),
+}
+
+
 @app.route("/")
 def home():
     query = request.args.get("q")
 
     if query:
         filmes = tmdb("search/movie", {"query": query}).get("results", [])
-        listas = [{"titulo": f"🔎 Resultados: {query}", "filmes": filmes}]
-    else:
-        populares = tmdb("movie/popular").get("results", [])
-        top = tmdb("movie/top_rated").get("results", [])
-        upcoming_raw = tmdb("movie/upcoming").get("results", [])
+        return render_template("index.html", img=IMG, filmes=filmes, modo="search")
 
-        hoje = str(datetime.today().date())
-
-        # 🎬 ESTREIAS REAIS
-        estreias = [
-            m for m in upcoming_raw
-            if m.get("release_date") and m["release_date"] >= hoje
-        ]
-
-        # 🎲 SURPRESA
-        surpresa = random.sample(populares, min(10, len(populares)))
-
-        # 📅 VIAGEM NO TEMPO (1980 → HOJE)
-        todos = populares + top
-
-        por_ano = {}
-
-        for m in todos:
-            if m.get("release_date"):
-                ano = m["release_date"][:4]
-
-                if ano.isdigit():
-                    ano = int(ano)
-
-                    if 1980 <= ano <= datetime.today().year:
-                        por_ano.setdefault(ano, []).append(m)
-
-        viagem = []
-        for ano in sorted(por_ano.keys()):
-            viagem.append({
-                "titulo": f"📅 Ano {ano}",
-                "filmes": por_ano[ano][:10]
-            })
-
-        listas = [
-            {"titulo": "🔥 Populares", "filmes": populares},
-            {"titulo": "🎬 Estreias Confirmadas", "filmes": estreias},
-            {"titulo": "🎲 Surpresa do Dia", "filmes": surpresa},
-        ] + viagem
-
-    return render_template("index.html", listas=listas, img=IMG)
+    populares = tmdb("movie/popular").get("results", [])
+    return render_template("index.html", img=IMG, filmes=populares, modo="home")
 
 
-@app.route("/filme/<int:id>")
-def filme(id):
-    filme = tmdb(f"movie/{id}")
+# 🎲 API INTERNA DAS DÉCADAS
+@app.route("/decada/<dec>")
+def decada(dec):
+    filmes_base = tmdb("movie/popular").get("results", []) + tmdb("movie/top_rated").get("results", [])
 
-    videos = tmdb(f"movie/{id}/videos").get("results", [])
-    trailer = None
+    if dec not in DECADES:
+        return {"erro": "decada invalida"}
 
-    for v in videos:
-        if v["type"] == "Trailer" and v["site"] == "YouTube":
-            trailer = v["key"]
-            break
+    inicio, fim = DECADES[dec]
 
-    return render_template(
-        "detalhes.html",
-        filme=filme,
-        img=IMG,
-        bg=BG,
-        trailer=trailer
-    )
+    filtrados = [
+        m for m in filmes_base
+        if m.get("release_date")
+        and m["release_date"][:4].isdigit()
+        and inicio <= int(m["release_date"][:4]) <= fim
+    ]
+
+    # evita vazio
+    if not filtrados:
+        filtrados = filmes_base
+
+    return {"filmes": random.sample(filtrados, min(12, len(filtrados)))}
 
 
 if __name__ == "__main__":
