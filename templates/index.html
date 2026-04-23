@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Cine</title>
+<title>CineMega</title>
 
 <style>
 body {
@@ -17,56 +17,98 @@ body {
 /* HERO */
 .hero {
   text-align:center;
-  padding:40px;
+  padding:50px 20px;
   background:linear-gradient(to bottom, #111, #0f0f0f);
 }
 
+.hero h1 {
+  margin-bottom:15px;
+}
+
+/* SEARCH */
+form {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
 input {
-  width:70%;
-  padding:12px;
-  border-radius:20px;
+  width:60%;
+  max-width:500px;
+  padding:12px 15px;
+  border-radius:25px;
   border:none;
+  outline:none;
 }
 
 button {
-  padding:12px;
-  border-radius:20px;
+  padding:12px 20px;
+  border-radius:25px;
   border:none;
   background:#e50914;
   color:white;
+  cursor:pointer;
+  font-weight:bold;
 }
 
-/* SEÇÕES */
+/* SEÇÃO */
 .section {
-  padding:10px 15px;
+  padding:20px 15px;
 }
 
 .section h2 {
   border-left:4px solid #e50914;
   padding-left:10px;
+  margin-bottom:10px;
 }
 
 /* CARROSSEL */
 .row {
   display:flex;
   overflow-x:auto;
-  gap:10px;
-  padding:10px 0;
+  gap:12px;
+  padding:10px 5px;
+  scroll-snap-type:x mandatory;
 }
 
+/* ESCONDE SCROLLBAR */
+.row::-webkit-scrollbar {
+  display:none;
+}
+
+/* CARD */
 .card {
-  min-width:140px;
+  min-width:150px;
+  max-width:150px;
+  scroll-snap-align:start;
   text-align:center;
+  transition:0.3s;
+}
+
+.card:hover {
+  transform:scale(1.05);
 }
 
 .card img {
   width:100%;
-  border-radius:10px;
+  height:220px;
+  object-fit:cover;
+  border-radius:12px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.5);
+}
+
+.card p {
+  font-size:14px;
+  margin-top:6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 /* MOBILE */
 @media(max-width:768px){
-  input { width:90%; }
+  input { width:80%; }
 }
 </style>
 </head>
@@ -76,9 +118,9 @@ button {
 <div class="hero">
   <h1>🎬 CineMega</h1>
 
-  <form>
+  <form method="GET">
     <input name="q" placeholder="Buscar filme...">
-    <button>Buscar</button>
+    <button type="submit">Buscar</button>
   </form>
 </div>
 
@@ -92,7 +134,7 @@ button {
 
     <a href="/filme/{{ filme.id }}" style="color:white;text-decoration:none;">
       <div class="card">
-        <img src="{{ img }}{{ filme.poster_path }}">
+        <img src="{{ img }}{{ filme.poster_path }}" loading="lazy">
         <p>{{ filme.title }}</p>
       </div>
     </a>
