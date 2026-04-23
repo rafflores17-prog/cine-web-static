@@ -15,7 +15,7 @@ body {
   overflow-x:hidden;
 }
 
-/* 🔥 FUNDO ANIMADO (MOVIMENTO LEVE) */
+/* 🔥 FUNDO ANIMADO (O efeito que você criou) */
 .bg {
   position:fixed;
   top:0;
@@ -35,7 +35,7 @@ body {
   100% { transform:scale(1.25) translateY(-20px); }
 }
 
-/* CONTAINER MOBILE STYLE */
+/* CONTAINER CENTRALIZADO */
 .container {
   padding:20px;
   max-width:500px;
@@ -55,10 +55,11 @@ body {
 
 /* TITULO */
 h1 {
-  font-size:20px;
+  font-size:22px;
   margin-top:15px;
   text-align:center;
   color:#e50914;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
 
 /* INFO */
@@ -72,18 +73,51 @@ h1 {
 /* SINOPSE */
 .overview {
   background:rgba(0,0,0,0.6);
-  padding:12px;
-  border-radius:10px;
+  padding:15px;
+  border-radius:12px;
   font-size:14px;
   line-height:1.5;
   margin-top:10px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* 🚀 BOTÃO DE PLAY IPTV (ESTILO PREMIUM) */
+.btn-play {
+  display:block;
+  background:#00a859;
+  color:white;
+  text-align:center;
+  padding:16px;
+  border-radius:12px;
+  text-decoration:none;
+  font-weight:bold;
+  font-size:17px;
+  margin-top: 20px;
+  box-shadow: 0 4px 20px rgba(0,168,89,0.4);
+  transition: transform 0.2s;
+}
+
+.btn-play:active {
+  transform: scale(0.95);
+}
+
+.no-link {
+  margin-top: 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px dashed #555;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
 }
 
 /* TRAILER */
 .trailer {
-  margin-top:15px;
+  margin-top:20px;
   border-radius:12px;
   overflow:hidden;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
 }
 
 iframe {
@@ -94,18 +128,21 @@ iframe {
 
 /* BOTÃO VOLTAR */
 .back {
-  display:block;
-  margin-bottom:10px;
+  display:inline-block;
+  margin-bottom:15px;
   color:white;
   text-decoration:none;
   font-size:14px;
-  opacity:0.8;
+  opacity:0.7;
+  padding: 5px 10px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 20px;
 }
 
-/* MOBILE OK */
+/* RESPONSIVIDADE */
 @media(min-width:700px){
   .container {
-    max-width:400px;
+    max-width:450px;
   }
 }
 </style>
@@ -113,32 +150,39 @@ iframe {
 
 <body>
 
-<!-- 🌄 FUNDO -->
 <div class="bg" style="background-image:url('{{ bg }}{{ filme.backdrop_path }}')"></div>
 
 <div class="container">
 
   <a class="back" href="/">⬅ Voltar</a>
 
-  <!-- POSTER -->
   <div class="poster">
-    <img src="{{ img }}{{ filme.poster_path }}">
+    <img src="{{ img }}{{ filme.poster_path }}" alt="Poster de {{ filme.title }}">
   </div>
 
-  <!-- TITULO -->
   <h1>{{ filme.title }}</h1>
 
-  <!-- META -->
   <div class="meta">
-    ⭐ {{ filme.vote_average }} | 📅 {{ filme.release_date }}
+    ⭐ {{ filme.vote_average | round(1) }} | 📅 {{ filme.release_date[:4] }}
   </div>
 
-  <!-- SINOPSE -->
   <div class="overview">
-    {{ filme.overview }}
+    {{ filme.overview if filme.overview else "Sinopse não disponível em português." }}
   </div>
 
-  <!-- TRAILER -->
+  {% if play_link %}
+    <a href="{{ play_link }}" target="_blank" class="btn-play">
+      ▶️ ASSISTIR AGORA
+    </a>
+    <p style="text-align:center; font-size:10px; color:#666; margin-top:8px; text-transform: uppercase; letter-spacing: 1px;">
+      Stream Direto via Servidor VIP
+    </p>
+  {% else %}
+    <div class="no-link">
+      ⚠️ Este título ainda não foi indexado no servidor VIP.
+    </div>
+  {% endif %}
+
   {% if trailer %}
   <div class="trailer">
     <iframe 
