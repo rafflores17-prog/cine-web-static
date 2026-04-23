@@ -17,12 +17,12 @@ body {
 /* HERO */
 .hero {
   text-align:center;
-  padding:50px 20px;
-  background:linear-gradient(to bottom, #111, #0f0f0f);
+  padding:60px 20px;
+  background:radial-gradient(circle at top, #1a1a1a, #0f0f0f);
 }
 
 .hero h1 {
-  margin-bottom:15px;
+  font-size:2.5rem;
 }
 
 /* SEARCH */
@@ -31,6 +31,7 @@ form {
   justify-content:center;
   gap:10px;
   flex-wrap:wrap;
+  margin-top:15px;
 }
 
 input {
@@ -48,31 +49,28 @@ button {
   border:none;
   background:#e50914;
   color:white;
-  cursor:pointer;
   font-weight:bold;
 }
 
-/* SEÇÃO */
+/* SEÇÕES */
 .section {
-  padding:20px 15px;
+  padding:25px 15px;
 }
 
 .section h2 {
   border-left:4px solid #e50914;
   padding-left:10px;
-  margin-bottom:10px;
 }
 
 /* CARROSSEL */
 .row {
   display:flex;
   overflow-x:auto;
-  gap:12px;
+  gap:14px;
   padding:10px 5px;
   scroll-snap-type:x mandatory;
 }
 
-/* ESCONDE SCROLLBAR */
 .row::-webkit-scrollbar {
   display:none;
 }
@@ -82,12 +80,12 @@ button {
   min-width:150px;
   max-width:150px;
   scroll-snap-align:start;
-  text-align:center;
   transition:0.3s;
+  text-align:center;
 }
 
 .card:hover {
-  transform:scale(1.05);
+  transform:scale(1.08);
 }
 
 .card img {
@@ -95,11 +93,10 @@ button {
   height:220px;
   object-fit:cover;
   border-radius:12px;
-  box-shadow:0 8px 20px rgba(0,0,0,0.5);
 }
 
 .card p {
-  font-size:14px;
+  font-size:13px;
   margin-top:6px;
   white-space:nowrap;
   overflow:hidden;
@@ -120,7 +117,7 @@ button {
 
   <form method="GET">
     <input name="q" placeholder="Buscar filme...">
-    <button type="submit">Buscar</button>
+    <button>Buscar</button>
   </form>
 </div>
 
