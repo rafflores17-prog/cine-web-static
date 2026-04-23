@@ -3,53 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ filme.title }}</title>
+<title>{{ filme.title }} | {{ nome_site }}</title>
+
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+
 <style>
 body { margin:0; font-family:Arial, sans-serif; color:white; background:black; overflow-x:hidden; }
-.bg {
-  position:fixed; top:0; left:0; width:100%; height:100%;
-  background-size:cover; background-position:center;
-  filter:blur(20px) brightness(0.3); transform:scale(1.2);
-  animation:moveBg 15s ease-in-out infinite alternate; z-index:-1;
-}
-@keyframes moveBg { 0% { transform:scale(1.2); } 100% { transform:scale(1.3) translateY(-10px); } }
-.container { padding:20px; max-width:450px; margin:auto; text-align:center; }
-.poster img { width:190px; border-radius:15px; box-shadow:0 15px 35px rgba(0,0,0,0.8); margin-bottom:15px; }
-h1 { font-size:24px; color:#e50914; margin:10px 0; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }
-.meta { font-size:14px; color:#aaa; margin-bottom:15px; }
-.overview {
-  background:rgba(255,255,255,0.08); padding:15px; border-radius:15px;
-  font-size:14px; line-height:1.6; text-align:justify; margin-bottom:20px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
+.bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(25px) brightness(0.3); transform:scale(1.2); animation:moveBg 20s infinite alternate; z-index:-1; }
+@keyframes moveBg { 0% { transform:scale(1.2); } 100% { transform:scale(1.4); } }
 
-/* BOTÃO PLAY */
-.btn-play {
-  display:block; background: linear-gradient(45deg, #00a859, #008f4c);
-  color:white; text-decoration:none; padding:18px; border-radius:50px;
-  font-weight:bold; font-size:18px; box-shadow: 0 10px 20px rgba(0,168,89,0.3);
-  transition: 0.3s; margin-bottom:10px;
-}
+.container { padding:20px; max-width:500px; margin:auto; text-align:center; }
+.poster img { width:170px; border-radius:15px; box-shadow:0 15px 35px rgba(0,0,0,0.8); margin-bottom:10px; }
 
-/* BOTÃO DOWNLOAD DISCRETO */
-.btn-down {
-  display:block; width:100%; background:none; border:1px solid #00a859;
-  color:#00ff88; padding:12px; border-radius:50px; font-weight:bold;
-  font-size:14px; cursor:pointer; text-transform:uppercase; letter-spacing:1px;
-}
+/* Estilo do Player */
+.player-container { width: 100%; border-radius: 15px; overflow: hidden; margin: 20px 0; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
 
-.no-link {
-  padding:15px; border: 1px dashed #e50914; border-radius:15px;
-  color:#ff9b9b; font-size:13px; background:rgba(0,0,0,0.3);
-}
+h1 { font-size:22px; color:#e50914; margin:10px 0; }
+.meta { font-size:13px; color:#aaa; margin-bottom:15px; }
+.overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:15px; font-size:14px; text-align:justify; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; }
 
-.trailer { margin-top:25px; border-radius:15px; overflow:hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.7); }
-iframe { width:100%; height:230px; border:none; }
+/* Botão de Download */
+.btn-down { display:block; width:100%; background:none; border:1px solid #00a859; color:#00ff88; padding:12px; border-radius:50px; font-weight:bold; font-size:13px; cursor:pointer; text-decoration:none; margin-top: 10px; }
 
-.back {
-  display:inline-block; margin-bottom:20px; color:#ccc; text-decoration:none;
-  font-size:13px; background: rgba(255,255,255,0.1); padding: 8px 18px; border-radius: 20px;
-}
+.no-link { padding:20px; border: 1px dashed #e50914; border-radius:15px; color:#ff9b9b; background:rgba(0,0,0,0.4); }
+
+.back { display:inline-block; margin-bottom:20px; color:#ccc; text-decoration:none; font-size:13px; background: rgba(255,255,255,0.1); padding: 8px 18px; border-radius: 20px; }
 </style>
 </head>
 <body>
@@ -58,47 +36,42 @@ iframe { width:100%; height:230px; border:none; }
 
 <div class="container">
   <a class="back" href="/">⬅ Voltar</a>
-
-  <div class="poster">
-    <img src="{{ img }}{{ filme.poster_path }}">
-  </div>
-
+  
+  <div class="poster"><img src="{{ img }}{{ filme.poster_path }}"></div>
   <h1>{{ filme.title }}</h1>
   <div class="meta">⭐ {{ filme.vote_average | round(1) }} | 📅 {{ filme.release_date[:4] }}</div>
 
+  {% if play_link %}
+    <div class="player-container">
+        <video id="player" playsinline controls data-poster="{{ bg }}{{ filme.backdrop_path }}">
+            <source src="{{ play_link }}" type="video/mp4" />
+        </video>
+    </div>
+    
+    <a href="{{ play_link }}" download="{{ filme.title }}.mp4" class="btn-down">📥 BAIXAR FILME</a>
+    <p style="font-size:10px; color:#00a859; margin-top:8px; font-weight:bold;">SINAL VIP LOCALIZADO ✅</p>
+  {% else %}
+    <div class="no-link">🔍 Buscando em 6 servidores... <br> Filme ainda não disponível.</div>
+  {% endif %}
+
   <div class="overview">{{ filme.overview }}</div>
 
-  {% if play_link %}
-    <a href="{{ play_link }}" target="_blank" class="btn-play">▶️ ASSISTIR AGORA</a>
-
-    <button onclick="baixar('{{ play_link }}', '{{ filme.title }}')" class="btn-down">
-      📥 BAIXAR FILME
-    </button>
-    
-    <script>
-      function baixar(url, nome) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = nome + ".mp4";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        // Pequeno aviso silencioso
-        console.log("Download solicitado em segundo plano.");
-      }
-    </script>
-
-    <p style="font-size:10px; color:#00a859; margin-top:10px; font-weight:bold;">SINAL VIP ATIVO ✅</p>
-  {% else %}
-    <div class="no-link">🔍 Buscando nos servidores VIP...</div>
-  {% endif %}
-
   {% if trailer %}
-  <div class="trailer">
-    <iframe src="https://www.youtube.com/embed/{{ trailer }}" allowfullscreen></iframe>
-  </div>
+    <p style="font-size:12px; color:#aaa; margin-top:20px;">Trailer Oficial</p>
+    <div style="border-radius:15px; overflow:hidden; margin-top:5px;">
+        <iframe width="100%" height="220" src="https://www.youtube.com/embed/{{ trailer }}" frameborder="0" allowfullscreen></iframe>
+    </div>
   {% endif %}
 </div>
+
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+<script>
+  const player = new Plyr('#player', {
+      title: '{{ filme.title }}',
+      controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+      tooltips: { controls: true, seek: true }
+  });
+</script>
 
 </body>
 </html>
