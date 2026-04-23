@@ -31,21 +31,21 @@ def remover_acentos_e_pontuacao(txt):
     return re.sub(r'[^\w\s]', '', txt).lower()
 
 # ==========================================================
-# ⚡ SCRIPT UNIVERSAL (BYPASS DE IMDB)
+# ⚡ SCRIPT UNIVERSAL (FILTRO FLEXÍVEL INTELIGENTE)
 # ==========================================================
 def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
-        
-        # 🔥 COMUNICAÇÃO CORRIGIDA: Agora o Python manda o "br" e o "orig" para o Node.js
         url = f"{base_url}?br={urllib.parse.quote(titulo_br)}&orig={urllib.parse.quote(titulo_original)}&imdb={imdb_id}"
         r = requests.get(url, timeout=15)
         data = r.json()
 
         resultados = []
 
-        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1][:2]
-        palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1][:2]
+        # 🧠 Pega TODAS as palavras fortes (mais de 1 letra) do título BR e do Original
+        palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1]
+        palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1]
+        palavras_fortes = palavras_br + palavras_orig
 
         def processar_resultados(streams_data):
             for item in streams_data:
@@ -55,16 +55,20 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 if len(nome_completo) < 5:
                     continue
 
-                # 🛡️ VIA EXPRESSA (BYPASS): 
-                # Se veio do Brazuca ou do Torrentio, é porque achou pelo IMDB. 
-                # O IMDB NUNCA ERRA! Deixa passar direto sem checar as palavras!
                 is_trusted = "brazuca" in nome_lower or "torrentio" in nome_lower
 
-                valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
-                valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
-                
-                # Se NÃO for confiável (ex: PirateBay), aí sim a gente checa as palavras
-                if not is_trusted and not (valido_br or valido_orig):
+                # 🛡️ FILTRO MÁGICO: Se PELO MENOS UMA palavra estiver no nome, o filme é verdadeiro!
+                tem_palavra_do_filme = False
+                if palavras_fortes:
+                    for p in palavras_fortes:
+                        if p in nome_lower:
+                            tem_palavra_do_filme = True
+                            break
+                else:
+                    tem_palavra_do_filme = True # Se o filme tiver nome muito curto (ex: "X"), passa.
+
+                # Se não veio do Brazuca/Torrentio e não tem NENHUMA palavra do filme -> Joga no lixo!
+                if not is_trusted and not tem_palavra_do_filme:
                     continue
 
                 score = 0
@@ -145,7 +149,6 @@ def detalhes_filme(filme_id):
     titulo_original = filme.get('original_title', titulo_br)
     imdb_id = filme.get('imdb_id') or ""
 
-    # Chama a API enviando tudo!
     lista_torrents = buscar_torrents_api(titulo_br, titulo_original, imdb_id)
     
     titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
