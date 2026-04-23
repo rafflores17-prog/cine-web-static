@@ -29,42 +29,44 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# ⚡ API TORRENT OTIMIZADA (RÁPIDA + SEM LAG)
+# ⚡ API TORRENT OTIMIZADA (CONECTADA AO SEU NODE.JS)
 # ==========================================================
-def buscar_torrents_api(titulo, ano=None):
+def buscar_torrents_api(titulo):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
 
-        # 🔥 SOMENTE 1 BUSCA (rápido)
-        busca = f"{titulo} {ano}"
-
-        url = f"{base_url}?q={urllib.parse.quote(busca)}"
-        r = requests.get(url, timeout=10)
+        # 🔥 SOMENTE O TÍTULO (Removido o ano para não enlouquecer o 1377x)
+        url = f"{base_url}?q={urllib.parse.quote(titulo)}"
+        
+        # Aumentei o timeout para 15s para garantir que sua API Node tenha tempo de responder
+        r = requests.get(url, timeout=15)
         data = r.json()
 
         resultados = []
 
         for item in data.get("streams", []):
-            nome = item.get("title", "").lower()
+            nome_completo = item.get("title", "")
+            nome_lower = nome_completo.lower()
 
             # 🚫 filtro básico (remove lixo extremo)
-            if len(nome) < 5:
+            if len(nome_completo) < 5:
                 continue
 
             score = 0
 
             # 🇧🇷 prioridade (sem bloquear)
-            if any(x in nome for x in ["dublado", "dual", "pt", "br"]):
+            if any(x in nome_lower for x in ["dublado", "dual", "pt", "br"]):
                 score += 5
 
             # 🎬 qualidade
-            if "1080p" in nome:
+            if "1080p" in nome_lower:
                 score += 3
-            elif "720p" in nome:
+            elif "720p" in nome_lower:
                 score += 2
 
             resultados.append({
-                "nome": item.get("title")[:70],
+                # 🔥 Sem o limite de caracteres para o nome ficar completo
+                "nome": nome_completo,
                 "tamanho": item.get("size", "N/A"),
                 "magnet": item.get("magnet"),
                 "score": score
@@ -143,10 +145,9 @@ def detalhes_filme(filme_id):
     trailer_key = get_trailer(filme_id)
 
     titulo = filme.get('title', '')
-    ano = filme.get('release_date', '')[:4]
-
-    # ⚡ busca rápida (sem travar)
-    lista_torrents = buscar_torrents_api(titulo, ano)
+    
+    # ⚡ Busca rápida na SUA API (Apenas com o Titulo)
+    lista_torrents = buscar_torrents_api(titulo)
 
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
@@ -167,4 +168,4 @@ def detalhes_filme(filme_id):
 
 # ==========================================================
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
