@@ -3,18 +3,12 @@ import requests
 
 app = Flask(__name__)
 
-# =========================
-# CONFIG TMDB
-# =========================
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
 
-# =========================
-# TMDB REQUEST SAFE
-# =========================
 def tmdb(endpoint, params=None):
     if params is None:
         params = {}
@@ -32,19 +26,28 @@ def tmdb(endpoint, params=None):
 
 
 # =========================
-# HOME (INDEX)
+# HOME (COM BUSCA REAL)
 # =========================
 @app.route("/")
 def home():
-    populares = tmdb("movie/popular").get("results", [])
-    top_rated = tmdb("movie/top_rated").get("results", [])
-    upcoming = tmdb("movie/upcoming").get("results", [])
+    query = request.args.get("q")
 
-    listas = [
-        {"titulo": "🔥 Populares", "filmes": populares},
-        {"titulo": "⭐ Mais Bem Avaliados", "filmes": top_rated},
-        {"titulo": "🎬 Em Breve", "filmes": upcoming},
-    ]
+    if query:
+        filmes = tmdb("search/movie", {"query": query}).get("results", [])
+
+        listas = [
+            {"titulo": f"🔍 Resultados para '{query}'", "filmes": filmes}
+        ]
+    else:
+        populares = tmdb("movie/popular").get("results", [])
+        top = tmdb("movie/top_rated").get("results", [])
+        up = tmdb("movie/upcoming").get("results", [])
+
+        listas = [
+            {"titulo": "🔥 Populares", "filmes": populares},
+            {"titulo": "⭐ Mais Avaliados", "filmes": top},
+            {"titulo": "🎬 Em Breve", "filmes": up},
+        ]
 
     return render_template(
         "index.html",
@@ -54,41 +57,29 @@ def home():
 
 
 # =========================
-# DETALHES + NODE MOTOR
+# DETALHES + NODE
 # =========================
 @app.route("/filme/<int:id>")
 def filme(id):
     filme = tmdb(f"movie/{id}")
 
     imdb = filme.get("imdb_id")
-
     torrents = []
 
-    # =========================
-    # CHAMA MOTOR NODE
-    # =========================
     if imdb:
         try:
-            url = f"http://127.0.0.1:3000/streams?imdb={imdb}"
-            r = requests.get(url, timeout=12)
+            r = requests.get(
+                f"http://127.0.0.1:3000/streams?imdb={imdb}",
+                timeout=12
+            )
 
             if r.status_code == 200:
-                data = r.json()
-                torrents = data.get("streams", [])
-        except Exception as e:
-            print("Erro Node:", e)
+                torrents = r.json().get("streams", [])
 
-    # =========================
-    # ORDENA MELHOR PRIMEIRO
-    # =========================
-    try:
-        torrents = sorted(
-            torrents,
-            key=lambda x: x.get("score", 0),
-            reverse=True
-        )
-    except:
-        pass
+        except:
+            torrents = []
+
+    torrents = sorted(torrents, key=lambda x: x.get("score", 0), reverse=True)
 
     return render_template(
         "detalhes.html",
@@ -99,12 +90,5 @@ def filme(id):
     )
 
 
-# =========================
-# RUN SERVER
-# =========================
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
-    )
+    app.run(host="0.0.0.0", port=5000, debug=True)
