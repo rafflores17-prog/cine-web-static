@@ -2,61 +2,148 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>{{ filme.title }}</title>
 
 <style>
 body {
   margin:0;
   font-family:Arial;
-  background:black;
   color:white;
+  background:black;
+  overflow-x:hidden;
 }
 
-.container {
-  padding:20px;
-}
-
+/* 🔥 FUNDO ANIMADO (MOVIMENTO LEVE) */
 .bg {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
   background-size:cover;
   background-position:center;
-  height:300px;
-  filter:blur(2px) brightness(0.5);
+  filter:blur(18px) brightness(0.4);
+  transform:scale(1.2);
+  animation:moveBg 12s ease-in-out infinite alternate;
+  z-index:-1;
 }
 
-.content {
-  margin-top:-200px;
-  position:relative;
+@keyframes moveBg {
+  0% { transform:scale(1.2) translateY(0px); }
+  100% { transform:scale(1.25) translateY(-20px); }
+}
+
+/* CONTAINER MOBILE STYLE */
+.container {
   padding:20px;
+  max-width:500px;
+  margin:auto;
 }
 
-img {
-  width:200px;
+/* POSTER */
+.poster {
+  text-align:center;
+}
+
+.poster img {
+  width:180px;
+  border-radius:12px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.6);
+}
+
+/* TITULO */
+h1 {
+  font-size:20px;
+  margin-top:15px;
+  text-align:center;
+  color:#e50914;
+}
+
+/* INFO */
+.meta {
+  text-align:center;
+  font-size:13px;
+  color:#ccc;
+  margin-bottom:10px;
+}
+
+/* SINOPSE */
+.overview {
+  background:rgba(0,0,0,0.6);
+  padding:12px;
   border-radius:10px;
+  font-size:14px;
+  line-height:1.5;
+  margin-top:10px;
 }
 
+/* TRAILER */
 .trailer {
-  margin-top:20px;
+  margin-top:15px;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+iframe {
+  width:100%;
+  height:220px;
+  border:none;
+}
+
+/* BOTÃO VOLTAR */
+.back {
+  display:block;
+  margin-bottom:10px;
+  color:white;
+  text-decoration:none;
+  font-size:14px;
+  opacity:0.8;
+}
+
+/* MOBILE OK */
+@media(min-width:700px){
+  .container {
+    max-width:400px;
+  }
 }
 </style>
 </head>
 
 <body>
 
+<!-- 🌄 FUNDO -->
 <div class="bg" style="background-image:url('{{ bg }}{{ filme.backdrop_path }}')"></div>
 
-<div class="content">
+<div class="container">
 
+  <a class="back" href="/">⬅ Voltar</a>
+
+  <!-- POSTER -->
+  <div class="poster">
+    <img src="{{ img }}{{ filme.poster_path }}">
+  </div>
+
+  <!-- TITULO -->
   <h1>{{ filme.title }}</h1>
 
-  <img src="{{ img }}{{ filme.poster_path }}">
+  <!-- META -->
+  <div class="meta">
+    ⭐ {{ filme.vote_average }} | 📅 {{ filme.release_date }}
+  </div>
 
-  <p>{{ filme.overview }}</p>
+  <!-- SINOPSE -->
+  <div class="overview">
+    {{ filme.overview }}
+  </div>
 
+  <!-- TRAILER -->
   {% if trailer %}
   <div class="trailer">
-    <iframe width="100%" height="300"
+    <iframe 
       src="https://www.youtube.com/embed/{{ trailer }}"
-      frameborder="0" allowfullscreen>
+      allowfullscreen>
     </iframe>
   </div>
   {% endif %}
