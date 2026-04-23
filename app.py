@@ -5,12 +5,10 @@ import re
 
 app = Flask(__name__)
 
-# Configurações TMDB
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
-# 📺 LISTA DE SERVIDORES VIP (XTREAM)
 SERVIDORES = [
     {"host": "http://serv99.xyz:8880", "user": "261491762", "pass": "2516895925"},
     {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
@@ -21,7 +19,7 @@ SERVIDORES = [
 ]
 
 def buscar_no_iptv(titulo_filme):
-    # Limpa o título para uma busca mais precisa (evita erros com acentos/pontos)
+    # Limpeza profunda do título
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
     
     for srv in SERVIDORES:
@@ -32,10 +30,11 @@ def buscar_no_iptv(titulo_filme):
             for item in lista_vod:
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
                 
-                # Se o nome bater ou estiver contido de forma muito próxima
-                if titulo_busca == nome_iptv or (titulo_busca in nome_iptv and len(nome_iptv) < len(titulo_busca) + 15):
+                # Busca exata ou muito aproximada
+                if titulo_busca == nome_iptv or (titulo_busca in nome_iptv and len(nome_iptv) < len(titulo_busca) + 12):
                     stream_id = item.get('stream_id')
-                    # 🔥 Forçamos .mp4 para garantir compatibilidade de áudio/vídeo
+                    # Retornamos o link sem extensão fixa para o navegador decidir, 
+                    # ou .mp4 para forçar compatibilidade
                     return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
         except:
             continue
@@ -55,15 +54,13 @@ def home():
     if query:
         filmes = tmdb("search/movie", {"query": query}).get("results", [])
     else:
-        # Puxa várias listas para a Home
-        populares = tmdb("movie/popular").get("results", [])
-        top = tmdb("movie/top_rated").get("results", [])
-        trending = tmdb("trending/movie/week").get("results", [])
+        p = tmdb("movie/popular").get("results", [])
+        t = tmdb("movie/top_rated").get("results", [])
+        tr = tmdb("trending/movie/week").get("results", [])
         
-        # 🛡️ FILTRO ANTI-REPETIÇÃO: Garante que o mesmo filme não apareça 2 vezes
         vistos = set()
         mistura = []
-        for f in (populares + top + trending):
+        for f in (p + t + tr):
             if f['id'] not in vistos:
                 mistura.append(f)
                 vistos.add(f['id'])
@@ -75,7 +72,6 @@ def home():
 @app.route("/filme/<int:id>")
 def filme(id):
     f_data = tmdb(f"movie/{id}")
-    # Busca o link nos 6 servidores
     play_link = buscar_no_iptv(f_data.get('title', ''))
     
     videos = tmdb(f"movie/{id}/videos").get("results", [])
