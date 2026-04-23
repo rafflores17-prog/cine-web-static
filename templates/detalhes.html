@@ -9,11 +9,13 @@
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
 
 <style>
+* { box-sizing: border-box; } /* 📏 Garante que o padding não "empurre" o botão pra fora */
+
 body { margin:0; font-family:Arial, sans-serif; color:white; background:black; overflow-x:hidden; }
 .bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(25px) brightness(0.2); transform:scale(1.2); animation:moveBg 20s infinite alternate; z-index:-1; }
 @keyframes moveBg { 0% { transform:scale(1.2); } 100% { transform:scale(1.4); } }
 
-.container { padding:20px; max-width:450px; margin:auto; text-align:center; }
+.container { padding:20px; max-width:450px; margin:0 auto; text-align:center; }
 .poster img { width:160px; border-radius:15px; box-shadow:0 15px 35px rgba(0,0,0,0.8); margin-bottom:10px; }
 
 .player-wrapper { width: 100%; border-radius: 15px; overflow: hidden; background: #000; margin: 15px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #333; }
@@ -24,12 +26,28 @@ h1 { font-size:20px; color:#e50914; margin:5px 0; }
 
 .overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:15px; font-size:13px; text-align:justify; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; }
 
-/* BOTÕES */
-.btn-alt { display:block; width:100%; background: linear-gradient(45deg, #00a859, #008f4c); color:white; padding:15px; border-radius:50px; font-weight:bold; font-size:14px; text-decoration:none; margin-top: 5px; transition: 0.3s; }
-.btn-chrome { display:block; width:100%; background: #333; color:white; padding:12px; border-radius:50px; font-weight:bold; font-size:12px; text-decoration:none; margin-top: 10px; border: 1px solid #555; }
+/* 🚀 BOTÃO VERDE ALINHADO */
+.btn-alt { 
+    display: block; 
+    width: 100%; 
+    max-width: 100%;
+    background: linear-gradient(45deg, #00a859, #008f4c); 
+    color: white; 
+    padding: 15px; 
+    border-radius: 50px; 
+    font-weight: bold; 
+    font-size: 14px; 
+    text-decoration: none; 
+    margin: 10px auto; /* 🎯 Centraliza perfeitamente */
+    box-shadow: 0 5px 15px rgba(0,168,89,0.3);
+    transition: 0.3s; 
+}
+.btn-alt:active { transform: scale(0.95); }
 
 .no-link { padding:20px; border: 1px dashed #e50914; border-radius:15px; color:#ff9b9b; background:rgba(0,0,0,0.4); }
 .back { display:inline-block; margin-bottom:15px; color:#ccc; text-decoration:none; font-size:12px; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; }
+
+#chrome-tip { margin-top: 15px; font-size: 11px; color: #00ff88; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -52,18 +70,17 @@ h1 { font-size:20px; color:#e50914; margin:5px 0; }
     
     <a href="{{ play_link }}" target="_blank" class="btn-alt">🚀 PLAY EXTERNO (RECOMENDADO)</a>
 
-    <div id="chrome-tip" style="display:none; margin-top:10px; font-size:11px; color:#bbb;">
-        ⚠️ Se o vídeo não abrir, clique no <b>Play Externo</b> ou use o <b>UC Browser</b>.
+    <div id="chrome-tip">
+        Dica: Use o UC Browser para assistir sem sair do site!
     </div>
-
   {% else %}
-    <div class="no-link">🔍 Filme não localizado nos servidores VIP.</div>
+    <div class="no-link">🔍 Filme não disponível nos servidores VIP.</div>
   {% endif %}
 
   <div class="overview">{{ filme.overview }}</div>
 
   {% if trailer %}
-    <div style="border-radius:15px; overflow:hidden; margin-top:15px;">
+    <div style="border-radius:15px; overflow:hidden; margin-top:15px; border: 1px solid #333;">
         <iframe width="100%" height="210" src="https://www.youtube.com/embed/{{ trailer }}" frameborder="0" allowfullscreen></iframe>
     </div>
   {% endif %}
@@ -75,15 +92,10 @@ h1 { font-size:20px; color:#e50914; margin:5px 0; }
     controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
   });
 
-  // Detecta se é Chrome e mostra a dica
-  if (navigator.userAgent.indexOf("Chrome") !== -1) {
-    document.getElementById('chrome-tip').style.display = 'block';
-  }
-
-  // Truque: Se o vídeo der erro de bloqueio, avisa o usuário
+  // Forçar aviso de erro se o play falhar (comum no Chrome)
   const video = document.getElementById('player');
   video.onerror = function() {
-    alert("Bloqueio de segurança detectado! Use o botão 'PLAY EXTERNO' para assistir.");
+    console.log("Play bloqueado pelo navegador.");
   };
 </script>
 
