@@ -6,29 +6,84 @@
 <title>CineTor</title>
 
 <style>
-body { background:#0f0f0f; color:white; font-family:Arial; }
+body {
+  background:#0f0f0f;
+  color:white;
+  font-family:Arial;
+  margin:0;
+}
 
-.hero { text-align:center; padding:40px; }
+/* HERO */
+.hero {
+  text-align:center;
+  padding:40px 20px;
+}
+
+.hero h1 {
+  margin-bottom:20px;
+}
+
+/* SEARCH */
+.search {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+}
 
 .search input {
-  width:70%; padding:12px; border-radius:20px;
+  width:70%;
+  padding:12px;
+  border-radius:20px;
+  border:none;
+  outline:none;
 }
 
 .search button {
-  padding:12px; border-radius:20px;
-  background:#e50914; color:white; border:none;
+  padding:12px 20px;
+  border-radius:20px;
+  background:#e50914;
+  color:white;
+  border:none;
+  cursor:pointer;
 }
 
+/* LISTA */
+h3 {
+  margin:20px;
+}
+
+/* ROW SCROLL */
 .row {
-  display:flex; overflow-x:auto;
+  display:flex;
+  overflow-x:auto;
+  padding:10px 20px;
+  gap:10px;
 }
 
+/* CARD */
 .card {
-  width:150px; margin:10px;
+  min-width:150px;
+  max-width:150px;
+  flex:0 0 auto;
+  text-align:center;
 }
 
 .card img {
-  width:100%; border-radius:10px;
+  width:100%;
+  border-radius:10px;
+}
+
+.card p {
+  font-size:12px;
+  margin-top:5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* esconder scrollbar */
+.row::-webkit-scrollbar {
+  display:none;
 }
 </style>
 </head>
@@ -38,9 +93,10 @@ body { background:#0f0f0f; color:white; font-family:Arial; }
 <div class="hero">
   <h1>CineTor 🍿</h1>
 
-  <form class="search">
-    <input name="q" placeholder="Buscar filme..." value="{{ request.args.get('q','') }}">
-    <button>Buscar</button>
+  <form class="search" method="GET">
+    <input name="q" placeholder="Buscar filme..."
+           value="{{ request.args.get('q','') }}">
+    <button type="submit">Buscar</button>
   </form>
 </div>
 
@@ -53,11 +109,11 @@ body { background:#0f0f0f; color:white; font-family:Arial; }
 {% for filme in lista.filmes %}
 {% if filme.poster_path %}
 
-<a href="/filme/{{ filme.id }}">
-<div class="card">
-  <img src="{{ img }}{{ filme.poster_path }}">
-  <p>{{ filme.title }}</p>
-</div>
+<a href="/filme/{{ filme.id }}" style="text-decoration:none; color:white;">
+  <div class="card">
+    <img src="{{ img }}{{ filme.poster_path }}">
+    <p>{{ filme.title }}</p>
+  </div>
 </a>
 
 {% endif %}
