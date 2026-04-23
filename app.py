@@ -17,7 +17,7 @@ def get_tmdb_data(endpoint, params={}):
     base = "https://api.themoviedb.org/3"
     p = {"api_key": TMDB_API_KEY, "language": "pt-BR", **params}
     try:
-        return requests.get(f"{base}/{endpoint}", params=p, timeout=10).json()
+        return requests.get(f"{base}/{endpoint}", params=p, timeout=8).json()
     except:
         return {}
 
@@ -29,54 +29,48 @@ def get_trailer(filme_id):
     return None
 
 # ==========================================================
-# 🔥 API TORRENT MELHORADA
+# ⚡ API TORRENT OTIMIZADA (RÁPIDA + SEM LAG)
 # ==========================================================
 def buscar_torrents_api(titulo, ano=None):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
 
-        buscas = [
-            f"{titulo} {ano} 1080p dublado",
-            f"{titulo} {ano} 1080p dual audio",
-            f"{titulo} {ano} 720p dublado",
-            f"{titulo} {ano} 1080p",
-            f"{titulo} {ano}"
-        ]
+        # 🔥 SOMENTE 1 BUSCA (rápido)
+        busca = f"{titulo} {ano}"
+
+        url = f"{base_url}?q={urllib.parse.quote(busca)}"
+        r = requests.get(url, timeout=10)
+        data = r.json()
 
         resultados = []
 
-        for busca in buscas:
-            url = f"{base_url}?q={urllib.parse.quote(busca)}"
-            r = requests.get(url, timeout=15)
-            data = r.json()
+        for item in data.get("streams", []):
+            nome = item.get("title", "").lower()
 
-            for item in data.get("streams", []):
-                nome = item.get("title", "").lower()
+            # 🚫 filtro básico (remove lixo extremo)
+            if len(nome) < 5:
+                continue
 
-                # 🚫 filtra lixo
-                if titulo.lower() not in nome:
-                    continue
+            score = 0
 
-                score = 0
+            # 🇧🇷 prioridade (sem bloquear)
+            if any(x in nome for x in ["dublado", "dual", "pt", "br"]):
+                score += 5
 
-                # 🇧🇷 prioridade idioma
-                if any(x in nome for x in ["dublado", "dual", "pt-br", "portuguese"]):
-                    score += 5
+            # 🎬 qualidade
+            if "1080p" in nome:
+                score += 3
+            elif "720p" in nome:
+                score += 2
 
-                # 🎬 qualidade
-                if "1080p" in nome:
-                    score += 3
-                elif "720p" in nome:
-                    score += 2
+            resultados.append({
+                "nome": item.get("title")[:70],
+                "tamanho": item.get("size", "N/A"),
+                "magnet": item.get("magnet"),
+                "score": score
+            })
 
-                resultados.append({
-                    "nome": item.get("title")[:70],
-                    "tamanho": item.get("size", "N/A"),
-                    "magnet": item.get("magnet"),
-                    "score": score
-                })
-
-        # 🔁 remove duplicados
+        # 🔁 remover duplicados
         vistos = set()
         unicos = []
         for t in resultados:
@@ -84,7 +78,7 @@ def buscar_torrents_api(titulo, ano=None):
                 vistos.add(t["magnet"])
                 unicos.append(t)
 
-        # 🔥 ordena melhores
+        # 🔥 ordenar melhores
         unicos.sort(key=lambda x: x["score"], reverse=True)
 
         return unicos[:10]
@@ -151,14 +145,14 @@ def detalhes_filme(filme_id):
     titulo = filme.get('title', '')
     ano = filme.get('release_date', '')[:4]
 
-    # 🔥 busca melhorada
+    # ⚡ busca rápida (sem travar)
     lista_torrents = buscar_torrents_api(titulo, ano)
 
     titulo_exato = urllib.parse.quote(f'"{titulo}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
 
     titulo_limpo = urllib.parse.quote(titulo)
-    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p+dual+audio+mkv"
+    busca_magnet = f"https://duckduckgo.com/?q={titulo_limpo}+torrent+dublado+1080p"
 
     return render_template(
         "detalhes.html",
