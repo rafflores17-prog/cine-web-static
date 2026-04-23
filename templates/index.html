@@ -3,63 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineTor - Filmes e Séries</title>
+    <title>CineTor - O Maior Acervo Torrent</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #080808; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
-        .navbar { background: rgba(10, 10, 10, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid #e50914; }
-        .brand-text { font-weight: 900; font-size: 1.5rem; letter-spacing: 1px; color: #e50914 !important; }
-        .search-box { background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 30px; padding: 8px 20px; outline: none; transition: 0.3s;}
-        .search-box:focus { background: #222; border-color: #e50914; box-shadow: 0 0 10px rgba(229, 9, 20, 0.3); color: white;}
-        .menu-filtros { padding: 12px 10px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #222; }
-        .menu-filtros::-webkit-scrollbar { display: none; }
-        .btn-filtro { background: #111; border: 1px solid #333; color: #ccc; border-radius: 20px; padding: 6px 18px; text-decoration: none; margin: 0 5px; font-size: 0.9rem; transition: 0.3s; }
-        .btn-filtro:hover { background: #e50914; color: white; border-color: #e50914; }
-        .row-horizontal { display: flex; overflow-x: auto; padding-bottom: 20px; gap: 12px; padding-left: 10px; scrollbar-width: none; }
-        .row-horizontal::-webkit-scrollbar { display: none; }
-        .card-filme { flex: 0 0 auto; width: 135px; transition: 0.3s; text-decoration: none; color: #ccc; position: relative;}
-        .card-filme:hover { transform: translateY(-5px); color: white; }
-        .card-filme img { border-radius: 8px; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.8); border: 1px solid #222;}
-        .secao-titulo { border-left: 5px solid #e50914; padding-left: 12px; margin-top: 30px; font-weight: bold; font-size: 1.3rem; margin-left: 10px;}
+        body { 
+            background-color: #0f0f0f; 
+            color: #ffffff; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* 🦸‍♂️ HERO BANNER (A BUSCA GIGANTE) */
+        .hero-section {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), #0f0f0f), url('https://image.tmdb.org/t/p/original/9yBVqNruk6Ykrwc32qrK2TIE5xw.jpg');
+            background-size: cover;
+            background-position: center;
+            padding: 100px 20px;
+            text-align: center;
+            border-bottom: 2px solid #e50914;
+        }
+        .hero-title { font-weight: 900; font-size: 3rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }
+        .hero-subtitle { color: #cccccc; font-size: 1.2rem; margin-bottom: 30px; }
+        
+        /* BARRA DE PESQUISA ESTILOSA */
+        .search-box {
+            max-width: 650px;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.3);
+            border-radius: 50px;
+        }
+        .search-input {
+            border-radius: 50px 0 0 50px !important;
+            padding: 15px 25px;
+            font-size: 1.2rem;
+            border: 2px solid #e50914;
+            background-color: rgba(20, 20, 20, 0.9);
+            color: white;
+        }
+        .search-input:focus {
+            background-color: #222;
+            color: white;
+            border-color: #ff1e27;
+            box-shadow: none;
+        }
+        .search-btn {
+            border-radius: 0 50px 50px 0 !important;
+            padding: 15px 35px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            background-color: #e50914;
+            border: 2px solid #e50914;
+        }
+        .search-btn:hover { background-color: #b20710; }
+
+        /* 🎬 CARROSSEL ESTILO NETFLIX (FILMES) */
+        .section-title {
+            border-left: 5px solid #e50914;
+            padding-left: 10px;
+            margin-top: 40px;
+            font-weight: bold;
+        }
+        .movie-scroll {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 20px;
+            padding-top: 10px;
+            scroll-behavior: smooth;
+        }
+        /* Esconde a barra de rolagem mas permite o touch/mouse deslizar */
+        .movie-scroll::-webkit-scrollbar { display: none; }
+        .movie-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .movie-card {
+            flex: 0 0 auto;
+            width: 160px; /* Tamanho do pôster no celular */
+            margin-right: 15px;
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        @media (min-width: 768px) {
+            .movie-card { width: 200px; } /* Pôster maior no PC */
+        }
+        .movie-card:hover {
+            transform: scale(1.08);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        .movie-poster {
+            width: 100%;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+        
+        /* OVERLAY DA NOTA (Aparece em cima da capa) */
+        .movie-rating {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffc107;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border: 1px solid #ffc107;
+        }
+        .movie-title {
+            margin-top: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ddd;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            text-align: center;
+        }
+        a { text-decoration: none !important; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark p-3 sticky-top">
-    <div class="container d-flex justify-content-between align-items-center">
-        <a class="navbar-brand brand-text" href="/">🎬 CineTor</a>
-        <form class="d-flex" action="/">
-            <input class="form-control search-box" type="search" name="q" placeholder="Buscar filmes...">
+    <nav class="navbar navbar-dark bg-dark py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-4 text-danger" href="/">🍿 CineTor</a>
+        </div>
+    </nav>
+
+    <div class="hero-section">
+        <h1 class="hero-title">Encontre seu Filme. Baixe sem Limites.</h1>
+        <p class="hero-subtitle">Busque nos maiores servidores Torrent do Brasil e do Mundo em um só lugar.</p>
+        
+        <form action="/" method="GET">
+            <div class="input-group search-box">
+                <input type="text" name="q" class="form-control search-input" placeholder="Ex: Vingadores, Se Beber Não Case..." value="{{ request.args.get('q', '') }}" required>
+                <button class="btn btn-danger search-btn" type="submit">🔍 Buscar</button>
+            </div>
         </form>
     </div>
-</nav>
 
-<div class="menu-filtros">
-    <a href="/" class="btn-filtro">🏠 Início</a>
-    <a href="/?ano=1980" class="btn-filtro">🎸 Anos 80</a>
-    <a href="/?ano=1990" class="btn-filtro">💾 Anos 90</a>
-    <a href="/?ano=2000" class="btn-filtro">💿 Anos 2000</a>
-    <a href="/?genero=28" class="btn-filtro">🔥 Ação</a>
-    <a href="/?genero=27" class="btn-filtro">👻 Terror</a>
-    <a href="/?genero=35" class="btn-filtro">🤡 Comédia</a>
-</div>
-
-<div class="mt-2">
-    {% for lista in listas %}
-        <h4 class="secao-titulo">{{ lista.titulo }}</h4>
-        <div class="row-horizontal mt-3">
-            {% for m in lista.filmes %}
-            <a href="/filme/{{ m.id }}" class="card-filme">
-                {% if m.poster_path %}
-                <img src="{{ img_base }}{{ m.poster_path }}" alt="{{ m.title }}">
-                {% else %}
-                <div style="width:100%; height:200px; background:#222; border-radius:8px; display:flex; align-items:center; text-align:center; padding:10px;">{{ m.title }}</div>
-                {% endif %}
-            </a>
-            {% endfor %}
-        </div>
-    {% endfor %}
-</div>
+    <div class="container mt-4 mb-5">
+        {% for lista in listas %}
+            <h3 class="section-title">{{ lista.titulo }}</h3>
+            
+            <div class="movie-scroll">
+                {% for filme in lista.filmes %}
+                    {% if filme.poster_path %}
+                    <a href="/filme/{{ filme.id }}">
+                        <div class="movie-card">
+                            <img src="{{ img_base }}{{ filme.poster_path }}" class="movie-poster" alt="{{ filme.title }}">
+                            <div class="movie-rating">⭐ {{ filme.vote_average | round(1) }}</div>
+                            <div class="movie-title">{{ filme.title }}</div>
+                        </div>
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
 
 </body>
 </html>
