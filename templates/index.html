@@ -13,105 +13,42 @@ body {
   color:white;
 }
 
-/* HERO */
 .hero {
   text-align:center;
-  padding:50px 20px;
-  background:#111;
+  padding:40px;
 }
 
-.hero h1 {
-  margin-bottom:15px;
-}
-
-/* SEARCH GRANDE */
-.search-box input {
+input {
   width:70%;
-  padding:14px;
-  border-radius:30px;
+  padding:12px;
+  border-radius:20px;
   border:none;
 }
 
-.search-box button {
-  padding:14px 20px;
-  border-radius:30px;
-  border:none;
+button {
+  padding:12px;
+  border-radius:20px;
   background:#e50914;
   color:white;
+  border:none;
 }
 
-/* GÊNEROS */
-.genres {
+.row {
   display:flex;
-  justify-content:center;
   flex-wrap:wrap;
-  gap:8px;
-  margin-top:15px;
-}
-
-.genres a {
-  padding:6px 12px;
-  background:#222;
-  border-radius:20px;
-  color:white;
-  text-decoration:none;
-  font-size:13px;
-}
-
-/* ABAS */
-.tabs {
-  display:flex;
   justify-content:center;
   gap:10px;
-  margin-top:20px;
-}
-
-.tab {
-  padding:10px 15px;
-  background:#222;
-  border-radius:20px;
-  cursor:pointer;
-}
-
-.tab:hover {
-  background:#e50914;
-}
-
-/* SEÇÕES */
-.section {
   padding:20px;
 }
 
-.section h2 {
-  border-left:4px solid #e50914;
-  padding-left:10px;
-}
-
-/* CARDS */
-.row {
-  display:flex;
-  overflow-x:auto;
-  gap:12px;
-}
-
-.row::-webkit-scrollbar { display:none; }
-
 .card {
-  min-width:140px;
+  width:150px;
   text-align:center;
 }
 
 .card img {
   width:100%;
   border-radius:10px;
-  height:210px;
-  object-fit:cover;
-}
-
-.card p {
-  font-size:13px;
-  white-space:nowrap;
-  overflow:hidden;
 }
 </style>
 </head>
@@ -121,60 +58,25 @@ body {
 <div class="hero">
   <h1>🎬 CineMega</h1>
 
-  <form method="GET" class="search-box">
+  <form method="GET">
     <input name="q" placeholder="Pesquise seu filme favorito aqui">
     <button>Buscar</button>
   </form>
-
-  <div class="genres">
-    <a href="/?genre=28">Ação</a>
-    <a href="/?genre=35">Comédia</a>
-    <a href="/?genre=27">Terror</a>
-    <a href="/?genre=18">Drama</a>
-    <a href="/?genre=878">Ficção</a>
-  </div>
 </div>
 
-<div class="section">
-  <h2>🔥 Em Alta</h2>
-  <div class="row">
-    {% for f in em_alta %}
-    <a href="/filme/{{ f.id }}">
-      <div class="card">
-        <img src="{{ img }}{{ f.poster_path }}">
-        <p>{{ f.title }}</p>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-</div>
+<div class="row">
 
-<div class="section">
-  <h2>🎬 Em Cartaz</h2>
-  <div class="row">
-    {% for f in em_cartaz %}
-    <a href="/filme/{{ f.id }}">
-      <div class="card">
-        <img src="{{ img }}{{ f.poster_path }}">
-        <p>{{ f.title }}</p>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-</div>
+{% for f in filmes %}
+  {% if f.poster_path %}
+  <a href="/filme/{{ f.id }}" style="color:white;text-decoration:none;">
+    <div class="card">
+      <img src="{{ img }}{{ f.poster_path }}">
+      <p>{{ f.title }}</p>
+    </div>
+  </a>
+  {% endif %}
+{% endfor %}
 
-<div class="section">
-  <h2>📅 Estreias</h2>
-  <div class="row">
-    {% for f in estreias %}
-    <a href="/filme/{{ f.id }}">
-      <div class="card">
-        <img src="{{ img }}{{ f.poster_path }}">
-        <p>{{ f.title }}</p>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
 </div>
 
 </body>
