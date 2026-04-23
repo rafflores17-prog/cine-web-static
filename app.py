@@ -31,18 +31,19 @@ def remover_acentos_e_pontuacao(txt):
     return re.sub(r'[^\w\s]', '', txt).lower()
 
 # ==========================================================
-# ⚡ API TORRENT + BADGES + FILTRO FLEXÍVEL
+# ⚡ SCRIPT UNIVERSAL (BYPASS DE IMDB)
 # ==========================================================
 def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
     try:
         base_url = "https://torrent-api-t1ml.onrender.com/streams"
-        url = f"{base_url}?q={urllib.parse.quote(titulo_br)}&imdb={imdb_id}"
+        
+        # 🔥 COMUNICAÇÃO CORRIGIDA: Agora o Python manda o "br" e o "orig" para o Node.js
+        url = f"{base_url}?br={urllib.parse.quote(titulo_br)}&orig={urllib.parse.quote(titulo_original)}&imdb={imdb_id}"
         r = requests.get(url, timeout=15)
         data = r.json()
 
         resultados = []
 
-        # 🔥 CORREÇÃO: Agora pega só as 2 primeiras palavras (> 1 letra) para salvar as Franquias!
         palavras_br = [p for p in remover_acentos_e_pontuacao(titulo_br).split() if len(p) > 1][:2]
         palavras_orig = [p for p in remover_acentos_e_pontuacao(titulo_original).split() if len(p) > 1][:2]
 
@@ -54,10 +55,16 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 if len(nome_completo) < 5:
                     continue
 
+                # 🛡️ VIA EXPRESSA (BYPASS): 
+                # Se veio do Brazuca ou do Torrentio, é porque achou pelo IMDB. 
+                # O IMDB NUNCA ERRA! Deixa passar direto sem checar as palavras!
+                is_trusted = "brazuca" in nome_lower or "torrentio" in nome_lower
+
                 valido_br = all(p in nome_lower for p in palavras_br) if palavras_br else False
                 valido_orig = all(p in nome_lower for p in palavras_orig) if palavras_orig else False
                 
-                if not (valido_br or valido_orig or "brazuca" in nome_lower):
+                # Se NÃO for confiável (ex: PirateBay), aí sim a gente checa as palavras
+                if not is_trusted and not (valido_br or valido_orig):
                     continue
 
                 score = 0
@@ -67,7 +74,6 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                     score += 5
                     is_br = True
                 
-                # 🎨 CAPTURA DA QUALIDADE PARA OS BADGES
                 qualidade = "HD 📺"
                 if "2160p" in nome_lower or "4k" in nome_lower:
                     qualidade = "4K 🌟"
@@ -91,11 +97,6 @@ def buscar_torrents_api(titulo_br, titulo_original, imdb_id):
                 })
 
         processar_resultados(data.get("streams", []))
-
-        if not resultados and titulo_original and titulo_br.lower() != titulo_original.lower():
-            url_orig = f"{base_url}?q={urllib.parse.quote(titulo_original)}&imdb={imdb_id}"
-            r_orig = requests.get(url_orig, timeout=15)
-            processar_resultados(r_orig.json().get("streams", []))
 
         vistos = set()
         unicos = []
@@ -139,11 +140,14 @@ def index():
 def detalhes_filme(filme_id):
     filme = get_tmdb_data(f"movie/{filme_id}")
     trailer_key = get_trailer(filme_id)
+    
     titulo_br = filme.get('title', '')
     titulo_original = filme.get('original_title', titulo_br)
-    imdb_id = filme.get('imdb_id', '')
+    imdb_id = filme.get('imdb_id') or ""
 
+    # Chama a API enviando tudo!
     lista_torrents = buscar_torrents_api(titulo_br, titulo_original, imdb_id)
+    
     titulo_exato = urllib.parse.quote(f'"{titulo_br}"')
     link_busca_online = f"https://www.google.com/search?q=assistir+{titulo_exato}+dublado+online+gratis+hd"
     titulo_limpo = urllib.parse.quote(titulo_br)
