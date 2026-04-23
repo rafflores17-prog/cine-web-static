@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request
 import requests
+import random
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -14,6 +16,7 @@ def tmdb(endpoint, params=None):
         params = {}
 
     url = f"https://api.themoviedb.org/3/{endpoint}"
+
     params["api_key"] = TMDB_API_KEY
     params["language"] = "pt-BR"
 
@@ -23,9 +26,6 @@ def tmdb(endpoint, params=None):
         return {}
 
 
-# =========================
-# HOME
-# =========================
 @app.route("/")
 def home():
     query = request.args.get("q")
@@ -36,25 +36,54 @@ def home():
     else:
         populares = tmdb("movie/popular").get("results", [])
         top = tmdb("movie/top_rated").get("results", [])
-        up = tmdb("movie/upcoming").get("results", [])
+        upcoming_raw = tmdb("movie/upcoming").get("results", [])
+
+        hoje = str(datetime.today().date())
+
+        # 🎬 ESTREIAS REAIS
+        estreias = [
+            m for m in upcoming_raw
+            if m.get("release_date") and m["release_date"] >= hoje
+        ]
+
+        # 🎲 SURPRESA
+        surpresa = random.sample(populares, min(10, len(populares)))
+
+        # 📅 VIAGEM NO TEMPO (1980 → HOJE)
+        todos = populares + top
+
+        por_ano = {}
+
+        for m in todos:
+            if m.get("release_date"):
+                ano = m["release_date"][:4]
+
+                if ano.isdigit():
+                    ano = int(ano)
+
+                    if 1980 <= ano <= datetime.today().year:
+                        por_ano.setdefault(ano, []).append(m)
+
+        viagem = []
+        for ano in sorted(por_ano.keys()):
+            viagem.append({
+                "titulo": f"📅 Ano {ano}",
+                "filmes": por_ano[ano][:10]
+            })
 
         listas = [
             {"titulo": "🔥 Populares", "filmes": populares},
-            {"titulo": "⭐ Mais Avaliados", "filmes": top},
-            {"titulo": "🎬 Em Breve", "filmes": up},
-        ]
+            {"titulo": "🎬 Estreias Confirmadas", "filmes": estreias},
+            {"titulo": "🎲 Surpresa do Dia", "filmes": surpresa},
+        ] + viagem
 
     return render_template("index.html", listas=listas, img=IMG)
 
 
-# =========================
-# DETALHES
-# =========================
 @app.route("/filme/<int:id>")
 def filme(id):
     filme = tmdb(f"movie/{id}")
 
-    # trailer
     videos = tmdb(f"movie/{id}/videos").get("results", [])
     trailer = None
 
