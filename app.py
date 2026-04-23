@@ -26,7 +26,7 @@ def tmdb(endpoint, params=None):
 
 
 # =========================
-# HOME (COM BUSCA REAL)
+# HOME
 # =========================
 @app.route("/")
 def home():
@@ -34,30 +34,21 @@ def home():
 
     if query:
         filmes = tmdb("search/movie", {"query": query}).get("results", [])
-
         listas = [
-            {"titulo": f"🔍 Resultados para '{query}'", "filmes": filmes}
+            {"titulo": f"🔍 Resultados: {query}", "filmes": filmes}
         ]
     else:
-        populares = tmdb("movie/popular").get("results", [])
-        top = tmdb("movie/top_rated").get("results", [])
-        up = tmdb("movie/upcoming").get("results", [])
-
         listas = [
-            {"titulo": "🔥 Populares", "filmes": populares},
-            {"titulo": "⭐ Mais Avaliados", "filmes": top},
-            {"titulo": "🎬 Em Breve", "filmes": up},
+            {"titulo": "🔥 Populares", "filmes": tmdb("movie/popular").get("results", [])},
+            {"titulo": "⭐ Top Avaliados", "filmes": tmdb("movie/top_rated").get("results", [])},
+            {"titulo": "🎬 Em Breve", "filmes": tmdb("movie/upcoming").get("results", [])},
         ]
 
-    return render_template(
-        "index.html",
-        listas=listas,
-        img=IMG
-    )
+    return render_template("index.html", listas=listas, img=IMG)
 
 
 # =========================
-# DETALHES + NODE
+# DETALHES + MOTOR NODE
 # =========================
 @app.route("/filme/<int:id>")
 def filme(id):
@@ -90,5 +81,13 @@ def filme(id):
     )
 
 
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=False,
+        use_reloader=False
+    )
