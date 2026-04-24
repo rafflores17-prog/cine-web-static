@@ -9,6 +9,8 @@
   gtag('config', 'G-PQXCX3PB3Y');
 </script>
 
+<script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CineMega</title>
@@ -17,50 +19,14 @@
 <meta name="theme-color" content="#e50914">
 
 <style>
-body {
-  margin:0;
-  font-family:Arial;
-  background:#0f0f0f;
-  color:white;
-}
-
-.hero {
-  text-align:center;
-  padding:40px;
-}
-
-input {
-  width:70%;
-  padding:12px;
-  border-radius:20px;
-  border:none;
-}
-
-button {
-  padding:12px;
-  border-radius:20px;
-  background:#e50914;
-  color:white;
-  border:none;
-}
-
-.row {
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  gap:10px;
-  padding:20px;
-}
-
-.card {
-  width:150px;
-  text-align:center;
-}
-
-.card img {
-  width:100%;
-  border-radius:10px;
-}
+body { margin:0; font-family:Arial; background:#0f0f0f; color:white; }
+.hero { text-align:center; padding:40px; }
+input { width:70%; padding:12px; border-radius:20px; border:none; }
+button { padding:12px; border-radius:20px; background:#e50914; color:white; border:none; cursor:pointer; }
+.row { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:20px; }
+.card { width:150px; text-align:center; }
+.card img { width:100%; border-radius:10px; transition: 0.3s; }
+.card img:hover { transform: scale(1.05); }
 </style>
 </head>
 
@@ -68,15 +34,13 @@ button {
 
 <div class="hero">
   <h1>🎬 CineMega</h1>
-
   <form method="GET">
     <input name="q" placeholder="Pesquise seu filme favorito aqui">
-    <button>Buscar</button>
+    <button type="submit">Buscar</button>
   </form>
 </div>
 
 <div class="row">
-
 {% for f in filmes %}
   {% if f.poster_path %}
   <a href="/filme/{{ f.id }}" style="color:white;text-decoration:none;">
@@ -87,15 +51,16 @@ button {
   </a>
   {% endif %}
 {% endfor %}
-
 </div>
+
+<script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
+<script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('PWA Ativo!'))
-        .catch(err => console.log('Erro PWA:', err));
+      navigator.serviceWorker.register('/sw.js').catch(err => console.log('Erro PWA:', err));
     });
   }
 </script>
