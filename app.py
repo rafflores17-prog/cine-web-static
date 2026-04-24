@@ -20,7 +20,7 @@ SERVIDORES = [
 ]
 
 # ==========================================
-# ROTAS DO PWA (Enganando o cache do PWABuilder)
+# ROTAS DO PWA 
 # ==========================================
 @app.route('/static/manifest.json')
 def manifest_static():
@@ -38,9 +38,6 @@ def icon512_static():
 def sw():
     return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
-# ==========================================
-# ROTA DE VERIFICAÇÃO DO APLICATIVO (APK) - AGORA SIM!
-# ==========================================
 @app.route('/.well-known/assetlinks.json')
 def assetlinks():
     return jsonify([{
@@ -53,7 +50,7 @@ def assetlinks():
     }])
 
 # ==========================================
-# LÓGICA DO SITE
+# LÓGICA DO SITE E BUSCA DE TRAILER
 # ==========================================
 def buscar_no_iptv(titulo_filme):
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
@@ -84,10 +81,20 @@ def home():
 
 @app.route("/filme/<int:id>")
 def filme(id):
-    f_url = f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR"
+    # Agora puxamos o filme E os vídeos (trailers) na mesma chamada
+    f_url = f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos"
     f_data = requests.get(f_url).json()
     play_link = buscar_no_iptv(f_data.get('title', ''))
-    return render_template("detalhes.html", filme=f_data, img=IMG, bg=BG, play_link=play_link, nome_site=NOME_SITE)
+    
+    # Extrai a chave do trailer do YouTube (se existir)
+    trailer_key = None
+    if 'videos' in f_data and 'results' in f_data['videos']:
+        for v in f_data['videos']['results']:
+            if v['type'] == 'Trailer' and v['site'] == 'YouTube':
+                trailer_key = v['key']
+                break
+
+    return render_template("detalhes.html", filme=f_data, img=IMG, bg=BG, play_link=play_link, nome_site=NOME_SITE, trailer_key=trailer_key)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
