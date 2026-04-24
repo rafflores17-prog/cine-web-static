@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request
 import requests
 import random
 import re
@@ -19,41 +19,43 @@ SERVIDORES = [
     {"host": "http://sventank.com:80", "user": "123456", "pass": "654321"}
 ]
 
-# ROTA SECRETA PARA ENGANAR O CHROME
-@app.route("/stream/<int:srv_idx>/<int:stream_id>.mp4")
-def proxy_stream(srv_idx, stream_id):
-    srv = SERVIDORES[srv_idx]
-    # O link real nunca sai do Python, o navegador só vê o seu domínio
-    link_real = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
-    return redirect(link_real)
-
 def buscar_no_iptv(titulo_filme):
+    # Limpa o título para busca precisa
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
-    for idx, srv in enumerate(SERVIDORES):
+    for srv in SERVIDORES:
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
         try:
-            r = requests.get(url_api, timeout=5)
-            for item in r.json():
+            r = requests.get(url_api, timeout=4) # Timeout curto para não travar
+            dados = r.json()
+            for item in dados:
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                if titulo_busca == nome_iptv or (titulo_busca in nome_iptv and len(nome_iptv) < len(titulo_busca) + 12):
-                    # Retornamos o link do NOSSO site para o player interno
-                    return f"/stream/{idx}/{item.get('stream_id')}.mp4", f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
+                # Se o título bater, já retorna o link direto
+                if titulo_busca in nome_iptv:
+                    stream_id = item.get('stream_id')
+                    return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
         except: continue
-    return None, None
+    return None
 
 @app.route("/")
 def home():
-    res = requests.get(f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR").json().get("results", [])
-    random.shuffle(res)
-    return render_template("index.html", filmes=res[:20], img=IMG, nome_site=NOME_SITE)
+    query = request.args.get("q")
+    if query:
+        # Busca do TMDB
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&language=pt-BR&query={query}"
+        filmes = requests.get(url).json().get("results", [])
+    else:
+        # Populares
+        url = f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR"
+        filmes = requests.get(url).json().get("results", [])
+        random.shuffle(filmes)
+    return render_template("index.html", filmes=filmes[:20], img=IMG, nome_site=NOME_SITE)
 
 @app.route("/filme/<int:id>")
 def filme(id):
-    f_data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR").json()
-    link_interno, link_real = buscar_no_iptv(f_data.get('title', ''))
-    videos = requests.get(f"https://api.themoviedb.org/3/movie/{id}/videos?api_key={TMDB_API_KEY}&language=pt-BR").json().get("results", [])
-    trailer = next((v['key'] for v in videos if v['type'] == 'Trailer'), None)
-    return render_template("detalhes.html", filme=f_data, img=IMG, bg=BG, trailer=trailer, play_interno=link_interno, play_real=link_real, nome_site=NOME_SITE)
+    f_url = f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR"
+    f_data = requests.get(f_url).json()
+    play_link = buscar_no_iptv(f_data.get('title', ''))
+    return render_template("detalhes.html", filme=f_data, img=IMG, bg=BG, play_link=play_link, nome_site=NOME_SITE)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
