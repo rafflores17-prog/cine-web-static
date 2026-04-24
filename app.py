@@ -37,8 +37,24 @@ def icon512_static():
 @app.route('/sw.js')
 def sw():
     return send_from_directory('.', 'sw.js', mimetype='application/javascript')
-# ==========================================
 
+# ==========================================
+# ROTA DE VERIFICAÇÃO DO APLICATIVO (APK) - AGORA SIM!
+# ==========================================
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    return jsonify([{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "online.cinemega.www.twa",
+        "sha256_cert_fingerprints": ["7A:47:74:B0:CD:A7:63:AD:2C:4B:11:2F:EC:9D:E8:05:A4:67:47:37:45:A8:9F:08:E8:48:85:6A:7A:D2:5F:FC"]
+      }
+    }])
+
+# ==========================================
+# LÓGICA DO SITE
+# ==========================================
 def buscar_no_iptv(titulo_filme):
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
     for srv in SERVIDORES:
