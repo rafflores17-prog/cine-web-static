@@ -20,36 +20,34 @@ SERVIDORES = [
 ]
 
 # ==========================================
-# ROTAS DO PWA (Com Mimetype para o PWABuilder)
+# ROTAS DO PWA (Enganando o cache do PWABuilder)
 # ==========================================
-@app.route('/manifest.json')
-def manifest():
+@app.route('/static/manifest.json')
+def manifest_static():
     return send_from_directory('.', 'manifest.json', mimetype='application/manifest+json')
+
+@app.route('/static/icon-192.png')
+def icon192_static():
+    return send_from_directory('.', 'icon-192.png', mimetype='image/png')
+
+@app.route('/static/icon-512.png')
+def icon512_static():
+    return send_from_directory('.', 'icon-512.png', mimetype='image/png')
 
 @app.route('/sw.js')
 def sw():
     return send_from_directory('.', 'sw.js', mimetype='application/javascript')
-
-@app.route('/icon-192.png')
-def icon192():
-    return send_from_directory('.', 'icon-192.png', mimetype='image/png')
-
-@app.route('/icon-512.png')
-def icon512():
-    return send_from_directory('.', 'icon-512.png', mimetype='image/png')
 # ==========================================
 
 def buscar_no_iptv(titulo_filme):
-    # Limpa o título para busca precisa
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
     for srv in SERVIDORES:
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
         try:
-            r = requests.get(url_api, timeout=4) # Timeout curto para não travar
+            r = requests.get(url_api, timeout=4)
             dados = r.json()
             for item in dados:
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                # Se o título bater, já retorna o link direto
                 if titulo_busca in nome_iptv:
                     stream_id = item.get('stream_id')
                     return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{stream_id}.mp4"
@@ -60,11 +58,9 @@ def buscar_no_iptv(titulo_filme):
 def home():
     query = request.args.get("q")
     if query:
-        # Busca do TMDB
         url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&language=pt-BR&query={query}"
         filmes = requests.get(url).json().get("results", [])
     else:
-        # Populares
         url = f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR"
         filmes = requests.get(url).json().get("results", [])
         random.shuffle(filmes)
