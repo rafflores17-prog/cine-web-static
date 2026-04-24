@@ -9,6 +9,8 @@
   gtag('config', 'G-PQXCX3PB3Y');
 </script>
 
+<script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ filme.title }} | {{ nome_site }}</title>
@@ -22,29 +24,20 @@ body { margin:0; font-family: sans-serif; color:white; background:black; overflo
 .bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(30px) brightness(0.2); z-index:-1; }
 .container { padding:20px; max-width:450px; margin:0 auto; text-align:center; }
 .poster img { width:150px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.8); margin-bottom:15px; }
-
-/* 📺 ÁREA DO PLAYER */
 .player-wrapper { 
     width: 100%; border-radius: 12px; overflow: hidden; background: #000; 
     margin: 15px 0; border: 1px solid #333; min-height: 200px; 
     display: flex; align-items: center; justify-content: center; position: relative; 
     background-image: url('{{ bg }}{{ filme.backdrop_path }}');
-    background-size: cover;
-    background-position: center;
+    background-size: cover; background-position: center;
 }
-
 video { width: 100%; display: block; z-index: 2; position: relative; }
-iframe { width: 100%; height: 200px; border: none; z-index: 3; display: none; } /* Trailer começa escondido */
-
-/* ⚠️ AVISO DE ERRO (Se não tiver trailer) */
+iframe { width: 100%; height: 200px; border: none; z-index: 3; display: none; }
 .aviso-uc { 
     display: none; padding: 20px; color: #fff; font-size: 14px; 
     position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.7);
     z-index: 10; flex-direction: column; justify-content: center; text-align: center;
 }
-.aviso-uc p { margin: 5px 0; }
-
-/* 🚀 BOTÕES */
 .btn-externo { display: block; width: 100%; background: #e50914; color: white; padding: 15px; border-radius: 50px; font-weight: bold; text-decoration: none; margin-top: 10px; font-size: 14px; }
 .meta-info { font-size: 11px; color: #00ff88; margin: 10px 0; font-weight: bold; }
 .overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:12px; font-size:13px; text-align:justify; margin-top: 15px; }
@@ -65,20 +58,15 @@ iframe { width: 100%; height: 200px; border: none; z-index: 3; display: none; } 
             <p>⚠️ <b>Play Interno Bloqueado</b></p>
             <p>Toque no botão vermelho abaixo para abrir o filme.</p>
         </div>
-        
         <video id="player" controls playsinline poster="{{ bg }}{{ filme.backdrop_path }}">
             <source src="{{ play_link }}" type="video/mp4">
         </video>
-
         {% if trailer_key %}
         <iframe id="trailer-iframe" src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0&showinfo=0&modestbranding=1" allowfullscreen></iframe>
         {% endif %}
     </div>
-
     <div class="meta-info">SINAL VIP LOCALIZADO ✅</div>
-    
     <a href="{{ play_link }}" target="_blank" class="btn-externo">▶️ ASSISTIR NO PLAYER EXTERNO</a>
-    <p style="font-size: 10px; color: #aaa; margin-top: 5px;">(Clique acima para rodar o filme completo)</p>
   {% else %}
     <p>🔍 Buscando filme nos servidores...</p>
   {% endif %}
@@ -86,39 +74,22 @@ iframe { width: 100%; height: 200px; border: none; z-index: 3; display: none; } 
   <div class="overview">{{ filme.overview }}</div>
 </div>
 
+<script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
+<script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
 <script>
   const video = document.getElementById('player');
   const aviso = document.getElementById('uc-msg');
   const trailer = document.getElementById('trailer-iframe');
-
   if(video) {
     function ativarFallback() {
-        video.style.display = 'none'; // Some com o vídeo quebrado
-        if(trailer) {
-            trailer.style.display = 'block'; // Mostra o trailer se existir
-        } else {
-            aviso.style.display = 'flex'; // Se não tiver trailer, mostra a mensagem de erro
-        }
+        video.style.display = 'none';
+        if(trailer) trailer.style.display = 'block';
+        else aviso.style.display = 'flex';
     }
-
-    // Escuta o erro de bloqueio (O Chrome barra na mesma hora e cai aqui)
     video.addEventListener('error', ativarFallback, true);
-    
-    // Aumentamos o tempo para 8 segundos (8000ms) para dar tempo de sobra pro UC Browser carregar o filme
-    setTimeout(() => {
-        // networkState 3 significa que a rede bloqueou ou não achou a fonte do vídeo
-        if (video.networkState === 3) {
-            ativarFallback();
-        }
-    }, 8000);
-  }
-</script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js');
-    });
+    setTimeout(() => { if (video.networkState === 3) ativarFallback(); }, 8000);
   }
 </script>
 </body>
