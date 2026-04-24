@@ -3,18 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ filme.title }} | {{ nome_site }}</title>
-<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<title>{{ filme.title }} | Cine Mega</title>
 <style>
 * { box-sizing: border-box; }
 body { margin:0; font-family:Arial, sans-serif; color:white; background:black; overflow-x:hidden; }
-.bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(30px) brightness(0.2); transform:scale(1.1); z-index:-1; }
+.bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(30px) brightness(0.2); z-index:-1; }
 .container { padding:20px; max-width:450px; margin:0 auto; text-align:center; }
 .poster img { width:150px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.8); margin-bottom:10px; }
 .player-wrapper { width: 100%; border-radius: 15px; overflow: hidden; background: #000; margin: 15px 0; border: 1px solid #444; }
-video { width: 100%; display: block; }
+video { width: 100%; display: block; background: #000; }
 h1 { font-size:20px; color:#e50914; margin:5px 0; }
-.btn-alt { display: block; width: 100%; background: linear-gradient(45deg, #00a859, #008f4c); color: white; padding: 15px; border-radius: 50px; font-weight: bold; text-decoration: none; margin: 10px auto; box-shadow: 0 5px 15px rgba(0,168,89,0.3); }
+.btn-alt { display: block; width: 100%; background: linear-gradient(45deg, #00a859, #008f4c); color: white; padding: 15px; border-radius: 50px; font-weight: bold; text-decoration: none; margin: 10px auto; }
 .overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:15px; font-size:13px; text-align:justify; margin-bottom: 15px; }
 .back { display:inline-block; margin-bottom:15px; color:#ccc; text-decoration:none; font-size:12px; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; }
 </style>
@@ -25,22 +24,29 @@ h1 { font-size:20px; color:#e50914; margin:5px 0; }
   <a class="back" href="/">⬅ Voltar</a>
   <div class="poster"><img src="{{ img }}{{ filme.poster_path }}"></div>
   <h1>{{ filme.title }}</h1>
+  
   {% if play_interno %}
     <div class="player-wrapper">
-        <video id="player" playsinline controls data-poster="{{ bg }}{{ filme.backdrop_path }}">
+        <video id="player" playsinline controls poster="{{ bg }}{{ filme.backdrop_path }}">
             <source src="{{ play_interno }}" type="video/mp4">
+            Seu dispositivo não suporta o player.
         </video>
     </div>
-    <a href="{{ play_real }}" target="_blank" class="btn-alt">🚀 PLAY EXTERNO (CHROME/OPERA)</a>
-    <p style="font-size:10px; color:#00ff88;">Dica: No Chrome, use o Play Externo!</p>
+    <a href="{{ play_real }}" target="_blank" class="btn-alt">🚀 PLAYER EXTERNO</a>
   {% else %}
-    <p>🔍 Filme em indexação...</p>
+    <p>🔍 Buscando sinal VIP...</p>
   {% endif %}
+  
   <div class="overview">{{ filme.overview }}</div>
 </div>
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
 <script>
-  const player = new Plyr('#player', { pip: true });
+  // Script simples para garantir o play no APK
+  const video = document.getElementById('player');
+  video.addEventListener('click', function() {
+      if (video.paused) video.play();
+      else video.pause();
+  });
 </script>
 </body>
 </html>
