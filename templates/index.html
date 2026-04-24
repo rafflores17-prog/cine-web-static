@@ -12,27 +12,40 @@
 <script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CineMega</title>
 
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#e50914">
 
 <style>
-body { margin:0; font-family:Arial; background:#0f0f0f; color:white; }
+/* BLOQUEIO DE MENU PWA */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none; /* Bloqueia o menu do print */
+    -webkit-user-select: none;   /* Bloqueia seleção de texto */
+    user-select: none;
+    box-sizing: border-box;
+}
+
+/* Libera apenas o campo de pesquisa */
+input {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+body { margin:0; font-family:Arial; background:#0f0f0f; color:white; overflow-x: hidden; }
 .hero { text-align:center; padding:40px; }
-input { width:70%; padding:12px; border-radius:20px; border:none; }
-button { padding:12px; border-radius:20px; background:#e50914; color:white; border:none; cursor:pointer; }
+input { width:70%; padding:12px; border-radius:20px; border:none; outline: none; }
+button { padding:12px; border-radius:20px; background:#e50914; color:white; border:none; cursor:pointer; font-weight: bold; }
 .row { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:20px; }
-.card { width:150px; text-align:center; }
-.card img { width:100%; border-radius:10px; transition: 0.3s; }
-.card img:hover { transform: scale(1.05); }
+.card { width:150px; text-align:center; transition: transform 0.2s; }
+.card:active { transform: scale(0.95); }
+.card img { width:100%; border-radius:10px; pointer-events: none; } /* pointer-events impede o segurar na imagem */
 </style>
 </head>
 
-<body>
-
-<div class="hero">
+<body oncontextmenu="return false;"> <div class="hero">
   <h1>🎬 CineMega</h1>
   <form method="GET">
     <input name="q" placeholder="Pesquise seu filme favorito aqui">
@@ -58,6 +71,7 @@ button { padding:12px; border-radius:20px; background:#e50914; color:white; bord
 <script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
 <script>
+  // Service Worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('Erro PWA:', err));
