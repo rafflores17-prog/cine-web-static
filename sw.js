@@ -1,5 +1,17 @@
-const CACHE_NAME = 'cinemega-v2';
+/* ==========================================
+   CÓDIGO DO MONETAG (Validação e Anúncios)
+   ========================================== */
+self.options = {
+    "domain": "3nbf4.com",
+    "zoneId": 10919957
+};
+self.lary = "";
+importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw');
 
+/* ==========================================
+   CÓDIGO DO SEU PWA (Cache e Offline)
+   ========================================== */
+const CACHE_NAME = 'cinemega-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/static/manifest.json',
@@ -11,7 +23,6 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Cache aberto com sucesso');
         return cache.addAll(ASSETS_TO_CACHE);
       })
   );
@@ -34,10 +45,10 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Deixamos o Monetag e o PWA conviverem no fetch
   event.respondWith(
-    fetch(event.request)
-      .catch(() => {
-        return caches.match(event.request);
-      })
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
+    })
   );
 });
