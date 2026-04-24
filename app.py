@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, send_from_directory
 import requests
 import random
 import re
-import os
 
 app = Flask(__name__)
 
@@ -21,23 +20,23 @@ SERVIDORES = [
 ]
 
 # ==========================================
-# ROTAS DO PWA (Para arquivos soltos na raiz)
+# ROTAS DO PWA (Com Mimetype para o PWABuilder)
 # ==========================================
 @app.route('/manifest.json')
 def manifest():
-    return send_from_directory('.', 'manifest.json')
+    return send_from_directory('.', 'manifest.json', mimetype='application/manifest+json')
 
 @app.route('/sw.js')
 def sw():
-    return send_from_directory('.', 'sw.js')
+    return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
 @app.route('/icon-192.png')
 def icon192():
-    return send_from_directory('.', 'icon-192.png')
+    return send_from_directory('.', 'icon-192.png', mimetype='image/png')
 
 @app.route('/icon-512.png')
 def icon512():
-    return send_from_directory('.', 'icon-512.png')
+    return send_from_directory('.', 'icon-512.png', mimetype='image/png')
 # ==========================================
 
 def buscar_no_iptv(titulo_filme):
