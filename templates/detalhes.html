@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PQXCX3PB3Y"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-PQXCX3PB3Y');
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ filme.title }} | {{ nome_site }}</title>
@@ -66,13 +74,11 @@ video { width: 100%; display: block; }
   const aviso = document.getElementById('uc-msg');
 
   if(video) {
-    // Se o vídeo der erro (bloqueio do Chrome), mostra o aviso do UC Browser
     video.onerror = function() {
         aviso.style.display = 'flex';
         video.style.display = 'none';
     };
     
-    // Pequeno truque para detectar se ficou carregando infinito
     setTimeout(() => {
         if (video.readyState === 0 && !video.paused) {
             aviso.style.display = 'flex';
