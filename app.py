@@ -38,6 +38,9 @@ def icon512_static():
 def sw():
     return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
+# ==========================================
+# ROTA DE VERIFICAÇÃO DO APLICATIVO (APK) COM NOVA CHAVE
+# ==========================================
 @app.route('/.well-known/assetlinks.json')
 def assetlinks():
     return jsonify([{
@@ -45,7 +48,7 @@ def assetlinks():
       "target": {
         "namespace": "android_app",
         "package_name": "online.cinemega.www.twa",
-        "sha256_cert_fingerprints": ["7A:47:74:B0:CD:A7:63:AD:2C:4B:11:2F:EC:9D:E8:05:A4:67:47:37:45:A8:9F:08:E8:48:85:6A:7A:D2:5F:FC"]
+        "sha256_cert_fingerprints": ["64:F7:CE:80:D5:1C:79:CE:91:A7:0E:C8:BE:71:49:E6:46:64:F6:D2:96:5F:12:D6:8F:41:DC:57:A9:4E:48:CD"]
       }
     }])
 
@@ -81,7 +84,7 @@ def home():
 
 @app.route("/filme/<int:id>")
 def filme(id):
-    # Agora puxamos o filme E os vídeos (trailers) na mesma chamada
+    # Puxa o filme e a lista de vídeos
     f_url = f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos"
     f_data = requests.get(f_url).json()
     play_link = buscar_no_iptv(f_data.get('title', ''))
