@@ -95,21 +95,22 @@ iframe { width: 100%; height: 200px; border: none; z-index: 3; display: none; } 
     function ativarFallback() {
         video.style.display = 'none'; // Some com o vídeo quebrado
         if(trailer) {
-            trailer.style.display = 'block'; // Mostra o trailer se existir!
+            trailer.style.display = 'block'; // Mostra o trailer se existir
         } else {
             aviso.style.display = 'flex'; // Se não tiver trailer, mostra a mensagem de erro
         }
     }
 
-    // Escuta o erro de bloqueio (ex: Chrome no PWA)
+    // Escuta o erro de bloqueio (O Chrome barra na mesma hora e cai aqui)
     video.addEventListener('error', ativarFallback, true);
     
-    // Fallback rápido se a rede barrar o carregamento na hora
+    // Aumentamos o tempo para 8 segundos (8000ms) para dar tempo de sobra pro UC Browser carregar o filme
     setTimeout(() => {
-        if (video.networkState === 3 || video.readyState === 0) {
+        // networkState 3 significa que a rede bloqueou ou não achou a fonte do vídeo
+        if (video.networkState === 3) {
             ativarFallback();
         }
-    }, 1000);
+    }, 8000);
   }
 </script>
 
