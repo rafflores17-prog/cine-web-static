@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_from_directory
 import requests
 import random
 import re
+import os
 
 app = Flask(__name__)
 
@@ -18,6 +19,26 @@ SERVIDORES = [
     {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"},
     {"host": "http://sventank.com:80", "user": "123456", "pass": "654321"}
 ]
+
+# ==========================================
+# ROTAS DO PWA (Para arquivos soltos na raiz)
+# ==========================================
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('.', 'manifest.json')
+
+@app.route('/sw.js')
+def sw():
+    return send_from_directory('.', 'sw.js')
+
+@app.route('/icon-192.png')
+def icon192():
+    return send_from_directory('.', 'icon-192.png')
+
+@app.route('/icon-512.png')
+def icon512():
+    return send_from_directory('.', 'icon-512.png')
+# ==========================================
 
 def buscar_no_iptv(titulo_filme):
     # Limpa o título para busca precisa
