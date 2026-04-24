@@ -13,7 +13,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ filme.title }} | {{ nome_site }}</title>
 
-<link rel="manifest" href="/static/manifest.json">
+<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#e50914">
 
 <style>
@@ -88,6 +88,16 @@ video { width: 100%; display: block; }
             aviso.style.display = 'flex';
         }
     }, 5000);
+  }
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('PWA Ativo!'))
+        .catch(err => console.log('Erro PWA:', err));
+    });
   }
 </script>
 </body>
