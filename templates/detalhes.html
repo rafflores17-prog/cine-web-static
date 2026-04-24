@@ -3,50 +3,81 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-<title>{{ filme.title }} | Cine Mega</title>
+<title>{{ filme.title }} | {{ nome_site }}</title>
 <style>
 * { box-sizing: border-box; }
 body { margin:0; font-family: sans-serif; color:white; background:black; overflow-x:hidden; }
 .bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(30px) brightness(0.2); z-index:-1; }
 .container { padding:20px; max-width:450px; margin:0 auto; text-align:center; }
-.poster img { width:140px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.8); margin-bottom:10px; }
-.player-wrapper { width: 100%; border-radius: 12px; overflow: hidden; background: #000; margin: 15px 0; border: 1px solid #333; min-height: 200px; }
-video { width: 100%; height: auto; display: block; }
-h1 { font-size:20px; color:#e50914; margin:5px 0; }
-.btn-alt { display: block; width: 100%; background: #00a859; color: white; padding: 15px; border-radius: 50px; font-weight: bold; text-decoration: none; margin: 10px auto; font-size: 14px; }
-.overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:12px; font-size:13px; text-align:justify; }
+.poster img { width:150px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.8); margin-bottom:15px; }
+
+/* 📺 ÁREA DO PLAYER */
+.player-wrapper { width: 100%; border-radius: 12px; overflow: hidden; background: #000; margin: 15px 0; border: 1px solid #333; min-height: 200px; display: flex; align-items: center; justify-content: center; position: relative; }
+video { width: 100%; display: block; }
+
+/* ⚠️ AVISO DE NAVEGADOR */
+.aviso-uc { 
+    display: none; padding: 20px; background: rgba(0,0,0,0.9); 
+    color: #fff; font-size: 13px; position: absolute; width: 100%; height: 100%; 
+    z-index: 10; flex-direction: column; justify-content: center;
+}
+.aviso-uc a { color: #ffca28; font-weight: bold; text-decoration: none; border-bottom: 1px solid; }
+
+/* 🚀 BOTÕES */
+.btn-externo { display: block; width: 100%; background: #e50914; color: white; padding: 15px; border-radius: 50px; font-weight: bold; text-decoration: none; margin-top: 10px; font-size: 14px; }
+.meta-info { font-size: 11px; color: #00ff88; margin: 10px 0; font-weight: bold; }
+.overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:12px; font-size:13px; text-align:justify; margin-top: 15px; }
 .back { display:inline-block; margin-bottom:15px; color:#ccc; text-decoration:none; font-size:12px; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; }
 </style>
 </head>
 <body>
 <div class="bg" style="background-image:url('{{ bg }}{{ filme.backdrop_path }}')"></div>
+
 <div class="container">
   <a class="back" href="/">⬅ Voltar</a>
   <div class="poster"><img src="{{ img }}{{ filme.poster_path }}"></div>
   <h1>{{ filme.title }}</h1>
-  
+
   {% if play_link %}
     <div class="player-wrapper">
-        <video id="player" controls playsinline crossorigin="anonymous" poster="{{ bg }}{{ filme.backdrop_path }}">
+        <div id="uc-msg" class="aviso-uc">
+            <p>⚠️ <b>Play Interno Bloqueado</b></p>
+            <p>Para assistir dentro do site, use o <a href="https://play.google.com/store/apps/details?id=com.UCMobile.intl" target="_blank">UC Browser</a> ou nosso App.</p>
+        </div>
+        
+        <video id="player" controls playsinline poster="{{ bg }}{{ filme.backdrop_path }}">
             <source src="{{ play_link }}" type="video/mp4">
         </video>
     </div>
-    <a href="{{ play_link }}" target="_blank" class="btn-alt">🚀 PLAY EXTERNO (VLC / MX PLAYER)</a>
+
+    <div class="meta-info">SINAL VIP LOCALIZADO ✅</div>
+    
+    <a href="{{ play_link }}" target="_blank" class="btn-externo">▶️ ASSISTIR NO PLAYER EXTERNO</a>
+    <p style="font-size: 10px; color: #aaa; margin-top: 5px;">(Recomendado para Chrome/Opera/Samsung)</p>
   {% else %}
-    <div class="player-wrapper"><p style="font-size:12px; color:#aaa;">🔍 Buscando sinal...</p></div>
+    <p>🔍 Buscando filme nos servidores...</p>
   {% endif %}
-  
+
   <div class="overview">{{ filme.overview }}</div>
 </div>
 
 <script>
-  // TÉCNICA PARA O APK: Tenta dar o play forçado se o usuário clicar
-  const v = document.getElementById('player');
-  if(v) {
-    v.addEventListener('play', function() {
-      console.log("Iniciando fluxo de vídeo no APK...");
-    });
+  const video = document.getElementById('player');
+  const aviso = document.getElementById('uc-msg');
+
+  if(video) {
+    // Se o vídeo der erro (bloqueio do Chrome), mostra o aviso do UC Browser
+    video.onerror = function() {
+        aviso.style.display = 'flex';
+        video.style.display = 'none';
+    };
+    
+    // Pequeno truque para detectar se ficou carregando infinito
+    setTimeout(() => {
+        if (video.readyState === 0 && !video.paused) {
+            aviso.style.display = 'flex';
+        }
+    }, 5000);
   }
 </script>
 </body>
