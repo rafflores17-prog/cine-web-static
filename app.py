@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_from_directory, jsonify
+from flask import Flask, render_template, request, send_from_directory, jsonify, make_response
 import requests
 import random
 import re
@@ -6,6 +6,7 @@ import re
 app = Flask(__name__)
 
 NOME_SITE = "Cine Mega"
+SITE_URL = "https://www.cinemega.online"
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
@@ -20,7 +21,7 @@ SERVIDORES = [
 ]
 
 # ==========================================
-# ROTAS DO PWA 
+# ROTAS DO PWA E SEO
 # ==========================================
 @app.route('/static/manifest.json')
 def manifest_static():
@@ -38,8 +39,33 @@ def icon512_static():
 def sw():
     return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory('.', 'robots.txt', mimetype='text/plain')
+
+@app.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    """Gera o sitemap.xml dinamicamente com filmes populares"""
+    pages = []
+    # Página inicial
+    pages.append([f"{SITE_URL}/", "1.0"])
+    
+    # Busca os 20 filmes populares para indexar
+    try:
+        url = f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR"
+        filmes = requests.get(url, timeout=5).json().get("results", [])
+        for f in filmes:
+            pages.append([f"{SITE_URL}/filme/{f['id']}", "0.8"])
+    except:
+        pass
+
+    sitemap_xml = render_template('sitemap_template.xml', pages=pages)
+    response = make_response(sitemap_xml)
+    response.headers["Content-Type"] = "application/xml"
+    return response
+
 # ==========================================
-# ROTA DE VERIFICAÇÃO DO APLICATIVO (APK) COM NOVA CHAVE
+# ROTA DE VERIFICAÇÃO DO APK
 # ==========================================
 @app.route('/.well-known/assetlinks.json')
 def assetlinks():
@@ -53,7 +79,7 @@ def assetlinks():
     }])
 
 # ==========================================
-# LÓGICA DO SITE E BUSCA DE TRAILER
+# LÓGICA DO SITE
 # ==========================================
 def buscar_no_iptv(titulo_filme):
     titulo_busca = re.sub(r'[^\w\s]', '', titulo_filme).lower().strip()
@@ -84,12 +110,10 @@ def home():
 
 @app.route("/filme/<int:id>")
 def filme(id):
-    # Puxa o filme e a lista de vídeos
     f_url = f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos"
     f_data = requests.get(f_url).json()
     play_link = buscar_no_iptv(f_data.get('title', ''))
     
-    # Extrai a chave do trailer do YouTube (se existir)
     trailer_key = None
     if 'videos' in f_data and 'results' in f_data['videos']:
         for v in f_data['videos']['results']:
