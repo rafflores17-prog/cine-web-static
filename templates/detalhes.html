@@ -1,75 +1,76 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PQXCX3PB3Y"></script>
-    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-PQXCX3PB3Y');</script>
-    
-    <script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ filme.title }} | Cine Mega</title>
-    
+    <title>{{ filme.title }} - {{ nome_site }}</title>
     <style>
-        body { margin:0; font-family: sans-serif; background:#000; color:#fff; overflow-x:hidden; }
-        .fundo-blur { position:fixed; top:0; left:0; width:100%; height:100%; background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover; filter: blur(35px) brightness(0.2); z-index:-1; animation: mover 20s infinite alternate; }
-        @keyframes mover { from { transform: scale(1); } to { transform: scale(1.05); } }
-        
-        .container { padding:20px; max-width:500px; margin:0 auto; text-align:center; }
-        .capinha { width:160px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.8); margin-top:10px; border: 1px solid rgba(255,255,255,0.1); }
-        
-        .info-extras { display: flex; justify-content: center; gap: 10px; margin: 15px 0; font-size: 12px; }
-        .badge { background: #e50914; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-        .nota { color: #ffc107; font-weight: bold; }
-
-        .player-box { width:100%; height:220px; background:#000; border-radius:12px; margin:20px 0; overflow:hidden; border:1px solid #333; }
-        iframe { width:100%; height:100%; border:none; }
-        
-        .btn-play { 
-            display:block; background: #e50914; color:#fff; padding:18px; border-radius:50px; 
-            text-decoration:none; font-weight:bold; font-size:16px; margin-top: 10px;
-            box-shadow: 0 4px 15px rgba(229,9,20,0.4); 
+        /* TRAVA MESTRE - IMPEDE SELEÇÃO E MENU DE CONTEXTO */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .sinopse { background:rgba(0,0,0,0.7); padding:20px; border-radius:15px; text-align:justify; font-size:14px; line-height:1.5; margin-top: 20px; border: 1px solid rgba(255,255,255,0.05); }
-        .back { display:block; text-align:left; color:#888; text-decoration:none; font-size:13px; margin-bottom: 10px; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 0; }
+        .banner { 
+            width: 100%; height: 250px; background-size: cover; background-position: center;
+            position: relative; border-bottom: 3px solid #e50914;
+        }
+        .banner::after {
+            content: ''; position: absolute; bottom: 0; width: 100%; height: 100%;
+            background: linear-gradient(transparent, #000);
+        }
+        .content { padding: 20px; position: relative; margin-top: -50px; z-index: 10; }
+        .title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+        .info { color: #aaa; margin-bottom: 20px; font-size: 14px; }
+        .sinopse { line-height: 1.6; color: #ddd; margin-bottom: 30px; }
+        
+        .btn-play {
+            display: block; width: 100%; padding: 15px; background: #e50914;
+            color: #fff; text-align: center; border-radius: 5px; font-weight: bold;
+            font-size: 18px; text-decoration: none; margin-bottom: 15px;
+        }
+        .btn-trailer {
+            display: block; width: 100%; padding: 15px; background: #333;
+            color: #fff; text-align: center; border-radius: 5px; font-weight: bold;
+            font-size: 18px; text-decoration: none;
+        }
+        .btn-play:active, .btn-trailer:active { transform: scale(0.98); }
+        
+        .ads-area { text-align: center; margin: 20px 0; min-height: 50px; }
     </style>
 </head>
-<body>
-    <div class="fundo-blur"></div>
-    <div class="container">
-        <a href="/" class="back">✕ FECHAR</a>
+<body oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
+
+    <div class="banner" style="background-image: url('{{ bg }}{{ filme.backdrop_path }}');"></div>
+
+    <div class="content">
+        <div class="title">{{ filme.title }}</div>
+        <div class="info">⭐ {{ filme.vote_average }} | {{ filme.release_date[:4] }}</div>
         
-        <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
-        <h1 style="font-size:24px; margin:15px 0 5px 0;">{{ filme.title }}</h1>
-        
-        <div class="info-extras">
-            <span>{{ filme.release_date[:4] }}</span>
-            <span class="nota">★ {{ "%.1f"|format(filme.vote_average) }}</span>
-            <span class="badge">HD</span>
-        </div>
-        
-        <div class="player-box">
-            {% if trailer_key %}
-                <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
-            {% else %}
-                <div style="padding-top:90px;">🎬 Trailer não disponível</div>
-            {% endif %}
-        </div>
+        <div class="ads-area">
+            </div>
+
+        <div class="sinopse">{{ filme.overview }}</div>
 
         {% if play_link %}
-            <a href="{{ play_link }}" class="btn-play">▶️ ASSISTIR AGORA (PLAYER EXTERNO)</a>
-            <p style="font-size:11px; color:#00ff88; margin-top:8px; font-weight:bold;">SINAL VIP LOCALIZADO ✅</p>
+            <a href="{{ play_link }}" class="btn-play">ASSISTIR AGORA</a>
+        {% else %}
+            <div class="btn-play" style="background: #555;">FILME INDISPONÍVEL</div>
         {% endif %}
 
-        <div class="sinopse">
-            <b style="color:#888; display:block; margin-bottom:5px;">SINOPSE</b>
-            {{ filme.overview }}
-        </div>
+        {% if trailer_key %}
+            <a href="https://www.youtube.com/watch?v={{ trailer_key }}" class="btn-trailer">VER TRAILER</a>
+        {% endif %}
+
+        <div class="ads-area">
+            </div>
     </div>
 
-    <script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
-    <script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 </body>
 </html>
