@@ -1,82 +1,75 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PQXCX3PB3Y"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-PQXCX3PB3Y');
-    </script>
-
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title>Cine Mega | Assistir Filmes e Séries Online Grátis</title>
-    <meta name="description" content="No Cine Mega você pode assistir filmes online e séries dubladas em HD. O melhor site de streaming gratuito com lançamentos atualizados diariamente.">
-    <meta name="keywords" content="assistir filmes online, filmes online grátis, Cine Mega, CineMega, séries online dubladas, ver filmes hd">
-    <link rel="canonical" href="https://www.cinemega.online">
-
-    <meta property="og:title" content="Cine Mega | Assistir Filmes Online">
-    <meta property="og:description" content="Lançamentos de cinema e séries grátis no seu celular ou PC.">
-    <meta property="og:image" content="https://www.cinemega.online/static/icon-512.png">
-    <meta property="og:url" content="https://www.cinemega.online">
-    <meta property="og:type" content="website">
-
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#e50914">
-    <link rel="icon" href="/static/icon-192.png">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ nome_site }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background: #141414; color: white; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        header { padding: 20px; text-align: center; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%); }
-        .logo { font-size: 32px; font-weight: bold; color: #e50914; text-transform: uppercase; text-decoration: none; letter-spacing: 2px; }
-        .search-container { margin: 20px 0; padding: 0 15px; }
-        input[type="text"] { width: 100%; max-width: 400px; padding: 12px; border-radius: 25px; border: none; background: #333; color: white; font-size: 16px; outline: none; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; padding: 20px; }
-        .card { background: #222; border-radius: 8px; overflow: hidden; transition: transform 0.3s; text-decoration: none; color: white; position: relative; }
-        .card:hover { transform: scale(1.05); }
+        /* TRAVA MESTRE - IMPEDE SELEÇÃO E MENU DE CONTEXTO */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        input, textarea {
+            -webkit-user-select: text !important;
+            user-select: text !important;
+        }
+        
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 0; }
+        .header { padding: 15px; text-align: center; background: #111; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid #e50914; }
+        .header h1 { color: #e50914; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .search-container { padding: 15px; display: flex; justify-content: center; }
+        .search-container input { 
+            width: 80%; padding: 12px; border-radius: 25px; border: none; 
+            background: #222; color: #fff; font-size: 16px; outline: none;
+        }
+
+        .grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+            gap: 10px; padding: 10px; 
+        }
+        .card { background: #111; border-radius: 8px; overflow: hidden; transition: 0.3s; position: relative; }
+        .card:active { transform: scale(0.95); }
         .card img { width: 100%; display: block; border-radius: 8px; }
-        .card-info { padding: 10px; font-size: 13px; text-align: center; font-weight: bold; }
-        .rating { position: absolute; top: 5px; right: 5px; background: rgba(229, 9, 20, 0.85); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-        footer { text-align: center; padding: 40px 20px; font-size: 12px; color: #666; }
+        .card-info { padding: 5px; text-align: center; font-size: 12px; }
+        
+        a { text-decoration: none; color: inherit; }
+        .ads-container { text-align: center; margin: 10px 0; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
 
-<header>
-    <a href="/" class="logo">Cine Mega</a>
+    <div class="header">
+        <h1>{{ nome_site }}</h1>
+    </div>
+
+    <div class="ads-container">
+        </div>
+
     <div class="search-container">
-        <form action="/">
-            <input type="text" name="q" placeholder="Buscar filmes ou séries..." autocomplete="off">
+        <form action="/" method="get" style="width: 100%; text-align: center;">
+            <input type="text" name="q" placeholder="Buscar filmes..." autocomplete="off">
         </form>
     </div>
-</header>
 
-<main>
     <div class="grid">
         {% for filme in filmes %}
         <a href="/filme/{{ filme.id }}" class="card">
-            <div class="rating">★ {{ "%.1f"|format(filme.vote_average) }}</div>
-            <img src="{{ img }}{{ filme.poster_path }}" alt="Assistir {{ filme.title }} Online">
-            <div class="card-info">{{ filme.title }}</div>
+            <img src="{{ img }}{{ filme.poster_path }}" alt="{{ filme.title }}">
+            <div class="card-info">{{ filme.title[:15] }}...</div>
         </a>
         {% endfor %}
     </div>
-</main>
 
-<footer>
-    <p>&copy; 2026 Cine Mega - Assista Filmes e Séries Online Grátis</p>
-    <p>O melhor catálogo de streaming atualizado.</p>
-</footer>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js');
-    });
-  }
-</script>
+    <div class="ads-container">
+        </div>
 
 </body>
 </html>
