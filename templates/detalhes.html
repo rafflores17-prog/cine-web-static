@@ -1,140 +1,41 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-PQXCX3PB3Y"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-PQXCX3PB3Y');
-</script>
-
-<script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>{{ filme.title or filme.name }} | {{ nome_site }}</title>
-
-<link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#e50914">
-
-<style>
-/* BLOQUEIO E OTIMIZAÇÃO MOBILE */
-* {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-    box-sizing: border-box;
-}
-
-body { margin:0; font-family: sans-serif; color:white; background:black; overflow-x:hidden; }
-.bg { position:fixed; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(30px) brightness(0.2); z-index:-1; }
-
-/* Centraliza no PC e fica perfeito no Celular/TV */
-.container { padding:20px; max-width:500px; margin:0 auto; text-align:center; }
-
-.poster img { width:150px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.8); margin-bottom:15px; pointer-events: none; }
-
-.player-wrapper { 
-    width: 100%; border-radius: 12px; overflow: hidden; background: #000; 
-    margin: 15px 0; border: 1px solid #333; min-height: 200px; 
-    display: flex; align-items: center; justify-content: center; position: relative; 
-    background-image: url('{{ bg }}{{ filme.backdrop_path }}');
-    background-size: cover; background-position: center;
-}
-
-video { width: 100%; display: block; z-index: 2; position: relative; background: #000; }
-iframe { width: 100%; height: 210px; border: none; z-index: 3; display: none; }
-
-.aviso-uc { 
-    display: none; padding: 20px; color: #fff; font-size: 14px; 
-    position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
-    z-index: 10; flex-direction: column; justify-content: center; text-align: center;
-}
-
-.btn-externo { display: block; width: 100%; background: #e50914; color: white; padding: 15px; border-radius: 50px; font-weight: bold; text-decoration: none; margin-top: 10px; font-size: 14px; box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4); }
-.meta-info { font-size: 11px; color: #00ff88; margin: 10px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-.overview { background:rgba(255,255,255,0.07); padding:15px; border-radius:12px; font-size:13px; text-align:justify; margin-top: 15px; line-height: 1.5; }
-.back { display:inline-block; margin-bottom:15px; color:#ccc; text-decoration:none; font-size:12px; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; }
-
-/* Dica para o usuário */
-.dica-player { font-size: 10px; color: #888; margin-top: 8px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ filme.title or filme.name }}</title>
+    <style>
+        body { margin:0; font-family: sans-serif; background:#000; color:#fff; text-align:center; }
+        .container { padding:20px; max-width:500px; margin:0 auto; }
+        .player-box { width:100%; border-radius:12px; background:#111; overflow:hidden; position:relative; min-height:220px; border: 1px solid #333; }
+        iframe, video { width:100%; height:220px; border:none; }
+        .btn-play { display:block; background:#e50914; color:#fff; padding:15px; border-radius:50px; text-decoration:none; font-weight:bold; margin-top:20px; font-size:16px; }
+        .overview { padding:15px; font-size:14px; color:#ccc; text-align:justify; line-height:1.4; }
+        .meta { color:#00ff88; font-size:12px; margin:10px 0; font-weight:bold; }
+    </style>
 </head>
-<body oncontextmenu="return false;">
-<div class="bg" style="background-image:url('{{ bg }}{{ filme.backdrop_path }}')"></div>
+<body>
+    <div class="container">
+        <h2 style="margin-top:10px;">{{ filme.title or filme.name }}</h2>
 
-<div class="container">
-  <a class="back" href="/">⬅ Voltar</a>
-  <div class="poster"><img src="{{ img }}{{ filme.poster_path }}"></div>
-  
-  <h1>{{ filme.title or filme.name }}</h1>
-
-  {% if play_link %}
-    <div class="player-wrapper">
-        <div id="uc-msg" class="aviso-uc">
-            <p>⚠️ <b>Conexão ou App Bloqueado</b></p>
-            <p>Use o botão vermelho abaixo para assistir no player de sua preferência.</p>
+        <div class="player-box">
+            {% if trailer_key %}
+                <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
+            {% else %}
+                <div style="padding:80px 20px;">🔍 Buscando sinal estável...</div>
+            {% endif %}
         </div>
-        
-        <video id="player" controls playsinline preload="auto" poster="{{ bg }}{{ filme.backdrop_path }}">
-            <source src="{{ play_link }}" type="video/mp4">
-        </video>
 
-        {% if trailer_key %}
-        <iframe id="trailer-iframe" src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0&showinfo=0&modestbranding=1" allowfullscreen></iframe>
+        <div class="meta">SINAL IPTV LOCALIZADO ✅</div>
+
+        {% if play_link %}
+            <a href="{{ play_link }}" class="btn-play">▶️ ABRIR NO PLAYER (VLC / MX)</a>
+            <p style="font-size:10px; color:#888;">Ao clicar, selecione o <b>VLC</b> para evitar erros.</p>
+        {% else %}
+            <p style="color:#ff4444;">Sinal temporariamente indisponível para este título.</p>
         {% endif %}
+
+        <div class="overview">{{ filme.overview }}</div>
     </div>
-
-    <div class="meta-info">SINAL VIP ESTÁVEL ✅</div>
-    
-    <a href="{{ play_link }}" target="_blank" class="btn-externo">▶️ ASSISTIR NO PLAYER EXTERNO</a>
-    <p class="dica-player">Recomendamos <b>VLC</b> ou <b>MX Player</b> para evitar travamentos.</p>
-  {% else %}
-    <p>🔍 Buscando sinal nos servidores...</p>
-  {% endif %}
-
-  <div class="overview">{{ filme.overview }}</div>
-</div>
-
-<script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-<script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
-<script>
-  const video = document.getElementById('player');
-  const aviso = document.getElementById('uc-msg');
-  const trailer = document.getElementById('trailer-iframe');
-
-  if(video) {
-    function ativarFallback() {
-        // Se o vídeo falhar, mostramos o trailer do YouTube automaticamente
-        video.style.display = 'none';
-        if(trailer) trailer.style.display = 'block';
-        else aviso.style.display = 'flex';
-    }
-
-    // LÓGICA DE RECONEXÃO: Se der erro de rede, ele tenta recarregar de onde parou
-    video.addEventListener('error', function() {
-        const tempoAtual = video.currentTime;
-        // Se o erro for de interrupção (comum em IPTV), tenta dar um "refresh" no sinal
-        if (video.error && video.error.code >= 3) { 
-            console.log("Tentando recuperar sinal...");
-            video.load();
-            video.play();
-            video.currentTime = tempoAtual;
-        } else {
-            ativarFallback();
-        }
-    }, true);
-
-    // Timeout para UC Browser e bloqueios de PWA
-    setTimeout(() => { 
-        if (video.networkState === 3 || (video.readyState === 0 && !video.paused)) {
-            ativarFallback(); 
-        }
-    }, 8000);
-  }
-</script>
 </body>
 </html>
