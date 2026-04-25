@@ -1,89 +1,290 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ filme.title }}</title>
-    
-    <script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    
-    <style>
-        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
+<title>{{ filme.title }}</title>
 
-        .fundo-animado {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover;
-            filter: blur(25px) brightness(0.2);
-            z-index: -1;
-            animation: movimentoFundo 20s infinite alternate linear;
-        }
-        @keyframes movimentoFundo { from { transform: scale(1); } to { transform: scale(1.15); } }
+<script>
+(function(s){
+s.dataset.zone='10920011',
+s.src='https://n6wxm.com/vignette.min.js'
+})
+([document.documentElement, document.body]
+.filter(Boolean)
+.pop()
+.appendChild(document.createElement('script')))
+</script>
 
-        .container { padding: 15px; max-width: 500px; margin: 0 auto; text-align: center; }
-        
-        .capinha { 
-            width: 175px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
-            margin: 45px auto 10px auto; /* Espaço para o Pop-up no topo */
-            display: block;
-            border: 1px solid rgba(255,255,255,0.2); 
-            pointer-events: none; 
-        }
+<style>
 
-        .info-topo { font-size: 13px; color: #00ff88; font-weight: bold; margin-bottom: 15px; }
+* {
+-webkit-touch-callout: none;
+-webkit-user-select: none;
+user-select: none;
+-webkit-tap-highlight-color: transparent;
+}
 
-        .player-box { width: 100%; height: 180px; background: #000; border-radius: 12px; margin: 15px 0; overflow: hidden; border: 1px solid #333; }
-        iframe { width: 100%; height: 100%; border: none; }
+body {
+margin: 0;
+padding: 0;
+background: #000;
+color: #fff;
+font-family: sans-serif;
+overflow-x: hidden;
+}
 
-        .btn-play {
-            display: block; width: 100%; box-sizing: border-box; padding: 16px; 
-            background: #e50914; color: #fff; text-decoration: none; border-radius: 50px; 
-            font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4); 
-            margin: 20px auto; border: none; text-align: center;
-        }
+.fundo-animado {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover;
+filter: blur(25px) brightness(0.2);
+z-index: -1;
+animation: movimentoFundo 20s infinite alternate linear;
+}
 
-        .sinopse-box { background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px; text-align: justify; font-size: 14px; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1); margin-top: 20px; }
-        .sinopse-label { display: block; color: #888; font-weight: bold; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; }
+@keyframes movimentoFundo {
+from { transform: scale(1); }
+to { transform: scale(1.15); }
+}
 
-        .back-btn { color: #ccc; text-decoration: none; font-size: 13px; float: left; margin-bottom: 10px; }
-    </style>
+.container {
+padding: 15px;
+max-width: 500px;
+margin: 0 auto;
+text-align: center;
+}
+
+.capinha {
+width: 175px;
+border-radius: 12px;
+box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+margin: 45px auto 10px auto;
+display: block;
+border: 1px solid rgba(255,255,255,0.2);
+pointer-events: none;
+}
+
+.info-topo {
+font-size: 13px;
+color: #00ff88;
+font-weight: bold;
+margin-bottom: 15px;
+}
+
+.player-box {
+
+width: 100%;
+
+aspect-ratio: 16/9;
+
+background: #000;
+
+border-radius: 12px;
+
+margin: 15px 0;
+
+overflow: hidden;
+
+border: 1px solid #333;
+
+}
+
+video {
+
+width: 100%;
+
+height: 100%;
+
+background: #000;
+
+border: none;
+
+}
+
+iframe {
+width: 100%;
+height: 100%;
+border: none;
+}
+
+.btn-play {
+
+display: block;
+
+width: 100%;
+
+box-sizing: border-box;
+
+padding: 16px;
+
+background: #e50914;
+
+color: #fff;
+
+text-decoration: none;
+
+border-radius: 50px;
+
+font-weight: bold;
+
+font-size: 18px;
+
+margin: 20px auto;
+
+border: none;
+
+text-align: center;
+
+}
+
+.sinopse-box {
+background: rgba(0,0,0,0.7);
+padding: 20px;
+border-radius: 15px;
+text-align: justify;
+font-size: 14px;
+line-height: 1.5;
+border: 1px solid rgba(255,255,255,0.1);
+margin-top: 20px;
+}
+
+.sinopse-label {
+display: block;
+color: #888;
+font-weight: bold;
+margin-bottom: 8px;
+font-size: 12px;
+text-transform: uppercase;
+}
+
+.back-btn {
+color: #ccc;
+text-decoration: none;
+font-size: 13px;
+float: left;
+margin-bottom: 10px;
+}
+
+</style>
 </head>
+
 <body oncontextmenu="return false;">
 
-    <div class="fundo-animado"></div>
+<div class="fundo-animado"></div>
 
-    <div class="container">
-        <a href="/" class="back-btn">✕ VOLTAR</a>
-        <div style="clear: both;"></div> 
+<div class="container">
 
-        <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
-        
-        <h1 style="font-size: 26px; margin: 10px 0 5px 0; font-weight: 900;">{{ filme.title }}</h1>
-        <div class="info-topo">⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD</div>
+<a href="/" class="back-btn">✕ VOLTAR</a>
 
-        <div class="player-box">
-            {% if trailer_key %}
-                <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
-            {% else %}
-                <div style="padding-top: 80px; color: #555;">Carregando Trailer...</div>
-            {% endif %}
-        </div>
+<div style="clear: both;"></div>
 
-        {% if play_link %}
-            <a href="{{ play_link }}" target="_blank" class="btn-play">▶️ ASSISTIR AGORA</a>
-        {% endif %}
+<img src="{{ img }}{{ filme.poster_path }}" class="capinha">
 
-        <div class="sinopse-box">
-            <span class="sinopse-label">Sinopse</span>
-            {{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
-        </div>
-    </div>
+<h1 style="font-size: 26px; margin: 10px 0 5px 0; font-weight: 900;">
+{{ filme.title }}
+</h1>
 
-    <script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    
-    <script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<div class="info-topo">
+⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD
+</div>
+
+<!-- TRAILER -->
+
+<div class="player-box">
+
+{% if trailer_key %}
+
+<iframe
+src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0"
+allowfullscreen>
+</iframe>
+
+{% else %}
+
+<div style="padding-top: 80px; color: #555;">
+Carregando Trailer...
+</div>
+
+{% endif %}
+
+</div>
+
+<!-- PLAYER DO FILME -->
+
+{% if play_link %}
+
+<div class="player-box">
+
+<video
+
+id="player"
+
+controls
+
+playsinline
+
+webkit-playsinline
+
+preload="metadata"
+
+controlsList="nodownload"
+
+>
+
+<source src="{{ play_link }}" type="video/mp4">
+
+Seu navegador não suporta vídeo.
+
+</video>
+
+</div>
+
+{% else %}
+
+<a class="btn-play">
+▶️ FILME INDISPONÍVEL
+</a>
+
+{% endif %}
+
+<div class="sinopse-box">
+
+<span class="sinopse-label">
+Sinopse
+</span>
+
+{{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
+
+</div>
+
+</div>
+
+<script>
+(function(s){
+s.dataset.zone='10920008',
+s.src='https://nap5k.com/tag.min.js'
+})
+([document.documentElement, document.body]
+.filter(Boolean)
+.pop()
+.appendChild(document.createElement('script')))
+</script>
+
+<script>
+(function(s){
+s.dataset.zone='10920000',
+s.src='https://al5sm.com/tag.min.js'
+})
+([document.documentElement, document.body]
+.filter(Boolean)
+.pop()
+.appendChild(document.createElement('script')))
+</script>
+
 </body>
 </html>
