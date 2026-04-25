@@ -12,13 +12,51 @@ TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
+# SERVIDORES IPTV
+# NOVO SERVIDOR ADICIONADO NO TOPO (o que você enviou)
+
 SERVIDORES = [
-    {"host": "http://serv99.xyz:8880", "user": "261491762", "pass": "2516895925"},
-    {"host": "http://falcon12.top:80", "user": "175473583", "pass": "643238922"},
-    {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
-    {"host": "http://koquwz.com:80", "user": "471204", "pass": "epp4Jx"},
-    {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
+
+    # NOVO SERV99 (ADICIONADO)
+    {
+        "host": "http://serv99.xyz:8880",
+        "user": "1764371",
+        "pass": "2419902"
+    },
+
+    # SEU SERV99 ANTIGO (mantido)
+    {
+        "host": "http://serv99.xyz:8880",
+        "user": "261491762",
+        "pass": "2516895925"
+    },
+
+    {
+        "host": "http://falcon12.top:80",
+        "user": "175473583",
+        "pass": "643238922"
+    },
+
+    {
+        "host": "http://stmax.top:80",
+        "user": "lucas6043",
+        "pass": "px2926br"
+    },
+
+    {
+        "host": "http://koquwz.com:80",
+        "user": "471204",
+        "pass": "epp4Jx"
+    },
+
+    {
+        "host": "http://techon.one:80",
+        "user": "003008",
+        "pass": "440144634"
+    }
+
 ]
+
 
 # CACHE INTELIGENTE
 
@@ -65,7 +103,7 @@ def health():
     return "OK"
 
 
-# PROXY DE VÍDEO (CORRIGIDO)
+# PROXY DE VÍDEO (ROBUSTO)
 
 @app.route("/proxy")
 def proxy_video():
@@ -78,20 +116,33 @@ def proxy_video():
     try:
 
         headers = {
-            "User-Agent": "Mozilla/5.0",
+
+            "User-Agent": request.headers.get(
+                "User-Agent",
+                "Mozilla/5.0"
+            ),
+
             "Accept": "*/*",
+
             "Connection": "keep-alive",
-            "Range": request.headers.get("Range", "bytes=0-")
+
+            "Range": request.headers.get(
+                "Range",
+                "bytes=0-"
+            )
+
         }
 
         r = requests.get(
             url,
             headers=headers,
             stream=True,
-            timeout=(5, 20)
+            allow_redirects=True,
+            timeout=(5, 25)
         )
 
         if r.status_code not in [200, 206]:
+
             return "Servidor de vídeo indisponível", 502
 
         def generate():
@@ -108,17 +159,26 @@ def proxy_video():
                 r.close()
 
         return Response(
+
             stream_with_context(generate()),
+
             status=r.status_code,
+
             content_type=r.headers.get(
                 "Content-Type",
                 "video/mp4"
             ),
+
             headers={
+
                 "Accept-Ranges": "bytes",
+
                 "Cache-Control": "no-store",
+
                 "Connection": "keep-alive"
+
             }
+
         )
 
     except Exception as e:
@@ -151,7 +211,7 @@ def buscar_no_iptv(titulo):
 
             r = requests.get(
                 url_api,
-                timeout=10
+                timeout=12
             )
 
             if r.status_code != 200:
@@ -168,10 +228,12 @@ def buscar_no_iptv(titulo):
                 if titulo_busca in nome_iptv:
 
                     video_url = (
+
                         f"{srv['host']}/movie/"
                         f"{srv['user']}/"
                         f"{srv['pass']}/"
                         f"{item.get('stream_id')}.mp4"
+
                     )
 
                     return f"/proxy?url={video_url}"
@@ -225,17 +287,20 @@ def home():
     )
 
 
-# DETALHES (TRAILER CORRIGIDO)
+# DETALHES
 
 @app.route("/filme/<int:id>")
 def detalhes(id):
 
     data = requests.get(
+
         f"https://api.themoviedb.org/3/movie/{id}"
         f"?api_key={TMDB_API_KEY}"
         f"&language=pt-BR"
         f"&append_to_response=videos",
+
         timeout=10
+
     ).json()
 
     play_link = buscar_no_iptv(
@@ -263,13 +328,21 @@ def detalhes(id):
             break
 
     return render_template(
+
         "detalhes.html",
+
         filme=data,
+
         img=IMG,
+
         bg=BG,
+
         play_link=play_link,
+
         nome_site=NOME_SITE,
+
         trailer_key=trailer
+
     )
 
 
