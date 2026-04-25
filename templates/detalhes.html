@@ -1,20 +1,42 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<meta name="viewport"
+content="width=device-width,
+initial-scale=1.0,
+maximum-scale=1.0,
+user-scalable=no">
 
 <title>{{ filme.title }}</title>
+
+<!-- FORÇA ATUALIZAÇÃO NO CHROME -->
+<meta http-equiv="Cache-Control"
+content="no-cache, no-store, must-revalidate">
+
+<meta http-equiv="Pragma"
+content="no-cache">
+
+<meta http-equiv="Expires"
+content="0">
+
+<!-- PLYR CSS -->
+<link rel="stylesheet"
+href="https://cdn.plyr.io/3.7.8/plyr.css?v=2">
 
 <script>
 (function(s){
 s.dataset.zone='10920011',
 s.src='https://n6wxm.com/vignette.min.js'
 })
-([document.documentElement, document.body]
+([document.documentElement,
+document.body]
 .filter(Boolean)
 .pop()
-.appendChild(document.createElement('script')))
+.appendChild(
+document.createElement('script')))
 </script>
 
 <style>
@@ -36,120 +58,193 @@ overflow-x: hidden;
 }
 
 .fundo-animado {
+
 position: fixed;
 top: 0;
 left: 0;
 width: 100%;
 height: 100%;
-background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover;
-filter: blur(25px) brightness(0.2);
+
+background:
+url('{{ bg }}{{ filme.backdrop_path }}')
+center/cover;
+
+filter:
+blur(25px)
+brightness(0.2);
+
 z-index: -1;
-animation: movimentoFundo 20s infinite alternate linear;
+
+animation:
+movimentoFundo
+20s
+infinite
+alternate
+linear;
+
 }
 
 @keyframes movimentoFundo {
-from { transform: scale(1); }
-to { transform: scale(1.15); }
+
+from {
+transform: scale(1);
+}
+
+to {
+transform: scale(1.15);
+}
+
 }
 
 .container {
+
 padding: 15px;
 max-width: 500px;
 margin: 0 auto;
 text-align: center;
+
 }
 
 .capinha {
+
 width: 175px;
 border-radius: 12px;
-box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-margin: 45px auto 10px auto;
+
+box-shadow:
+0 10px 30px
+rgba(0,0,0,0.8);
+
+margin:
+45px auto
+10px auto;
+
 display: block;
-border: 1px solid rgba(255,255,255,0.2);
+
+border:
+1px solid
+rgba(255,255,255,0.2);
+
 pointer-events: none;
+
 }
 
 .info-topo {
+
 font-size: 13px;
 color: #00ff88;
 font-weight: bold;
 margin-bottom: 15px;
+
 }
 
 .player-box {
 
 width: 100%;
+
 aspect-ratio: 16/9;
+
 background: #000;
+
 border-radius: 12px;
+
 margin: 15px 0;
+
 overflow: hidden;
+
 border: 1px solid #333;
 
 }
 
-video {
-
-width: 100%;
-height: 100%;
-background: #000;
-border: none;
-
-}
-
 iframe {
+
 width: 100%;
 height: 100%;
 border: none;
+
 }
 
 .btn-play {
 
 display: block;
 width: 100%;
+
 box-sizing: border-box;
+
 padding: 16px;
+
 background: #e50914;
+
 color: #fff;
+
 text-decoration: none;
+
 border-radius: 50px;
+
 font-weight: bold;
+
 font-size: 18px;
+
 margin: 20px auto;
+
 border: none;
+
 text-align: center;
 
 }
 
 .sinopse-box {
+
 background: rgba(0,0,0,0.7);
+
 padding: 20px;
+
 border-radius: 15px;
+
 text-align: justify;
+
 font-size: 14px;
+
 line-height: 1.5;
-border: 1px solid rgba(255,255,255,0.1);
+
+border: 1px solid
+rgba(255,255,255,0.1);
+
 margin-top: 20px;
+
 }
 
 .sinopse-label {
+
 display: block;
+
 color: #888;
+
 font-weight: bold;
+
 margin-bottom: 8px;
+
 font-size: 12px;
+
 text-transform: uppercase;
+
 }
 
 .back-btn {
+
 color: #ccc;
+
 text-decoration: none;
+
 font-size: 13px;
+
 float: left;
+
 margin-bottom: 10px;
+
 }
 
 </style>
+
 </head>
 
 <body oncontextmenu="return false;">
@@ -158,18 +253,33 @@ margin-bottom: 10px;
 
 <div class="container">
 
-<a href="/" class="back-btn">✕ VOLTAR</a>
+<a href="/" class="back-btn">
+✕ VOLTAR
+</a>
 
 <div style="clear: both;"></div>
 
-<img src="{{ img }}{{ filme.poster_path }}" class="capinha">
+<img
+src="{{ img }}{{ filme.poster_path }}"
+class="capinha">
 
-<h1 style="font-size: 26px; margin: 10px 0 5px 0; font-weight: 900;">
+<h1 style="
+font-size: 26px;
+margin: 10px 0 5px 0;
+font-weight: 900;">
+
 {{ filme.title }}
+
 </h1>
 
 <div class="info-topo">
-⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD
+
+⭐ {{ "%.1f"|format(filme.vote_average) }}
+|
+{{ filme.release_date[:4] }}
+|
+FULL HD
+
 </div>
 
 <!-- TRAILER -->
@@ -179,22 +289,40 @@ margin-bottom: 10px;
 {% if trailer_key %}
 
 <iframe
-src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0&modestbranding=1&playsinline=1"
-allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+
+src="
+https://www.youtube.com/embed/{{ trailer_key }}
+?rel=0
+&modestbranding=1
+&playsinline=1"
+
+allow="
+accelerometer;
+autoplay;
+encrypted-media;
+gyroscope;
+picture-in-picture"
+
 allowfullscreen>
+
 </iframe>
 
 {% else %}
 
-<div style="padding-top: 80px; color: #555;">
+<div
+style="
+padding-top: 80px;
+color: #555;">
+
 Trailer indisponível
+
 </div>
 
 {% endif %}
 
 </div>
 
-<!-- PLAYER DO FILME -->
+<!-- PLAYER COM PLYR -->
 
 {% if play_link %}
 
@@ -204,15 +332,11 @@ Trailer indisponível
 id="player"
 controls
 playsinline
-webkit-playsinline
-x5-playsinline
-x5-video-player-type="h5"
-x5-video-player-fullscreen="true"
-preload="metadata"
-controlsList="nodownload"
->
+preload="metadata">
 
-<source src="{{ play_link }}" type="video/mp4">
+<source
+src="{{ play_link }}"
+type="video/mp4">
 
 Seu navegador não suporta vídeo.
 
@@ -234,7 +358,9 @@ Seu navegador não suporta vídeo.
 Sinopse
 </span>
 
-{{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
+{{ filme.overview
+or
+"A sinopse deste filme ainda não foi traduzida." }}
 
 </div>
 
@@ -245,10 +371,12 @@ Sinopse
 s.dataset.zone='10920008',
 s.src='https://nap5k.com/tag.min.js'
 })
-([document.documentElement, document.body]
+([document.documentElement,
+document.body]
 .filter(Boolean)
 .pop()
-.appendChild(document.createElement('script')))
+.appendChild(
+document.createElement('script')))
 </script>
 
 <script>
@@ -256,33 +384,59 @@ s.src='https://nap5k.com/tag.min.js'
 s.dataset.zone='10920000',
 s.src='https://al5sm.com/tag.min.js'
 })
-([document.documentElement, document.body]
+([document.documentElement,
+document.body]
 .filter(Boolean)
 .pop()
-.appendChild(document.createElement('script')))
+.appendChild(
+document.createElement('script')))
 </script>
 
-<!-- MELHORIA DE COMPATIBILIDADE DO PLAYER -->
+<!-- PLYR JS -->
+
+<script
+src="
+https://cdn.plyr.io/3.7.8/plyr.js?v=2">
+</script>
 
 <script>
 
-const video = document.getElementById("player")
+document.addEventListener(
+"DOMContentLoaded",
+function () {
 
-if (video) {
+if (
+document.getElementById("player")
+) {
 
-    video.setAttribute("playsinline", "")
+new Plyr(
+"#player",
+{
+controls: [
 
-    video.addEventListener("loadedmetadata", () => {
+"play",
 
-        try {
+"progress",
 
-            video.currentTime = 0
+"current-time",
 
-        } catch(e) {}
+"mute",
 
-    })
+"volume",
+
+"fullscreen"
+
+]
 
 }
+
+)
+
+}
+
+}
+
+)
 
 </script>
 
