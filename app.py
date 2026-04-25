@@ -8,7 +8,7 @@ NOME_SITE = "Cine Mega"
 
 SITE_URL = "https://www.cinemega.online"
 
-TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
+TMDB_API_KEY = "SUA_API_KEY"
 
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
@@ -21,12 +21,29 @@ SERVIDORES = [
 ]
 
 # ================================
+# CACHE GLOBAL
+# ================================
+
+@app.after_request
+def add_cache_headers(response):
+
+    response.headers["Cache-Control"] = \
+        "public, max-age=86400"
+
+    return response
+
+# ================================
 # SERVICE WORKER
 # ================================
 
 @app.route('/sw.js')
 def sw():
-    return send_from_directory('.', 'sw.js', mimetype='application/javascript')
+
+    return send_from_directory(
+        '.',
+        'sw.js',
+        mimetype='application/javascript'
+    )
 
 # ================================
 # ASSET LINKS (TWA)
@@ -34,8 +51,11 @@ def sw():
 
 @app.route('/.well-known/assetlinks.json')
 def assetlinks():
+
     return jsonify([{
-        "relation": ["delegate_permission/common.handle_all_urls"],
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
         "target": {
             "namespace": "android_app",
             "package_name": "online.cinemega.www.twa",
@@ -46,7 +66,7 @@ def assetlinks():
     }])
 
 # ================================
-# PROXY DE VÍDEO
+# PROXY DE VÍDEO (ANTI-CRASH)
 # ================================
 
 @app.route("/proxy")
@@ -55,6 +75,7 @@ def proxy_video():
     url = request.args.get("url")
 
     if not url:
+
         return "URL não fornecida", 400
 
     try:
@@ -69,25 +90,55 @@ def proxy_video():
             url,
             headers=headers,
             stream=True,
-            timeout=15
+            timeout=(5, 15)
         )
+
+        if r.status_code != 200:
+
+            return "Servidor de vídeo indisponível", 502
 
         def generate():
 
-            for chunk in r.iter_content(1024 * 64):
+            try:
 
-                if chunk:
+                for chunk in r.iter_content(1024 * 64):
 
-                    yield chunk
+                    if chunk:
+
+                        yield chunk
+
+            except Exception as e:
+
+                print("Erro stream:", e)
+
+            finally:
+
+                r.close()
 
         return Response(
             stream_with_context(generate()),
-            content_type="video/mp4",
+            content_type=r.headers.get(
+                "Content-Type",
+                "video/mp4"
+            ),
             headers={
                 "Accept-Ranges": "bytes",
-                "Cache-Control": "no-cache"
+                "Cache-Control": "no-store",
+                "Connection": "keep-alive"
             }
         )
+
+    except requests.exceptions.Timeout:
+
+        print("Timeout proxy")
+
+        return "Tempo excedido", 504
+
+    except requests.exceptions.ConnectionError:
+
+        print("Erro conexão proxy")
+
+        return "Falha de conexão", 502
 
     except Exception as e:
 
@@ -127,6 +178,10 @@ def buscar_no_iptv(titulo):
                 headers=headers,
                 timeout=10
             )
+
+            if r.status_code != 200:
+
+                continue
 
             for item in r.json():
 
@@ -172,7 +227,10 @@ def home():
         f"{f'&query={q}' if q else ''}"
     )
 
-    res = requests.get(url).json().get(
+    res = requests.get(
+        url,
+        timeout=10
+    ).json().get(
         "results",
         []
     )
@@ -195,7 +253,8 @@ def detalhes(id):
         f"https://api.themoviedb.org/3/movie/{id}"
         f"?api_key={TMDB_API_KEY}"
         f"&language=pt-BR"
-        f"&append_to_response=videos"
+        f"&append_to_response=videos",
+        timeout=10
     ).json()
 
     play_link = buscar_no_iptv(
