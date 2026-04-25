@@ -3,7 +3,7 @@
     {% for page in pages %}
     <url>
         <loc>{{ page[0] }}</loc>
-        <priority>{{ page[1] }}</priority>
-    </url>
+        <lastmod>2026-04-24</lastmod> <priority>{{ page[1] }}</priority>
+        <changefreq>daily</changefreq> </url>
     {% endfor %}
 </urlset>
