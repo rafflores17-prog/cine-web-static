@@ -3,72 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ filme.title }} - {{ nome_site }}</title>
+    <title>{{ filme.title }}</title>
     <style>
-        /* TRAVA MESTRE - IMPEDE SELEÇÃO E MENU DE CONTEXTO */
-        * {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
+        /* TRAVA DE SEGURANÇA */
+        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 
         body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 0; }
-        .banner { 
-            width: 100%; height: 250px; background-size: cover; background-position: center;
-            position: relative; border-bottom: 3px solid #e50914;
+        
+        .backdrop { 
+            width: 100%; height: 300px; background-size: cover; background-position: center;
+            position: relative;
         }
-        .banner::after {
+        .backdrop::after {
             content: ''; position: absolute; bottom: 0; width: 100%; height: 100%;
-            background: linear-gradient(transparent, #000);
+            background: linear-gradient(to top, #000, transparent);
         }
-        .content { padding: 20px; position: relative; margin-top: -50px; z-index: 10; }
-        .title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
-        .info { color: #aaa; margin-bottom: 20px; font-size: 14px; }
-        .sinopse { line-height: 1.6; color: #ddd; margin-bottom: 30px; }
+
+        .main-content { padding: 20px; position: relative; margin-top: -80px; z-index: 10; }
         
+        .poster-mini {
+            width: 120px; border-radius: 8px; border: 2px solid #e50914;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); margin-bottom: 15px;
+        }
+
+        .title { font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 5px; }
+        .meta { color: #e50914; font-weight: bold; margin-bottom: 20px; font-size: 14px; }
+        
+        .sinopse-box { background: #111; padding: 15px; border-radius: 10px; border-left: 4px solid #e50914; margin-bottom: 25px; }
+        .sinopse-title { color: #aaa; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .sinopse-text { line-height: 1.6; color: #eee; font-size: 15px; }
+
         .btn-play {
-            display: block; width: 100%; padding: 15px; background: #e50914;
-            color: #fff; text-align: center; border-radius: 5px; font-weight: bold;
-            font-size: 18px; text-decoration: none; margin-bottom: 15px;
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 18px; background: #e50914; color: #fff;
+            text-decoration: none; border-radius: 8px; font-weight: 900;
+            font-size: 20px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
         }
-        .btn-trailer {
-            display: block; width: 100%; padding: 15px; background: #333;
-            color: #fff; text-align: center; border-radius: 5px; font-weight: bold;
-            font-size: 18px; text-decoration: none;
-        }
-        .btn-play:active, .btn-trailer:active { transform: scale(0.98); }
         
-        .ads-area { text-align: center; margin: 20px 0; min-height: 50px; }
+        .btn-trailer {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 15px; background: #333; color: #fff;
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;
+        }
+
+        .ads-box { width: 100%; margin: 25px 0; text-align: center; background: #080808; padding: 10px 0; }
     </style>
 </head>
-<body oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
+<body oncontextmenu="return false;">
 
-    <div class="banner" style="background-image: url('{{ bg }}{{ filme.backdrop_path }}');"></div>
+    <div class="backdrop" style="background-image: url('{{ bg }}{{ filme.backdrop_path }}');"></div>
 
-    <div class="content">
-        <div class="title">{{ filme.title }}</div>
-        <div class="info">⭐ {{ filme.vote_average }} | {{ filme.release_date[:4] }}</div>
+    <div class="main-content">
+        <img src="{{ img }}{{ filme.poster_path }}" class="poster-mini">
         
-        <div class="ads-area">
+        <div class="title">{{ filme.title }}</div>
+        <div class="meta">⭐ {{ filme.vote_average }} | {{ filme.release_date[:4] }} | FULL HD</div>
+
+        <div class="ads-box">
             </div>
 
-        <div class="sinopse">{{ filme.overview }}</div>
+        <div class="sinopse-box">
+            <span class="sinopse-title">Sinopse</span>
+            <div class="sinopse-text">{{ filme.overview or "Sinopse não disponível para este título." }}</div>
+        </div>
 
         {% if play_link %}
             <a href="{{ play_link }}" class="btn-play">ASSISTIR AGORA</a>
         {% else %}
-            <div class="btn-play" style="background: #555;">FILME INDISPONÍVEL</div>
+            <div class="btn-play" style="background: #444; box-shadow: none;">AGUARDANDO LINK...</div>
         {% endif %}
 
         {% if trailer_key %}
-            <a href="https://www.youtube.com/watch?v={{ trailer_key }}" class="btn-trailer">VER TRAILER</a>
+            <a href="https://www.youtube.com/watch?v={{ trailer_key }}" class="btn-trailer">VER TRAILER NO YOUTUBE</a>
         {% endif %}
 
-        <div class="ads-area">
+        <div class="ads-box">
             </div>
     </div>
 
