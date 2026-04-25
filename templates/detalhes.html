@@ -8,42 +8,89 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ filme.title }}</title>
+    <title>{{ filme.title }} | Cine Mega</title>
     <style>
-        body { margin:0; font-family: sans-serif; background:#000; color:#fff; overflow-x:hidden; }
-        .fundo-blur { position:fixed; top:0; left:0; width:100%; height:100%; background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover; filter: blur(25px) brightness(0.3); z-index:-1; animation: mover 20s infinite alternate; }
-        @keyframes mover { from { transform: scale(1); } to { transform: scale(1.1); } }
+        body { margin:0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background:#050505; color:#fff; overflow-x:hidden; }
+        .fundo-blur { position:fixed; top:0; left:0; width:100%; height:100%; background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover; filter: blur(35px) brightness(0.2); z-index:-1; transform: scale(1.1); }
+        
         .container { padding:20px; max-width:500px; margin:0 auto; text-align:center; }
-        .capinha { width:160px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.7); margin-top:10px; }
-        .player-box { width:100%; height:220px; background:#000; border-radius:12px; margin:20px 0; overflow:hidden; border:1px solid #444; }
+        .capinha { width:160px; border-radius:12px; box-shadow:0 15px 35px rgba(0,0,0,0.8); margin-top:10px; border: 1px solid rgba(255,255,255,0.1); }
+        
+        /* Badges de Informação */
+        .info-bar { display: flex; justify-content: center; gap: 15px; margin: 15px 0; font-size: 13px; color: #bbb; }
+        .badge { background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 6px; color: #00ff88; font-weight: bold; }
+        .nota { color: #ffc107; }
+
+        .player-box { width:100%; height:220px; background:#000; border-radius:15px; margin:20px 0; overflow:hidden; border:1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         iframe { width:100%; height:100%; border:none; }
-        .btn-play { display:block; background:#e50914; color:#fff; padding:16px; border-radius:50px; text-decoration:none; font-weight:bold; font-size:16px; box-shadow: 0 4px 15px rgba(229,9,20,0.4); }
-        .sinopse { background:rgba(0,0,0,0.6); padding:15px; border-radius:12px; font-size:14px; text-align:justify; margin-top:20px; line-height:1.4; border:1px solid rgba(255,255,255,0.1); }
-        .meta { color:#00ff88; font-size:12px; margin:10px 0; font-weight:bold; }
+        
+        /* Botão Estilo Premium */
+        .btn-container { margin: 25px 0; }
+        .btn-play { 
+            display:block; 
+            background: linear-gradient(90deg, #e50914 0%, #ff1f1f 100%); 
+            color:#fff; 
+            padding:18px; 
+            border-radius:12px; 
+            text-decoration:none; 
+            font-weight:800; 
+            font-size:16px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 8px 20px rgba(229,9,20,0.4);
+            transition: 0.3s;
+        }
+        .btn-play:active { transform: scale(0.95); box-shadow: none; }
+
+        .sinopse-container { background:rgba(20,20,20,0.7); padding:20px; border-radius:15px; text-align:left; border: 1px solid rgba(255,255,255,0.05); }
+        .sinopse-titulo { font-size: 14px; color: #888; margin-bottom: 8px; text-transform: uppercase; font-weight: bold; display: block; }
+        .sinopse-texto { font-size:14px; line-height:1.6; color:#ddd; }
+        
+        .meta-footer { font-size:11px; color:#555; margin-top:20px; }
     </style>
 </head>
 <body>
     <div class="fundo-blur"></div>
     <div class="container">
-        <a href="/" style="color:#ccc; text-decoration:none; font-size:13px;">⬅ Voltar</a><br>
+        <a href="/" style="color:#888; text-decoration:none; font-size:13px; float: left;">✕ FECHAR</a><br>
+        
         <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
-        <h1 style="font-size:22px; margin:15px 0 5px 0;">{{ filme.title }}</h1>
+        
+        <h1 style="font-size:26px; margin:20px 0 5px 0; letter-spacing: -1px;">{{ filme.title }}</h1>
+        
+        <div class="info-bar">
+            <span>{{ filme.release_date[:4] }}</span>
+            <span class="nota">★ {{ "%.1f"|format(filme.vote_average) }}</span>
+            <span class="badge">4K ULTRA HD</span>
+        </div>
         
         <div class="player-box">
             {% if trailer_key %}
-                <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
+                <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0&modestbranding=1" allowfullscreen></iframe>
             {% else %}
-                <div style="padding-top:80px;">Sinal em processamento...</div>
+                <div style="padding-top:90px; color: #444;">🎬 Trailer Indisponível</div>
             {% endif %}
         </div>
 
-        <div class="meta">SINAL VIP DISPONÍVEL ✅</div>
+        <div class="btn-container">
+            {% if play_link %}
+                <a href="intent:{{ play_link }}#Intent;scheme=http;package=org.videolan.vlc;end" class="btn-play">
+                    🚀 ASSISTIR AGORA (PLAYER VIP)
+                </a>
+                <p style="font-size:11px; color:#00ff88; margin-top:10px; font-weight: bold;">SINAL DISPONÍVEL - 100% BUFFER FREE</p>
+            {% else %}
+                <p style="color:#666;">Sinal em busca nos servidores...</p>
+            {% endif %}
+        </div>
 
-        {% if play_link %}
-            <a href="{{ play_link }}" target="_blank" class="btn-play">▶️ ASSISTIR NO PLAYER (VLC)</a>
-        {% endif %}
+        <div class="sinopse-container">
+            <span class="sinopse-titulo">Sinopse</span>
+            <div class="sinopse-texto">{{ filme.overview or "Sinopse não disponível para este título." }}</div>
+        </div>
 
-        <div class="sinopse">{{ filme.overview }}</div>
+        <div class="meta-footer">
+            ID: TMDB-{{ filme.id }} | Cine Mega v4.8
+        </div>
     </div>
 
     <script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
