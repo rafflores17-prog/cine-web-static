@@ -1,24 +1,22 @@
 import os
 import time
 import requests
-from flask import Flask, jsonify, request, send_from_directory
-from threading import Lock
+from flask import Flask, jsonify, request, render_template
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, template_folder="templates")
 
-# =============================
+# ==========================
 # CONFIG
-# =============================
+# ==========================
 
 TIMEOUT = 10
 CACHE_TTL = 300
 
 cache = {}
-lock = Lock()
 
-# =============================
-# SERVIDORES
-# =============================
+# ==========================
+# SERVIDORES (fallback)
+# ==========================
 
 SERVIDORES = [
 
@@ -40,61 +38,36 @@ SERVIDORES = [
         "nome": "Dark1",
         "tipo": "m3u",
         "url": "http://d4rk.info:80/get.php?username=GLedsoonn777&password=PErtilee444&type=m3u_plus&output=ts"
-    },
-
-    {
-        "nome": "Dark2",
-        "tipo": "m3u",
-        "url": "http://d4rk.info:80/get.php?username=21998570202&password=Asd7920&type=m3u_plus&output=ts"
-    },
-
-    {
-        "nome": "Techon",
-        "tipo": "api",
-        "host": "http://techon.one:80",
-        "user": "",
-        "pass": ""
-    },
-
-    {
-        "nome": "Stmax",
-        "tipo": "api",
-        "host": "http://stmax.top:80",
-        "user": "",
-        "pass": ""
     }
 
 ]
 
-# =============================
+# ==========================
 # CACHE
-# =============================
+# ==========================
 
 def get_cache(key):
 
-    with lock:
+    if key in cache:
 
-        if key in cache:
+        data, t = cache[key]
 
-            data, t = cache[key]
+        if time.time() - t < CACHE_TTL:
+            return data
 
-            if time.time() - t < CACHE_TTL:
-                return data
-
-            del cache[key]
+        del cache[key]
 
     return None
 
 
 def set_cache(key, data):
 
-    with lock:
-        cache[key] = (data, time.time())
+    cache[key] = (data, time.time())
 
 
-# =============================
-# BUSCA
-# =============================
+# ==========================
+# BUSCA COM FALLBACK
+# ==========================
 
 def buscar_filme(nome):
 
@@ -113,9 +86,6 @@ def buscar_filme(nome):
 
             if srv["tipo"] == "api":
 
-                if not srv["user"]:
-                    continue
-
                 url = (
                     f"{srv['host']}/player_api.php"
                     f"?username={srv['user']}"
@@ -123,13 +93,7 @@ def buscar_filme(nome):
                     f"&action=get_vod_streams"
                 )
 
-                r = requests.get(
-                    url,
-                    timeout=TIMEOUT
-                )
-
-                if r.status_code != 200:
-                    continue
+                r = requests.get(url, timeout=TIMEOUT)
 
                 if nome.lower() in r.text.lower():
 
@@ -143,9 +107,6 @@ def buscar_filme(nome):
                     srv["url"],
                     timeout=TIMEOUT
                 )
-
-                if r.status_code != 200:
-                    continue
 
                 if nome.lower() in r.text.lower():
 
@@ -162,15 +123,14 @@ def buscar_filme(nome):
     return None
 
 
-# =============================
+# ==========================
 # ROTAS DO SITE
-# =============================
+# ==========================
 
 @app.route("/")
 def index():
 
-    return send_from_directory(
-        "static",
+    return render_template(
         "index.html"
     )
 
@@ -178,15 +138,14 @@ def index():
 @app.route("/detalhe")
 def detalhe():
 
-    return send_from_directory(
-        "static",
+    return render_template(
         "detalhe.html"
     )
 
 
-# =============================
+# ==========================
 # API
-# =============================
+# ==========================
 
 @app.route("/buscar")
 def buscar():
@@ -196,46 +155,35 @@ def buscar():
     if not nome:
 
         return jsonify({
-
             "erro": "Informe ?nome=filme"
-
-        }), 400
+        })
 
     resultado = buscar_filme(nome)
 
     if resultado:
 
         return jsonify({
-
             "status": "ok"
-
         })
 
     return jsonify({
-
         "status": "nao_encontrado"
-
-    })
+    )
 
 
 @app.route("/health")
 def health():
 
-    return "OK", 200
+    return "OK"
 
 
-# =============================
-# START
-# =============================
+# ==========================
+# START (Koyeb)
+# ==========================
 
 if __name__ == "__main__":
 
-    PORT = int(
-        os.environ.get(
-            "PORT",
-            8000
-        )
-    )
+    PORT = int(os.environ.get("PORT", 8000))
 
     app.run(
         host="0.0.0.0",
