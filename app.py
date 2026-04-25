@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_from_directory, jsonify,
 import requests
 import re
 import os
+import random  # 🎲 IMPORTAMOS A ROLETA AQUI
 
 app = Flask(__name__)
 
@@ -11,13 +12,20 @@ TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
-# ✅ CREDENCIAIS ATUALIZADAS (Serv99 modificado)
 SERVIDORES = [
     {"host": "http://serv99.xyz:8880", "user": "1764371", "pass": "2419902"},
     {"host": "http://falcon12.top:80", "user": "175473583", "pass": "643238922"},
     {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
     {"host": "http://koquwz.com:80", "user": "471204", "pass": "epp4Jx"},
     {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
+]
+
+# 🛡️ NOSSO ARSENAL DE DISFARCES VIP (Capturados por você!)
+AGENTES_VIP = [
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+    "purpleplayer/1.2.82",
+    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
+    "Dart/3.11 (dart:io)"
 ]
 
 # ================================
@@ -51,7 +59,7 @@ def assetlinks():
     }])
 
 # ================================
-# PROXY DE VÍDEO (A MÁGICA ACONTECE AQUI)
+# PROXY DE VÍDEO (COM ROLETA DE AGENTES)
 # ================================
 @app.route("/proxy")
 def proxy_video():
@@ -60,19 +68,19 @@ def proxy_video():
         return "URL não fornecida", 400
 
     try:
-        # 🕵️‍♂️ DISFARCE: Usando o exato User-Agent do seu print!
+        # 🎲 Sorteia um agente diferente a cada play
+        disfarce_atual = random.choice(AGENTES_VIP)
+        
         headers = {
-            "User-Agent": "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+            "User-Agent": disfarce_atual,
             "Accept": "*/*",
             "Connection": "keep-alive"
         }
 
-        # Repassa o comando de "Avançar filme" (Range) se o player pedir
         range_header = request.headers.get('Range', None)
         if range_header:
             headers['Range'] = range_header
 
-        # allow_redirects=True resolve o problema do "token" dinâmico
         r = requests.get(url, headers=headers, stream=True, timeout=(5, 15), allow_redirects=True)
 
         status_code = r.status_code
@@ -86,14 +94,12 @@ def proxy_video():
             finally:
                 r.close()
 
-        # Cabeçalhos de resposta exigidos pelos players nativos (UC/Chrome)
         resp_headers = {
             "Accept-Ranges": "bytes",
             "Cache-Control": "no-store",
             "Connection": "keep-alive"
         }
         
-        # Se o servidor devolver o tamanho do vídeo, repassamos pro navegador
         if 'Content-Range' in r.headers:
             resp_headers['Content-Range'] = r.headers['Content-Range']
         if 'Content-Length' in r.headers:
@@ -116,11 +122,16 @@ def proxy_video():
 def buscar_no_iptv(titulo):
     titulo_busca = re.sub(r'[^\w\s]', '', titulo).lower().strip()
     
+    # 🎲 Usamos um disfarce também na hora de buscar na API pra não levantar suspeitas
+    headers_api = {
+        "User-Agent": random.choice(AGENTES_VIP)
+    }
+    
     for srv in SERVIDORES:
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
         
         try:
-            r = requests.get(url_api, timeout=10)
+            r = requests.get(url_api, headers=headers_api, timeout=10)
             if r.status_code != 200: continue
             
             for item in r.json():
