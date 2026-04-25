@@ -4,46 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ filme.title }}</title>
+    
     <script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     
     <style>
-        /* TRAVAS DE SEGURANÇA */
         * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 
         body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
 
-        /* FUNDO BLUR QUE SE MEXE */
         .fundo-animado {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover;
-            filter: blur(25px) brightness(0.3);
+            filter: blur(25px) brightness(0.2);
             z-index: -1;
             animation: movimentoFundo 20s infinite alternate linear;
         }
-        @keyframes movimentoFundo {
-            from { transform: scale(1); }
-            to { transform: scale(1.15); }
+        @keyframes movimentoFundo { from { transform: scale(1); } to { transform: scale(1.15); } }
+
+        .container { padding: 15px; max-width: 500px; margin: 0 auto; text-align: center; }
+        
+        .capinha { 
+            width: 175px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+            margin: 45px auto 10px auto; /* Espaço para o Pop-up no topo */
+            display: block;
+            border: 1px solid rgba(255,255,255,0.2); 
+            pointer-events: none; 
         }
 
-        .container { padding: 20px; max-width: 500px; margin: 0 auto; text-align: center; }
-        
-        .capinha { width: 150px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); margin: 10px 0; border: 1px solid rgba(255,255,255,0.2); }
+        .info-topo { font-size: 13px; color: #00ff88; font-weight: bold; margin-bottom: 15px; }
 
-        .info-topo { font-size: 13px; color: #00ff88; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
-
-        .player-box { width: 100%; height: 210px; background: #000; border-radius: 12px; margin: 20px 0; overflow: hidden; border: 1px solid #333; }
+        .player-box { width: 100%; height: 180px; background: #000; border-radius: 12px; margin: 15px 0; overflow: hidden; border: 1px solid #333; }
         iframe { width: 100%; height: 100%; border: none; }
 
         .btn-play {
-            display: block; width: 100%; padding: 16px; background: #e50914; color: #fff;
-            text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;
-            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4); margin-bottom: 20px;
+            display: block; width: 100%; box-sizing: border-box; padding: 16px; 
+            background: #e50914; color: #fff; text-decoration: none; border-radius: 50px; 
+            font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4); 
+            margin: 20px auto; border: none; text-align: center;
         }
 
-        .sinopse-box { background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px; text-align: justify; font-size: 14px; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1); }
+        .sinopse-box { background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px; text-align: justify; font-size: 14px; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1); margin-top: 20px; }
         .sinopse-label { display: block; color: #888; font-weight: bold; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; }
 
-        .ads-box { margin: 20px 0; text-align: center; min-height: 50px; }
+        .back-btn { color: #ccc; text-decoration: none; font-size: 13px; float: left; margin-bottom: 10px; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -51,37 +56,34 @@
     <div class="fundo-animado"></div>
 
     <div class="container">
-        <a href="/" style="color: #ccc; text-decoration: none; font-size: 13px; float: left;">✕ VOLTAR</a><br>
-        
+        <a href="/" class="back-btn">✕ VOLTAR</a>
+        <div style="clear: both;"></div> 
+
         <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
         
-        <h1 style="font-size: 24px; margin: 15px 0 5px 0;">{{ filme.title }}</h1>
+        <h1 style="font-size: 26px; margin: 10px 0 5px 0; font-weight: 900;">{{ filme.title }}</h1>
         <div class="info-topo">⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD</div>
-
-        <div class="ads-box">
-            </div>
 
         <div class="player-box">
             {% if trailer_key %}
                 <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
             {% else %}
-                <div style="padding-top: 90px; color: #555;">Carregando Trailer...</div>
+                <div style="padding-top: 80px; color: #555;">Carregando Trailer...</div>
             {% endif %}
         </div>
 
         {% if play_link %}
-            <a href="{{ play_link }}" class="btn-play">▶️ ASSISTIR AGORA</a>
+            <a href="{{ play_link }}" target="_blank" class="btn-play">▶️ ASSISTIR AGORA</a>
         {% endif %}
 
         <div class="sinopse-box">
             <span class="sinopse-label">Sinopse</span>
             {{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
         </div>
-
-        <div class="ads-box">
-            </div>
     </div>
 
     <script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    
+    <script>(function(s){s.dataset.zone='10920000',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 </body>
 </html>
