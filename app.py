@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_from_directory, jsonify, Response, stream_with_context
 import requests
 import re
+import os
 
 app = Flask(__name__)
 
@@ -22,13 +23,12 @@ SERVIDORES = [
 ]
 
 # ================================
-# CACHE INTELIGENTE (CORRIGIDO)
+# CACHE INTELIGENTE
 # ================================
 
 @app.after_request
 def add_cache_headers(response):
 
-    # Arquivos estáticos podem usar cache
     if request.path.endswith((
         ".js",
         ".css",
@@ -42,7 +42,6 @@ def add_cache_headers(response):
         response.headers["Cache-Control"] = \
             "public, max-age=86400"
 
-    # Páginas dinâmicas NÃO podem cachear
     else:
 
         response.headers["Cache-Control"] = \
@@ -66,36 +65,16 @@ def sw():
 
 
 # ================================
-# LIMPAR CACHE MANUAL (novo)
+# HEALTH CHECK (necessário Koyeb)
 # ================================
 
-@app.route("/clear-cache")
-def clear_cache():
-
-    return "Cache limpo"
-
-
-# ================================
-# ASSET LINKS (TWA)
-# ================================
-
-@app.route('/.well-known/assetlinks.json')
-def assetlinks():
-
-    return jsonify([{
-        "relation": ["delegate_permission/common.handle_all_urls"],
-        "target": {
-            "namespace": "android_app",
-            "package_name": "online.cinemega.www.twa",
-            "sha256_cert_fingerprints": [
-                "64:F7:CE:80:D5:1C:79:CE:91:A7:0E:C8:BE:71:49:E6:46:64:F6:D2:96:5F:12:D6:8F:41:DC:57:A9:4E:48:CD"
-            ]
-        }
-    }])
+@app.route("/health")
+def health():
+    return "OK"
 
 
 # ================================
-# PROXY DE VÍDEO (ANTI-CRASH)
+# PROXY DE VÍDEO
 # ================================
 
 @app.route("/proxy")
@@ -133,10 +112,6 @@ def proxy_video():
                     if chunk:
                         yield chunk
 
-            except Exception as e:
-
-                print("Erro stream:", e)
-
             finally:
 
                 r.close()
@@ -149,22 +124,10 @@ def proxy_video():
             ),
             headers={
                 "Accept-Ranges": "bytes",
-                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Cache-Control": "no-store",
                 "Connection": "keep-alive"
             }
         )
-
-    except requests.exceptions.Timeout:
-
-        print("Timeout proxy")
-
-        return "Tempo excedido", 504
-
-    except requests.exceptions.ConnectionError:
-
-        print("Erro conexão proxy")
-
-        return "Falha de conexão", 502
 
     except Exception as e:
 
@@ -196,13 +159,8 @@ def buscar_no_iptv(titulo):
 
         try:
 
-            headers = {
-                "User-Agent": "Mozilla/5.0"
-            }
-
             r = requests.get(
                 url_api,
-                headers=headers,
                 timeout=10
             )
 
@@ -246,13 +204,22 @@ def home():
 
     q = request.args.get("q")
 
-    url = (
-        f"https://api.themoviedb.org/3/"
-        f"{'search/movie' if q else 'movie/popular'}"
-        f"?api_key={TMDB_API_KEY}"
-        f"&language=pt-BR"
-        f"{f'&query={q}' if q else ''}"
-    )
+    if q:
+
+        url = (
+            "https://api.themoviedb.org/3/search/movie"
+            f"?api_key={TMDB_API_KEY}"
+            "&language=pt-BR"
+            f"&query={q}"
+        )
+
+    else:
+
+        url = (
+            "https://api.themoviedb.org/3/movie/popular"
+            f"?api_key={TMDB_API_KEY}"
+            "&language=pt-BR"
+        )
 
     res = requests.get(
         url,
@@ -279,17 +246,14 @@ def detalhes(id):
 
     data = requests.get(
         f"https://api.themoviedb.org/3/movie/{id}"
-        f"?api_key={TMDB_API_KEY"
-        f"}&language=pt-BR"
+        f"?api_key={TMDB_API_KEY}"
+        f"&language=pt-BR"
         f"&append_to_response=videos",
         timeout=10
     ).json()
 
     play_link = buscar_no_iptv(
-        data.get(
-            'title',
-            ''
-        )
+        data.get('title', '')
     )
 
     trailer = next(
@@ -315,12 +279,14 @@ def detalhes(id):
 
 
 # ================================
-# START
+# START (Koyeb)
 # ================================
 
 if __name__ == "__main__":
 
+    PORT = int(os.environ.get("PORT", 8000))
+
     app.run(
         host="0.0.0.0",
-        port=5000
+        port=PORT
     )
