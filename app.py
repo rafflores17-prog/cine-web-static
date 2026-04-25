@@ -59,6 +59,31 @@ def assetlinks():
     }])
 
 # ================================
+# SEO (GOOGLE ROBOTS E SITEMAP)
+# ================================
+@app.route('/robots.txt')
+def robots():
+    conteudo = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /static/\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\n"
+    )
+    return Response(conteudo, mimetype="text/plain")
+
+@app.route('/sitemap.xml')
+def sitemap():
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>{SITE_URL}/</loc>
+        <changefreq>hourly</changefreq>
+        <priority>1.0</priority>
+    </url>
+</urlset>"""
+    return Response(xml, mimetype="application/xml")
+
+# ================================
 # PROXY DE VÍDEO (COM ROLETA DE AGENTES)
 # ================================
 @app.route("/proxy")
