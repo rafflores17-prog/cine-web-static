@@ -1,8 +1,11 @@
-[{
+# ROTA DE VERIFICAÇÃO FINAL PARA TELA CHEIA
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    return jsonify([{
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "online.cinemega.www.twa",
+        "package_name": "online.cinemega.www.twa", # NOME EXATO DO MANIFEST
         "sha256_cert_fingerprints": ["64:F7:CE:80:D5:1C:79:CE:91:A7:0E:C8:BE:71:49:E6:46:64:F6:D2:96:5F:12:D6:8F:41:DC:57:A9:4E:48:CD"]
       }
-    }]
+    }])
