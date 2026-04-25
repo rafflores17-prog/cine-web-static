@@ -1,291 +1,280 @@
-from flask import Flask, render_template, request, send_from_directory, jsonify, Response, stream_with_context
 import requests
 import re
+import time
 
-app = Flask(__name__)
+# ================================
+# CONFIG
+# ================================
 
-NOME_SITE = "Cine Mega"
+CACHE_LISTAS = {}
+CACHE_TEMPO = 300  # 5 minutos
 
-SITE_URL = "https://www.cinemega.online"
+TIMEOUT = 8
 
-TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
-
-IMG = "https://image.tmdb.org/t/p/w500"
-BG = "https://image.tmdb.org/t/p/original"
+# ================================
+# SERVIDORES
+# ================================
 
 SERVIDORES = [
-    {"host": "http://serv99.xyz:8880", "user": "261491762", "pass": "2516895925"},
-    {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
-    {"host": "http://koquwz.com:80", "user": "471204", "pass": "epp4Jx"},
-    {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
+
+    # ================= M3U =================
+
+    {
+        "nome": "Falcon",
+        "tipo": "m3u",
+        "url": "http://falcon12.top:80/get.php?username=175473583&password=643238922&type=m3u_plus&output=ts"
+    },
+
+    {
+        "nome": "Dark 1",
+        "tipo": "m3u",
+        "url": "http://d4rk.info:80/get.php?username=GLedsoonn777&password=PErtilee444&type=m3u_plus&output=ts"
+    },
+
+    {
+        "nome": "Dark 2",
+        "tipo": "m3u",
+        "url": "http://d4rk.info:80/get.php?username=21998570202&password=Asd7920&type=m3u_plus&output=ts"
+    },
+
+    # ================= API =================
+
+    {
+        "nome": "Techon",
+        "tipo": "api",
+        "host": "http://techon.one:80",
+        "user": "",
+        "pass": ""
+    },
+
+    {
+        "nome": "Serv99",
+        "tipo": "api",
+        "host": "http://serv99.xyz:8880",
+        "user": "261491762",
+        "pass": "2516895925"
+    },
+
+    {
+        "nome": "Stmax",
+        "tipo": "api",
+        "host": "http://stmax.top:80",
+        "user": "",
+        "pass": ""
+    },
+
+    # ================= FALLBACK FINAL =================
+
+    {
+        "nome": "Koquwz",
+        "tipo": "api",
+        "host": "http://koquwz.com:80",
+        "user": "",
+        "pass": ""
+    }
+
 ]
 
 # ================================
-# CACHE GLOBAL (leve)
+# FUNÇÕES
 # ================================
 
-@app.after_request
-def add_cache_headers(response):
+def limpar_texto(txt):
 
-    response.headers["Cache-Control"] = \
-        "public, max-age=86400"
+    if not txt:
+        return ""
 
-    return response
+    return re.sub(
+        r'[^\w\s]',
+        '',
+        txt
+    ).lower().strip()
 
-# ================================
-# SERVICE WORKER
-# ================================
-
-@app.route('/sw.js')
-def sw():
-
-    return send_from_directory(
-        '.',
-        'sw.js',
-        mimetype='application/javascript'
-    )
 
 # ================================
-# ASSET LINKS (TWA)
+# CARREGAR M3U COM CACHE
 # ================================
 
-@app.route('/.well-known/assetlinks.json')
-def assetlinks():
+def carregar_lista_m3u(url):
 
-    return jsonify([{
-        "relation": ["delegate_permission/common.handle_all_urls"],
-        "target": {
-            "namespace": "android_app",
-            "package_name": "online.cinemega.www.twa",
-            "sha256_cert_fingerprints": [
-                "64:F7:CE:80:D5:1C:79:CE:91:A7:0E:C8:BE:71:49:E6:46:64:F6:D2:96:5F:12:D6:8F:41:DC:57:A9:4E:48:CD"
-            ]
-        }
-    }])
+    agora = time.time()
 
-# ================================
-# PROXY DE VÍDEO (ANTI-CRASH)
-# ================================
+    if url in CACHE_LISTAS:
 
-@app.route("/proxy")
-def proxy_video():
+        dados = CACHE_LISTAS[url]
 
-    url = request.args.get("url")
+        if agora - dados["tempo"] < CACHE_TEMPO:
 
-    if not url:
-        return "URL não fornecida", 400
+            return dados["lista"]
 
     try:
 
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "*/*",
-            "Connection": "keep-alive"
-        }
-
         r = requests.get(
             url,
-            headers=headers,
-            stream=True,
-            timeout=(5, 15)
+            timeout=TIMEOUT
         )
 
         if r.status_code != 200:
-            return "Servidor de vídeo indisponível", 502
+            return []
 
-        def generate():
+        linhas = r.text.splitlines()
 
-            try:
+        lista = []
+        nome = None
 
-                for chunk in r.iter_content(1024 * 64):
+        for linha in linhas:
 
-                    if chunk:
-                        yield chunk
+            if linha.startswith("#EXTINF"):
 
-            except Exception as e:
+                nome = linha.split(",")[-1]
 
-                print("Erro stream:", e)
+            elif linha.startswith("http"):
 
-            finally:
+                lista.append({
 
-                r.close()
+                    "nome": nome,
+                    "url": linha
 
-        return Response(
-            stream_with_context(generate()),
-            content_type=r.headers.get(
-                "Content-Type",
-                "video/mp4"
-            ),
-            headers={
-                "Accept-Ranges": "bytes",
-                "Cache-Control": "no-store",
-                "Connection": "keep-alive"
-            }
-        )
+                })
 
-    except requests.exceptions.Timeout:
+        CACHE_LISTAS[url] = {
 
-        print("Timeout proxy")
+            "tempo": agora,
+            "lista": lista
 
-        return "Tempo excedido", 504
+        }
 
-    except requests.exceptions.ConnectionError:
+        print("Lista carregada:", url)
 
-        print("Erro conexão proxy")
-
-        return "Falha de conexão", 502
+        return lista
 
     except Exception as e:
 
-        print("Erro proxy:", e)
+        print("Erro lista:", url)
 
-        return "Erro ao carregar vídeo", 500
+        return []
+
 
 # ================================
-# BUSCAR FILME IPTV
+# BUSCAR VIA API
 # ================================
 
-def buscar_no_iptv(titulo):
+def buscar_api(srv, titulo_busca):
 
-    titulo_busca = re.sub(
-        r'[^\w\s]',
-        '',
-        titulo
-    ).lower().strip()
-
-    for srv in SERVIDORES:
+    try:
 
         url_api = (
+
             f"{srv['host']}/player_api.php"
             f"?username={srv['user']}"
             f"&password={srv['pass']}"
             f"&action=get_vod_streams"
+
         )
 
-        try:
+        r = requests.get(
+            url_api,
+            timeout=TIMEOUT
+        )
 
-            headers = {
-                "User-Agent": "Mozilla/5.0"
-            }
+        if r.status_code != 200:
+            return None
 
-            r = requests.get(
-                url_api,
-                headers=headers,
-                timeout=10
+        lista = r.json()
+
+        for item in lista:
+
+            nome = limpar_texto(
+
+                item.get("name")
+
             )
 
-            if r.status_code != 200:
-                continue
+            if titulo_busca in nome:
 
-            for item in r.json():
+                video_url = (
 
-                nome_iptv = re.sub(
-                    r'[^\w\s]',
-                    '',
-                    item.get('name', '')
-                ).lower()
+                    f"{srv['host']}/movie/"
+                    f"{srv['user']}/"
+                    f"{srv['pass']}/"
+                    f"{item.get('stream_id')}.mp4"
 
-                if titulo_busca in nome_iptv:
+                )
 
-                    video_url = (
-                        f"{srv['host']}/movie/"
-                        f"{srv['user']}/"
-                        f"{srv['pass']}/"
-                        f"{item.get('stream_id')}.mp4"
-                    )
+                print(
+                    "Encontrado em:",
+                    srv["nome"]
+                )
 
-                    return f"/proxy?url={video_url}"
+                return "/proxy?url=" + video_url
 
-        except Exception as e:
+    except Exception:
 
-            print("Erro IPTV:", e)
-
-            continue
+        print(
+            "Erro API:",
+            srv["nome"]
+        )
 
     return None
 
-# ================================
-# HOME
-# ================================
-
-@app.route("/")
-def home():
-
-    q = request.args.get("q")
-
-    url = (
-        f"https://api.themoviedb.org/3/"
-        f"{'search/movie' if q else 'movie/popular'}"
-        f"?api_key={TMDB_API_KEY}"
-        f"&language=pt-BR"
-        f"{f'&query={q}' if q else ''}"
-    )
-
-    res = requests.get(
-        url,
-        timeout=10
-    ).json().get(
-        "results",
-        []
-    )
-
-    return render_template(
-        "index.html",
-        filmes=res[:20],
-        img=IMG,
-        nome_site=NOME_SITE
-    )
 
 # ================================
-# DETALHES
+# BUSCAR FILME COM FALLBACK
 # ================================
 
-@app.route("/filme/<int:id>")
-def detalhes(id):
+def buscar_filme_fallback(titulo):
 
-    data = requests.get(
-        f"https://api.themoviedb.org/3/movie/{id}"
-        f"?api_key={TMDB_API_KEY}"
-        f"&language=pt-BR"
-        f"&append_to_response=videos",
-        timeout=10
-    ).json()
+    titulo_busca = limpar_texto(titulo)
 
-    play_link = buscar_no_iptv(
-        data.get(
-            'title',
-            ''
+    for srv in SERVIDORES:
+
+        print(
+            "Tentando:",
+            srv["nome"]
         )
-    )
 
-    trailer = next(
-        (
-            v['key']
-            for v in data
-            .get('videos', {})
-            .get('results', [])
-            if v['type'] == 'Trailer'
-        ),
-        None
-    )
+        # ================= M3U =================
 
-    return render_template(
-        "detalhes.html",
-        filme=data,
-        img=IMG,
-        bg=BG,
-        play_link=play_link,
-        nome_site=NOME_SITE,
-        trailer_key=trailer
-    )
+        if srv["tipo"] == "m3u":
 
-# ================================
-# START
-# ================================
+            lista = carregar_lista_m3u(
 
-if __name__ == "__main__":
+                srv["url"]
 
-    app.run(
-        host="0.0.0.0",
-        port=5000
-    )
+            )
+
+            for item in lista:
+
+                nome = limpar_texto(
+
+                    item["nome"]
+
+                )
+
+                if titulo_busca in nome:
+
+                    print(
+                        "Encontrado em:",
+                        srv["nome"]
+                    )
+
+                    return "/proxy?url=" + item["url"]
+
+        # ================= API =================
+
+        elif srv["tipo"] == "api":
+
+            resultado = buscar_api(
+
+                srv,
+                titulo_busca
+
+            )
+
+            if resultado:
+
+                return resultado
+
+    print("Filme não encontrado")
+
+    return None
