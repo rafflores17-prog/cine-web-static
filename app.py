@@ -5,7 +5,6 @@ import re
 app = Flask(__name__)
 
 NOME_SITE = "Cine Mega"
-SITE_URL = "https://www.cinemega.online"
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
@@ -20,43 +19,30 @@ SERVIDORES = [
 @app.route('/sw.js')
 def sw(): return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
-@app.route('/sitemap.xml')
-def sitemap():
-    pages = [[f"{SITE_URL}/", "1.0"]]
-    return make_response(render_template('sitemap_template.xml', pages=pages), 200, {'Content-Type': 'application/xml'})
-
-def buscar_no_iptv(titulo, tipo="movie"):
+def buscar_no_iptv(titulo):
     titulo_busca = re.sub(r'[^\w\s]', '', titulo).lower().strip()
-    acao = "get_vod_streams" if tipo == "movie" else "get_series"
-    
     for srv in SERVIDORES:
-        url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action={acao}"
+        url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
         try:
-            r = requests.get(url_api, timeout=5)
+            r = requests.get(url_api, timeout=4)
             for item in r.json():
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
                 if titulo_busca in nome_iptv:
-                    sid = item.get('stream_id') if tipo == "movie" else item.get('series_id')
-                    # Link direto que o VLC/MX Player reconhecem na hora
-                    return f"{srv['host']}/{'movie' if tipo=='movie' else 'series'}/{srv['user']}/{srv['pass']}/{sid}.mp4"
+                    return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
         except: continue
     return None
 
 @app.route("/")
 def home():
     q = request.args.get("q")
-    url = f"https://api.themoviedb.org/3/{'search/multi' if q else 'trending/all/week'}?api_key={TMDB_API_KEY}&language=pt-BR{f'&query={q}' if q else ''}"
+    url = f"https://api.themoviedb.org/3/{'search/movie' if q else 'movie/popular'}?api_key={TMDB_API_KEY}&language=pt-BR{f'&query={q}' if q else ''}"
     res = requests.get(url).json().get("results", [])
-    return render_template("index.html", filmes=res[:24], img=IMG, nome_site=NOME_SITE)
+    return render_template("index.html", filmes=res[:20], img=IMG, nome_site=NOME_SITE)
 
 @app.route("/filme/<int:id>")
-@app.route("/serie/<int:id>")
 def detalhes(id):
-    tipo = "movie" if "filme" in request.path else "tv"
-    data = requests.get(f"https://api.themoviedb.org/3/{tipo}/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos").json()
-    titulo = data.get('title') or data.get('name')
-    play_link = buscar_no_iptv(titulo, "movie" if tipo=="movie" else "series")
-    
+    data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos").json()
+    play_link = buscar_no_iptv(data.get('title', ''))
     trailer = next((v['key'] for v in data.get('videos', {}).get('results', []) if v['type'] == 'Trailer'), None)
     return render_template("detalhes.html", filme=data, img=IMG, bg=BG, play_link=play_link, nome_site=NOME_SITE, trailer_key=trailer)
 
