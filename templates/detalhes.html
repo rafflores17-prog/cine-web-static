@@ -1,21 +1,26 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0,
+maximum-scale=1.0,
+user-scalable=no">
 
 <title>{{ filme.title }}</title>
 
-<script>
-(function(s){
-s.dataset.zone='10920011',
-s.src='https://n6wxm.com/vignette.min.js'
-})
-([document.documentElement, document.body]
-.filter(Boolean)
-.pop()
-.appendChild(document.createElement('script')))
-</script>
+<!-- CACHE / PERFORMANCE -->
+
+<meta http-equiv="Cache-Control"
+content="public, max-age=86400">
+
+<link rel="preconnect"
+href="https://www.youtube.com">
+
+<link rel="preconnect"
+href="https://i.ytimg.com">
 
 <style>
 
@@ -35,52 +40,103 @@ font-family: sans-serif;
 overflow-x: hidden;
 }
 
+/* FUNDO */
+
 .fundo-animado {
+
 position: fixed;
 top: 0;
 left: 0;
+
 width: 100%;
 height: 100%;
-background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover;
-filter: blur(25px) brightness(0.2);
+
+background:
+url('{{ bg }}{{ filme.backdrop_path }}')
+center/cover;
+
+filter:
+blur(25px)
+brightness(0.2);
+
 z-index: -1;
-animation: movimentoFundo 20s infinite alternate linear;
+
+animation:
+movimentoFundo
+20s infinite alternate linear;
+
 }
 
 @keyframes movimentoFundo {
-from { transform: scale(1); }
-to { transform: scale(1.15); }
+
+from {
+transform: scale(1);
 }
+
+to {
+transform: scale(1.15);
+}
+
+}
+
+/* CONTAINER */
 
 .container {
+
 padding: 15px;
+
 max-width: 500px;
+
 margin: 0 auto;
+
 text-align: center;
+
 }
+
+/* CAPA */
 
 .capinha {
+
 width: 175px;
+
 border-radius: 12px;
-box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-margin: 45px auto 10px auto;
+
+box-shadow:
+0 10px 30px rgba(0,0,0,0.8);
+
+margin:
+45px auto 10px auto;
+
 display: block;
-border: 1px solid rgba(255,255,255,0.2);
+
+border:
+1px solid rgba(255,255,255,0.2);
+
 pointer-events: none;
+
 }
 
+/* INFO */
+
 .info-topo {
+
 font-size: 13px;
+
 color: #00ff88;
+
 font-weight: bold;
+
 margin-bottom: 15px;
+
 }
+
+/* PLAYER */
 
 .player-box {
 
 width: 100%;
 
-aspect-ratio: 16/9;
+height: 200px;
 
 background: #000;
 
@@ -92,25 +148,47 @@ overflow: hidden;
 
 border: 1px solid #333;
 
+position: relative;
+
 }
 
-video {
+/* OVERLAY */
+
+.overlay-play {
+
+position: absolute;
+
+top: 0;
+left: 0;
 
 width: 100%;
-
 height: 100%;
 
-background: #000;
+background:
+rgba(0,0,0,0.75);
 
-border: none;
+display: flex;
+
+align-items: center;
+
+justify-content: center;
+
+flex-direction: column;
+
+cursor: pointer;
+
+transition: 0.2s;
 
 }
 
-iframe {
-width: 100%;
-height: 100%;
-border: none;
+.overlay-play:hover {
+
+background:
+rgba(0,0,0,0.85);
+
 }
+
+/* BOTÃO */
 
 .btn-play {
 
@@ -118,15 +196,11 @@ display: block;
 
 width: 100%;
 
-box-sizing: border-box;
-
 padding: 16px;
 
 background: #e50914;
 
 color: #fff;
-
-text-decoration: none;
 
 border-radius: 50px;
 
@@ -134,43 +208,97 @@ font-weight: bold;
 
 font-size: 18px;
 
+box-shadow:
+0 4px 15px rgba(229,9,20,0.4);
+
 margin: 20px auto;
 
 border: none;
 
-text-align: center;
+cursor: pointer;
 
 }
 
+/* SINOPSE */
+
 .sinopse-box {
-background: rgba(0,0,0,0.7);
+
+background:
+rgba(0,0,0,0.7);
+
 padding: 20px;
+
 border-radius: 15px;
+
 text-align: justify;
+
 font-size: 14px;
+
 line-height: 1.5;
-border: 1px solid rgba(255,255,255,0.1);
+
+border:
+1px solid rgba(255,255,255,0.1);
+
 margin-top: 20px;
+
 }
 
 .sinopse-label {
+
 display: block;
+
 color: #888;
+
 font-weight: bold;
+
 margin-bottom: 8px;
+
 font-size: 12px;
+
 text-transform: uppercase;
+
 }
 
+/* VOLTAR */
+
 .back-btn {
+
 color: #ccc;
+
 text-decoration: none;
+
 font-size: 13px;
+
 float: left;
+
 margin-bottom: 10px;
+
+}
+
+/* MENSAGEM */
+
+.msg-play {
+
+background:
+rgba(229,9,20,0.15);
+
+border:
+1px solid #e50914;
+
+padding: 12px;
+
+border-radius: 10px;
+
+font-weight: bold;
+
+font-size: 14px;
+
+margin-top: 10px;
+
 }
 
 </style>
+
 </head>
 
 <body oncontextmenu="return false;">
@@ -179,18 +307,36 @@ margin-bottom: 10px;
 
 <div class="container">
 
-<a href="/" class="back-btn">✕ VOLTAR</a>
+<a href="/" class="back-btn">
+✕ VOLTAR
+</a>
 
 <div style="clear: both;"></div>
 
-<img src="{{ img }}{{ filme.poster_path }}" class="capinha">
+<img
+src="{{ img }}{{ filme.poster_path }}"
+class="capinha"
+loading="lazy">
 
-<h1 style="font-size: 26px; margin: 10px 0 5px 0; font-weight: 900;">
+<h1
+style="
+font-size: 26px;
+margin: 10px 0 5px 0;
+font-weight: 900;
+">
+
 {{ filme.title }}
+
 </h1>
 
 <div class="info-topo">
-⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD
+
+⭐ {{ "%.1f"|format(filme.vote_average) }}
+|
+{{ filme.release_date[:4] }}
+|
+FULL HD
+
 </div>
 
 <!-- TRAILER -->
@@ -200,90 +346,140 @@ margin-bottom: 10px;
 {% if trailer_key %}
 
 <iframe
-src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0"
+
+src="
+https://www.youtube.com/embed/{{ trailer_key }}
+?rel=0
+&modestbranding=1
+
+"
+
+loading="lazy"
+
 allowfullscreen>
+
 </iframe>
 
 {% else %}
 
-<div style="padding-top: 80px; color: #555;">
+<div
+style="
+padding-top: 80px;
+color: #555;
+">
+
 Carregando Trailer...
+
 </div>
 
 {% endif %}
 
 </div>
 
-<!-- PLAYER DO FILME -->
+<!-- MENSAGEM -->
 
-{% if play_link %}
+<div class="msg-play">
+
+🎬 Toque no player abaixo para assistir ao filme completo
+
+</div>
+
+<!-- PLAYER -->
 
 <div class="player-box">
 
-<video
+<iframe
 
-id="player"
+id="player-frame"
 
-controls
+src=""
 
-playsinline
+allow="autoplay; fullscreen"
 
-webkit-playsinline
+allowfullscreen>
 
-preload="metadata"
+</iframe>
 
-controlsList="nodownload"
+<div
+
+id="overlay-play"
+
+class="overlay-play"
+
+onclick="abrirPlayer()"
 
 >
 
-<source src="{{ play_link }}" type="video/mp4">
+<div
+style="
+font-size: 60px;
+margin-bottom: 10px;
+">
 
-Seu navegador não suporta vídeo.
-
-</video>
+▶️
 
 </div>
 
-{% else %}
+<div
+style="
+font-weight: bold;
+font-size: 16px;
+">
 
-<a class="btn-play">
-▶️ FILME INDISPONÍVEL
-</a>
+TOQUE PARA ASSISTIR
 
-{% endif %}
+</div>
+
+</div>
+
+</div>
+
+<!-- SINOPSE -->
 
 <div class="sinopse-box">
 
 <span class="sinopse-label">
+
 Sinopse
+
 </span>
 
-{{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
+{{ filme.overview
+or
+"A sinopse deste filme ainda não foi traduzida." }}
 
 </div>
 
 </div>
 
-<script>
-(function(s){
-s.dataset.zone='10920008',
-s.src='https://nap5k.com/tag.min.js'
-})
-([document.documentElement, document.body]
-.filter(Boolean)
-.pop()
-.appendChild(document.createElement('script')))
-</script>
+<script defer>
 
-<script>
-(function(s){
-s.dataset.zone='10920000',
-s.src='https://al5sm.com/tag.min.js'
-})
-([document.documentElement, document.body]
-.filter(Boolean)
-.pop()
-.appendChild(document.createElement('script')))
+function abrirPlayer() {
+
+var frame =
+document.getElementById("player-frame");
+
+var overlay =
+document.getElementById("overlay-play");
+
+if (frame.src === "") {
+
+frame.src =
+"{{ play_link }}";
+
+overlay.style.display =
+"none";
+
+frame.scrollIntoView({
+
+behavior: "smooth"
+
+});
+
+}
+
+}
+
 </script>
 
 </body>
