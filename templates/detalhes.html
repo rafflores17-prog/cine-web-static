@@ -4,82 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ filme.title }}</title>
+    <script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    
     <style>
-        /* TRAVA DE SEGURANÇA */
+        /* TRAVAS DE SEGURANÇA */
         * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 
-        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 0; }
-        
-        .backdrop { 
-            width: 100%; height: 300px; background-size: cover; background-position: center;
-            position: relative;
+        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
+
+        /* FUNDO BLUR QUE SE MEXE */
+        .fundo-animado {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover;
+            filter: blur(25px) brightness(0.3);
+            z-index: -1;
+            animation: movimentoFundo 20s infinite alternate linear;
         }
-        .backdrop::after {
-            content: ''; position: absolute; bottom: 0; width: 100%; height: 100%;
-            background: linear-gradient(to top, #000, transparent);
+        @keyframes movimentoFundo {
+            from { transform: scale(1); }
+            to { transform: scale(1.15); }
         }
 
-        .main-content { padding: 20px; position: relative; margin-top: -80px; z-index: 10; }
+        .container { padding: 20px; max-width: 500px; margin: 0 auto; text-align: center; }
         
-        .poster-mini {
-            width: 120px; border-radius: 8px; border: 2px solid #e50914;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5); margin-bottom: 15px;
-        }
+        .capinha { width: 150px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); margin: 10px 0; border: 1px solid rgba(255,255,255,0.2); }
 
-        .title { font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 5px; }
-        .meta { color: #e50914; font-weight: bold; margin-bottom: 20px; font-size: 14px; }
-        
-        .sinopse-box { background: #111; padding: 15px; border-radius: 10px; border-left: 4px solid #e50914; margin-bottom: 25px; }
-        .sinopse-title { color: #aaa; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        .sinopse-text { line-height: 1.6; color: #eee; font-size: 15px; }
+        .info-topo { font-size: 13px; color: #00ff88; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
+
+        .player-box { width: 100%; height: 210px; background: #000; border-radius: 12px; margin: 20px 0; overflow: hidden; border: 1px solid #333; }
+        iframe { width: 100%; height: 100%; border: none; }
 
         .btn-play {
-            display: flex; align-items: center; justify-content: center;
-            width: 100%; padding: 18px; background: #e50914; color: #fff;
-            text-decoration: none; border-radius: 8px; font-weight: 900;
-            font-size: 20px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
-        }
-        
-        .btn-trailer {
-            display: flex; align-items: center; justify-content: center;
-            width: 100%; padding: 15px; background: #333; color: #fff;
-            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;
+            display: block; width: 100%; padding: 16px; background: #e50914; color: #fff;
+            text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4); margin-bottom: 20px;
         }
 
-        .ads-box { width: 100%; margin: 25px 0; text-align: center; background: #080808; padding: 10px 0; }
+        .sinopse-box { background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px; text-align: justify; font-size: 14px; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1); }
+        .sinopse-label { display: block; color: #888; font-weight: bold; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; }
+
+        .ads-box { margin: 20px 0; text-align: center; min-height: 50px; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
-    <div class="backdrop" style="background-image: url('{{ bg }}{{ filme.backdrop_path }}');"></div>
+    <div class="fundo-animado"></div>
 
-    <div class="main-content">
-        <img src="{{ img }}{{ filme.poster_path }}" class="poster-mini">
+    <div class="container">
+        <a href="/" style="color: #ccc; text-decoration: none; font-size: 13px; float: left;">✕ VOLTAR</a><br>
         
-        <div class="title">{{ filme.title }}</div>
-        <div class="meta">⭐ {{ filme.vote_average }} | {{ filme.release_date[:4] }} | FULL HD</div>
+        <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
+        
+        <h1 style="font-size: 24px; margin: 15px 0 5px 0;">{{ filme.title }}</h1>
+        <div class="info-topo">⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD</div>
 
         <div class="ads-box">
             </div>
 
-        <div class="sinopse-box">
-            <span class="sinopse-title">Sinopse</span>
-            <div class="sinopse-text">{{ filme.overview or "Sinopse não disponível para este título." }}</div>
+        <div class="player-box">
+            {% if trailer_key %}
+                <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
+            {% else %}
+                <div style="padding-top: 90px; color: #555;">Carregando Trailer...</div>
+            {% endif %}
         </div>
 
         {% if play_link %}
-            <a href="{{ play_link }}" class="btn-play">ASSISTIR AGORA</a>
-        {% else %}
-            <div class="btn-play" style="background: #444; box-shadow: none;">AGUARDANDO LINK...</div>
+            <a href="{{ play_link }}" class="btn-play">▶️ ASSISTIR AGORA</a>
         {% endif %}
 
-        {% if trailer_key %}
-            <a href="https://www.youtube.com/watch?v={{ trailer_key }}" class="btn-trailer">VER TRAILER NO YOUTUBE</a>
-        {% endif %}
+        <div class="sinopse-box">
+            <span class="sinopse-label">Sinopse</span>
+            {{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
+        </div>
 
         <div class="ads-box">
             </div>
     </div>
 
+    <script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 </body>
 </html>
