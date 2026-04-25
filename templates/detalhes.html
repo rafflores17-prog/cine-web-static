@@ -1,41 +1,51 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PQXCX3PB3Y"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-PQXCX3PB3Y');</script>
+    
+    <script>(function(s){s.dataset.zone='10920011',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ filme.title or filme.name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ filme.title }}</title>
     <style>
-        body { margin:0; font-family: sans-serif; background:#000; color:#fff; text-align:center; }
-        .container { padding:20px; max-width:500px; margin:0 auto; }
-        .player-box { width:100%; border-radius:12px; background:#111; overflow:hidden; position:relative; min-height:220px; border: 1px solid #333; }
-        iframe, video { width:100%; height:220px; border:none; }
-        .btn-play { display:block; background:#e50914; color:#fff; padding:15px; border-radius:50px; text-decoration:none; font-weight:bold; margin-top:20px; font-size:16px; }
-        .overview { padding:15px; font-size:14px; color:#ccc; text-align:justify; line-height:1.4; }
+        body { margin:0; font-family: sans-serif; background:#000; color:#fff; overflow-x:hidden; }
+        .fundo-blur { position:fixed; top:0; left:0; width:100%; height:100%; background: url('{{ bg }}{{ filme.backdrop_path }}') center/cover; filter: blur(25px) brightness(0.3); z-index:-1; animation: mover 20s infinite alternate; }
+        @keyframes mover { from { transform: scale(1); } to { transform: scale(1.1); } }
+        .container { padding:20px; max-width:500px; margin:0 auto; text-align:center; }
+        .capinha { width:160px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.7); margin-top:10px; }
+        .player-box { width:100%; height:220px; background:#000; border-radius:12px; margin:20px 0; overflow:hidden; border:1px solid #444; }
+        iframe { width:100%; height:100%; border:none; }
+        .btn-play { display:block; background:#e50914; color:#fff; padding:16px; border-radius:50px; text-decoration:none; font-weight:bold; font-size:16px; box-shadow: 0 4px 15px rgba(229,9,20,0.4); }
+        .sinopse { background:rgba(0,0,0,0.6); padding:15px; border-radius:12px; font-size:14px; text-align:justify; margin-top:20px; line-height:1.4; border:1px solid rgba(255,255,255,0.1); }
         .meta { color:#00ff88; font-size:12px; margin:10px 0; font-weight:bold; }
     </style>
 </head>
 <body>
+    <div class="fundo-blur"></div>
     <div class="container">
-        <h2 style="margin-top:10px;">{{ filme.title or filme.name }}</h2>
-
+        <a href="/" style="color:#ccc; text-decoration:none; font-size:13px;">⬅ Voltar</a><br>
+        <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
+        <h1 style="font-size:22px; margin:15px 0 5px 0;">{{ filme.title }}</h1>
+        
         <div class="player-box">
             {% if trailer_key %}
                 <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?autoplay=1&rel=0" allowfullscreen></iframe>
             {% else %}
-                <div style="padding:80px 20px;">🔍 Buscando sinal estável...</div>
+                <div style="padding-top:80px;">Sinal em processamento...</div>
             {% endif %}
         </div>
 
-        <div class="meta">SINAL IPTV LOCALIZADO ✅</div>
+        <div class="meta">SINAL VIP DISPONÍVEL ✅</div>
 
         {% if play_link %}
-            <a href="{{ play_link }}" class="btn-play">▶️ ABRIR NO PLAYER (VLC / MX)</a>
-            <p style="font-size:10px; color:#888;">Ao clicar, selecione o <b>VLC</b> para evitar erros.</p>
-        {% else %}
-            <p style="color:#ff4444;">Sinal temporariamente indisponível para este título.</p>
+            <a href="{{ play_link }}" target="_blank" class="btn-play">▶️ ASSISTIR NO PLAYER (VLC)</a>
         {% endif %}
 
-        <div class="overview">{{ filme.overview }}</div>
+        <div class="sinopse">{{ filme.overview }}</div>
     </div>
+
+    <script>(function(s){s.dataset.zone='10920008',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 </body>
 </html>
