@@ -1,23 +1,34 @@
-import requests
-import re
+import os
 import time
+import requests
+from flask import Flask, jsonify, request
+from bs4 import BeautifulSoup
+from threading import Lock
 
-# ================================
+app = Flask(__name__)
+
+# ==============================
 # CONFIG
-# ================================
+# ==============================
 
-CACHE_LISTAS = {}
-CACHE_TEMPO = 300  # 5 minutos
+TIMEOUT = 10
+CACHE_TTL = 300  # 5 minutos
+RETRIES = 2
 
-TIMEOUT = 8
-
-# ================================
-# SERVIDORES
-# ================================
+# ==============================
+# SERVIDORES (fallback)
+# ==============================
 
 SERVIDORES = [
 
-    # ================= M3U =================
+    # MELHOR
+    {
+        "nome": "Serv99",
+        "tipo": "api",
+        "host": "http://serv99.xyz:8880",
+        "user": "261491762",
+        "pass": "2516895925"
+    },
 
     {
         "nome": "Falcon",
@@ -26,18 +37,16 @@ SERVIDORES = [
     },
 
     {
-        "nome": "Dark 1",
+        "nome": "Dark1",
         "tipo": "m3u",
         "url": "http://d4rk.info:80/get.php?username=GLedsoonn777&password=PErtilee444&type=m3u_plus&output=ts"
     },
 
     {
-        "nome": "Dark 2",
+        "nome": "Dark2",
         "tipo": "m3u",
         "url": "http://d4rk.info:80/get.php?username=21998570202&password=Asd7920&type=m3u_plus&output=ts"
     },
-
-    # ================= API =================
 
     {
         "nome": "Techon",
@@ -48,233 +57,191 @@ SERVIDORES = [
     },
 
     {
-        "nome": "Serv99",
-        "tipo": "api",
-        "host": "http://serv99.xyz:8880",
-        "user": "261491762",
-        "pass": "2516895925"
-    },
-
-    {
         "nome": "Stmax",
         "tipo": "api",
         "host": "http://stmax.top:80",
-        "user": "",
-        "pass": ""
-    },
-
-    # ================= FALLBACK FINAL =================
-
-    {
-        "nome": "Koquwz",
-        "tipo": "api",
-        "host": "http://koquwz.com:80",
         "user": "",
         "pass": ""
     }
 
 ]
 
-# ================================
-# FUNÇÕES
-# ================================
+# ==============================
+# CACHE SIMPLES (memória)
+# ==============================
 
-def limpar_texto(txt):
-
-    if not txt:
-        return ""
-
-    return re.sub(
-        r'[^\w\s]',
-        '',
-        txt
-    ).lower().strip()
+cache = {}
+cache_lock = Lock()
 
 
-# ================================
-# CARREGAR M3U COM CACHE
-# ================================
+def get_cache(key):
 
-def carregar_lista_m3u(url):
+    with cache_lock:
 
-    agora = time.time()
+        if key in cache:
 
-    if url in CACHE_LISTAS:
+            data, timestamp = cache[key]
 
-        dados = CACHE_LISTAS[url]
+            if time.time() - timestamp < CACHE_TTL:
+                return data
 
-        if agora - dados["tempo"] < CACHE_TEMPO:
-
-            return dados["lista"]
-
-    try:
-
-        r = requests.get(
-            url,
-            timeout=TIMEOUT
-        )
-
-        if r.status_code != 200:
-            return []
-
-        linhas = r.text.splitlines()
-
-        lista = []
-        nome = None
-
-        for linha in linhas:
-
-            if linha.startswith("#EXTINF"):
-
-                nome = linha.split(",")[-1]
-
-            elif linha.startswith("http"):
-
-                lista.append({
-
-                    "nome": nome,
-                    "url": linha
-
-                })
-
-        CACHE_LISTAS[url] = {
-
-            "tempo": agora,
-            "lista": lista
-
-        }
-
-        print("Lista carregada:", url)
-
-        return lista
-
-    except Exception as e:
-
-        print("Erro lista:", url)
-
-        return []
-
-
-# ================================
-# BUSCAR VIA API
-# ================================
-
-def buscar_api(srv, titulo_busca):
-
-    try:
-
-        url_api = (
-
-            f"{srv['host']}/player_api.php"
-            f"?username={srv['user']}"
-            f"&password={srv['pass']}"
-            f"&action=get_vod_streams"
-
-        )
-
-        r = requests.get(
-            url_api,
-            timeout=TIMEOUT
-        )
-
-        if r.status_code != 200:
-            return None
-
-        lista = r.json()
-
-        for item in lista:
-
-            nome = limpar_texto(
-
-                item.get("name")
-
-            )
-
-            if titulo_busca in nome:
-
-                video_url = (
-
-                    f"{srv['host']}/movie/"
-                    f"{srv['user']}/"
-                    f"{srv['pass']}/"
-                    f"{item.get('stream_id')}.mp4"
-
-                )
-
-                print(
-                    "Encontrado em:",
-                    srv["nome"]
-                )
-
-                return "/proxy?url=" + video_url
-
-    except Exception:
-
-        print(
-            "Erro API:",
-            srv["nome"]
-        )
+            del cache[key]
 
     return None
 
 
-# ================================
-# BUSCAR FILME COM FALLBACK
-# ================================
+def set_cache(key, data):
 
-def buscar_filme_fallback(titulo):
+    with cache_lock:
+        cache[key] = (data, time.time())
 
-    titulo_busca = limpar_texto(titulo)
 
-    for srv in SERVIDORES:
+# ==============================
+# REQUEST COM RETRY
+# ==============================
 
-        print(
-            "Tentando:",
-            srv["nome"]
-        )
+def fetch_url(url):
 
-        # ================= M3U =================
+    for _ in range(RETRIES):
 
-        if srv["tipo"] == "m3u":
+        try:
 
-            lista = carregar_lista_m3u(
-
-                srv["url"]
-
+            response = requests.get(
+                url,
+                timeout=TIMEOUT,
+                headers={
+                    "User-Agent": "Mozilla/5.0"
+                }
             )
 
-            for item in lista:
+            if response.status_code == 200:
+                return response.text
 
-                nome = limpar_texto(
-
-                    item["nome"]
-
-                )
-
-                if titulo_busca in nome:
-
-                    print(
-                        "Encontrado em:",
-                        srv["nome"]
-                    )
-
-                    return "/proxy?url=" + item["url"]
-
-        # ================= API =================
-
-        elif srv["tipo"] == "api":
-
-            resultado = buscar_api(
-
-                srv,
-                titulo_busca
-
-            )
-
-            if resultado:
-
-                return resultado
-
-    print("Filme não encontrado")
+        except Exception:
+            pass
 
     return None
+
+
+# ==============================
+# BUSCA COM FALLBACK
+# ==============================
+
+def buscar_filme(nome):
+
+    cache_key = f"busca:{nome}"
+
+    cached = get_cache(cache_key)
+
+    if cached:
+        return cached
+
+    for servidor in SERVIDORES:
+
+        try:
+
+            print("Tentando:", servidor["nome"])
+
+            if servidor["tipo"] == "api":
+
+                if not servidor["user"]:
+                    continue
+
+                url = (
+                    f"{servidor['host']}/player_api.php"
+                    f"?username={servidor['user']}"
+                    f"&password={servidor['pass']}"
+                    f"&action=get_vod_streams"
+                )
+
+                data = fetch_url(url)
+
+                if not data:
+                    continue
+
+                if nome.lower() in data.lower():
+
+                    set_cache(cache_key, data)
+
+                    return data
+
+            elif servidor["tipo"] == "m3u":
+
+                data = fetch_url(servidor["url"])
+
+                if not data:
+                    continue
+
+                if nome.lower() in data.lower():
+
+                    set_cache(cache_key, data)
+
+                    return data
+
+        except Exception as e:
+
+            print("Erro servidor:", e)
+
+            continue
+
+    return None
+
+
+# ==============================
+# ROTAS
+# ==============================
+
+@app.route("/")
+def home():
+
+    return jsonify({
+        "status": "online",
+        "cache": len(cache),
+        "servidores": len(SERVIDORES)
+    })
+
+
+@app.route("/buscar")
+def buscar():
+
+    nome = request.args.get("nome")
+
+    if not nome:
+        return jsonify({
+            "erro": "Informe ?nome=filme"
+        }), 400
+
+    resultado = buscar_filme(nome)
+
+    if resultado:
+
+        return jsonify({
+            "status": "ok",
+            "fonte": "fallback",
+            "tamanho": len(resultado)
+        })
+
+    return jsonify({
+        "status": "nao_encontrado"
+    })
+
+
+@app.route("/health")
+def health():
+
+    return "OK", 200
+
+
+# ==============================
+# START (Koyeb / Render / Railway)
+# ==============================
+
+if __name__ == "__main__":
+
+    PORT = int(os.environ.get("PORT", 8000))
+
+    app.run(
+        host="0.0.0.0",
+        port=PORT,
+        threaded=True
+    )
