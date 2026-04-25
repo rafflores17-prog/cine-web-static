@@ -8,7 +8,7 @@ NOME_SITE = "Cine Mega"
 
 SITE_URL = "https://www.cinemega.online"
 
-TMDB_API_KEY = "SUA_API_KEY"
+TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
@@ -21,7 +21,7 @@ SERVIDORES = [
 ]
 
 # ================================
-# CACHE GLOBAL
+# CACHE GLOBAL (leve)
 # ================================
 
 @app.after_request
@@ -53,9 +53,7 @@ def sw():
 def assetlinks():
 
     return jsonify([{
-        "relation": [
-            "delegate_permission/common.handle_all_urls"
-        ],
+        "relation": ["delegate_permission/common.handle_all_urls"],
         "target": {
             "namespace": "android_app",
             "package_name": "online.cinemega.www.twa",
@@ -75,7 +73,6 @@ def proxy_video():
     url = request.args.get("url")
 
     if not url:
-
         return "URL não fornecida", 400
 
     try:
@@ -94,7 +91,6 @@ def proxy_video():
         )
 
         if r.status_code != 200:
-
             return "Servidor de vídeo indisponível", 502
 
         def generate():
@@ -104,7 +100,6 @@ def proxy_video():
                 for chunk in r.iter_content(1024 * 64):
 
                     if chunk:
-
                         yield chunk
 
             except Exception as e:
@@ -180,7 +175,6 @@ def buscar_no_iptv(titulo):
             )
 
             if r.status_code != 200:
-
                 continue
 
             for item in r.json():
