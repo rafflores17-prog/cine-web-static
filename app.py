@@ -22,16 +22,34 @@ SERVIDORES = [
 ]
 
 # ================================
-# CACHE GLOBAL (leve)
+# CACHE INTELIGENTE (CORRIGIDO)
 # ================================
 
 @app.after_request
 def add_cache_headers(response):
 
-    response.headers["Cache-Control"] = \
-        "public, max-age=86400"
+    # Arquivos estáticos podem usar cache
+    if request.path.endswith((
+        ".js",
+        ".css",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".svg"
+    )):
+
+        response.headers["Cache-Control"] = \
+            "public, max-age=86400"
+
+    # Páginas dinâmicas NÃO podem cachear
+    else:
+
+        response.headers["Cache-Control"] = \
+            "no-store, no-cache, must-revalidate, max-age=0"
 
     return response
+
 
 # ================================
 # SERVICE WORKER
@@ -45,6 +63,17 @@ def sw():
         'sw.js',
         mimetype='application/javascript'
     )
+
+
+# ================================
+# LIMPAR CACHE MANUAL (novo)
+# ================================
+
+@app.route("/clear-cache")
+def clear_cache():
+
+    return "Cache limpo"
+
 
 # ================================
 # ASSET LINKS (TWA)
@@ -63,6 +92,7 @@ def assetlinks():
             ]
         }
     }])
+
 
 # ================================
 # PROXY DE VÍDEO (ANTI-CRASH)
@@ -119,7 +149,7 @@ def proxy_video():
             ),
             headers={
                 "Accept-Ranges": "bytes",
-                "Cache-Control": "no-store",
+                "Cache-Control": "no-store, no-cache, must-revalidate",
                 "Connection": "keep-alive"
             }
         )
@@ -141,6 +171,7 @@ def proxy_video():
         print("Erro proxy:", e)
 
         return "Erro ao carregar vídeo", 500
+
 
 # ================================
 # BUSCAR FILME IPTV
@@ -205,6 +236,7 @@ def buscar_no_iptv(titulo):
 
     return None
 
+
 # ================================
 # HOME
 # ================================
@@ -237,6 +269,7 @@ def home():
         nome_site=NOME_SITE
     )
 
+
 # ================================
 # DETALHES
 # ================================
@@ -246,8 +279,8 @@ def detalhes(id):
 
     data = requests.get(
         f"https://api.themoviedb.org/3/movie/{id}"
-        f"?api_key={TMDB_API_KEY}"
-        f"&language=pt-BR"
+        f"?api_key={TMDB_API_KEY"
+        f"}&language=pt-BR"
         f"&append_to_response=videos",
         timeout=10
     ).json()
@@ -279,6 +312,7 @@ def detalhes(id):
         nome_site=NOME_SITE,
         trailer_key=trailer
     )
+
 
 # ================================
 # START
