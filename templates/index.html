@@ -5,62 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ nome_site }}</title>
     <style>
-        /* TRAVA DE SEGURANÇA */
+        /* TRAVAS DE SEGURANÇA */
         * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
         input { -webkit-user-select: text !important; user-select: text !important; }
 
-        body { background: #000; color: #fff; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        .header { padding: 20px; text-align: center; background: linear-gradient(to bottom, #111, #000); border-bottom: 2px solid #e50914; }
-        .header h1 { color: #e50914; margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 3px; font-weight: 900; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+        .header { padding: 10px; text-align: center; background: #111; border-bottom: 2px solid #e50914; }
+        .header h1 { color: #e50914; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
         
-        .search-container { padding: 15px; text-align: center; }
-        .search-container input { 
-            width: 90%; padding: 15px; border-radius: 30px; border: 1px solid #333; 
-            background: #111; color: #fff; font-size: 16px; outline: none;
-        }
+        .search-container { padding: 10px; text-align: center; background: #080808; }
+        .search-input { width: 95%; padding: 15px; border-radius: 30px; border: 1px solid #333; background: #111; color: #fff; outline: none; font-size: 16px; }
 
-        /* GRID COM 2 COLUNAS PARA CAPAS MAIORES */
-        .grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 15px; 
-            padding: 15px; 
-        }
-        .card { background: #111; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #222; }
-        .card img { width: 100%; height: auto; display: block; }
-        .card-info { padding: 10px; text-align: center; font-size: 14px; font-weight: bold; background: rgba(0,0,0,0.8); }
-        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; }
+        .card { background: #111; border-radius: 10px; overflow: hidden; border: 1px solid #222; position: relative; }
+        .card img { width: 100%; display: block; pointer-events: none; }
+        .card-title { padding: 8px; font-size: 13px; text-align: center; font-weight: bold; height: 35px; overflow: hidden; }
         a { text-decoration: none; color: inherit; }
-        .ads-container { width: 100%; text-align: center; margin: 15px 0; min-height: 90px; background: #080808; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body oncontextmenu="return false;">
-
-    <div class="header">
-        <h1>{{ nome_site }}</h1>
-    </div>
-
-    <div class="ads-container">
-        <p style="color: #333; font-size: 10px;">ANÚNCIO</p>
-    </div>
+    <div class="header"><h1>{{ nome_site }}</h1></div>
 
     <div class="search-container">
-        <form action="/" method="get">
-            <input type="text" name="q" placeholder="O que vamos assistir hoje?" autocomplete="off">
-        </form>
+        <form action="/"><input type="text" name="q" class="search-input" placeholder="Buscar filmes..."></form>
     </div>
 
     <div class="grid">
         {% for filme in filmes %}
         <a href="/filme/{{ filme.id }}" class="card">
-            <img src="{{ img }}{{ filme.poster_path }}" alt="{{ filme.title }}">
-            <div class="card-info">{{ filme.title }}</div>
+            <img src="{{ img }}{{ filme.poster_path }}">
+            <div class="card-title">{{ filme.title }}</div>
         </a>
         {% endfor %}
     </div>
-
-    <div class="ads-container">
-        </div>
-
 </body>
 </html>
