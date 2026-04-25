@@ -1,14 +1,18 @@
 from flask import Flask, render_template, request, send_from_directory, jsonify, make_response
 import requests
+import random
 import re
 
 app = Flask(__name__)
 
+# CONFIGURAÇÕES TÉCNICAS
 NOME_SITE = "Cine Mega"
+SITE_URL = "https://www.cinemega.online"
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
+# SERVIDORES IPTV
 SERVIDORES = [
     {"host": "http://serv99.xyz:8880", "user": "261491762", "pass": "2516895925"},
     {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
@@ -16,9 +20,44 @@ SERVIDORES = [
     {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
 ]
 
+# ==========================================
+# ROTAS PWA E SEO
+# ==========================================
 @app.route('/sw.js')
 def sw(): return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
+@app.route('/robots.txt')
+def robots():
+    return "User-agent: *\nAllow: /\nSitemap: https://www.cinemega.online/sitemap.xml", 200, {'Content-Type': 'text/plain'}
+
+@app.route('/sitemap.xml')
+def sitemap():
+    pages = [[f"{SITE_URL}/", "1.0"]]
+    try:
+        url = f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR"
+        items = requests.get(url, timeout=5).json().get("results", [])
+        for i in items:
+            pages.append([f"{SITE_URL}/filme/{i['id']}", "0.8"])
+    except: pass
+    return make_response(render_template('sitemap_template.xml', pages=pages), 200, {'Content-Type': 'application/xml'})
+
+# ==========================================
+# 🛡️ ROTA DE VERIFICAÇÃO DO APP (FIM DA BARRA)
+# ==========================================
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    return jsonify([{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "online.cinemega.www.twa", # NOME CORRIGIDO CONFORME SEU MANIFEST
+        "sha256_cert_fingerprints": ["64:F7:CE:80:D5:1C:79:CE:91:A7:0E:C8:BE:71:49:E6:46:64:F6:D2:96:5F:12:D6:8F:41:DC:57:A9:4E:48:CD"]
+      }
+    }])
+
+# ==========================================
+# LÓGICA DE BUSCA IPTV
+# ==========================================
 def buscar_no_iptv(titulo):
     titulo_busca = re.sub(r'[^\w\s]', '', titulo).lower().strip()
     for srv in SERVIDORES:
@@ -32,6 +71,9 @@ def buscar_no_iptv(titulo):
         except: continue
     return None
 
+# ==========================================
+# ROTAS DO SITE
+# ==========================================
 @app.route("/")
 def home():
     q = request.args.get("q")
