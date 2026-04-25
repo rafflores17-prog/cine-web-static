@@ -1,3 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /static/ # Evita indexar ícones e css soltos
+Disallow: /admin # Caso você crie uma área administrativa no futuro
+
 Sitemap: https://www.cinemega.online/sitemap.xml
