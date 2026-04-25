@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_from_directory, jsonify, Response, stream_with_context
+from flask import Flask, render_template, request, send_from_directory, Response, stream_with_context
 import requests
 import re
 import os
@@ -6,8 +6,6 @@ import os
 app = Flask(__name__)
 
 NOME_SITE = "Cine Mega"
-
-SITE_URL = "https://www.cinemega.online"
 
 TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 
@@ -22,9 +20,7 @@ SERVIDORES = [
     {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
 ]
 
-# ================================
 # CACHE INTELIGENTE
-# ================================
 
 @app.after_request
 def add_cache_headers(response):
@@ -50,9 +46,7 @@ def add_cache_headers(response):
     return response
 
 
-# ================================
 # SERVICE WORKER
-# ================================
 
 @app.route('/sw.js')
 def sw():
@@ -64,18 +58,14 @@ def sw():
     )
 
 
-# ================================
-# HEALTH CHECK (necessário Koyeb)
-# ================================
+# HEALTH CHECK (Koyeb)
 
 @app.route("/health")
 def health():
     return "OK"
 
 
-# ================================
-# PROXY DE VÍDEO
-# ================================
+# PROXY DE VÍDEO (CORRIGIDO)
 
 @app.route("/proxy")
 def proxy_video():
@@ -90,17 +80,18 @@ def proxy_video():
         headers = {
             "User-Agent": "Mozilla/5.0",
             "Accept": "*/*",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "Range": request.headers.get("Range", "bytes=0-")
         }
 
         r = requests.get(
             url,
             headers=headers,
             stream=True,
-            timeout=(5, 15)
+            timeout=(5, 20)
         )
 
-        if r.status_code != 200:
+        if r.status_code not in [200, 206]:
             return "Servidor de vídeo indisponível", 502
 
         def generate():
@@ -118,6 +109,7 @@ def proxy_video():
 
         return Response(
             stream_with_context(generate()),
+            status=r.status_code,
             content_type=r.headers.get(
                 "Content-Type",
                 "video/mp4"
@@ -136,9 +128,7 @@ def proxy_video():
         return "Erro ao carregar vídeo", 500
 
 
-# ================================
 # BUSCAR FILME IPTV
-# ================================
 
 def buscar_no_iptv(titulo):
 
@@ -195,9 +185,7 @@ def buscar_no_iptv(titulo):
     return None
 
 
-# ================================
 # HOME
-# ================================
 
 @app.route("/")
 def home():
@@ -237,9 +225,7 @@ def home():
     )
 
 
-# ================================
-# DETALHES
-# ================================
+# DETALHES (TRAILER CORRIGIDO)
 
 @app.route("/filme/<int:id>")
 def detalhes(id):
@@ -256,16 +242,25 @@ def detalhes(id):
         data.get('title', '')
     )
 
-    trailer = next(
-        (
-            v['key']
-            for v in data
-            .get('videos', {})
-            .get('results', [])
-            if v['type'] == 'Trailer'
-        ),
-        None
+    videos = data.get(
+        'videos',
+        {}
+    ).get(
+        'results',
+        []
     )
+
+    trailer = None
+
+    for v in videos:
+
+        if (
+            v.get('site') == 'YouTube'
+            and v.get('type') in ['Trailer', 'Teaser']
+        ):
+
+            trailer = v.get('key')
+            break
 
     return render_template(
         "detalhes.html",
@@ -278,13 +273,16 @@ def detalhes(id):
     )
 
 
-# ================================
-# START (Koyeb)
-# ================================
+# START
 
 if __name__ == "__main__":
 
-    PORT = int(os.environ.get("PORT", 8000))
+    PORT = int(
+        os.environ.get(
+            "PORT",
+            8000
+        )
+    )
 
     app.run(
         host="0.0.0.0",
