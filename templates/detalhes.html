@@ -1,94 +1,83 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
 
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="viewport"
-content="width=device-width,
-initial-scale=1.0">
+<title>{{ filme.title }} - {{ nome_site }}</title>
 
-<title>{{ filme.title }}</title>
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
 
 <style>
 
 body {
+    margin: 0;
+    background: #000;
+    color: white;
+    font-family: Arial, Helvetica, sans-serif;
+}
 
-margin: 0;
-background: #000;
-color: #fff;
-font-family: Arial;
+.banner {
+
+    background-image: url('{{ bg }}{{ filme.backdrop_path }}');
+
+    background-size: cover;
+    background-position: center;
+
+    padding: 30px;
 
 }
 
 .container {
 
-max-width: 500px;
-margin: auto;
-padding: 15px;
-text-align: center;
+    max-width: 1000px;
+    margin: auto;
 
 }
 
-.player-box {
+.poster {
 
-width: 100%;
-aspect-ratio: 16/9;
-
-background: #000;
-
-border-radius: 12px;
-
-overflow: hidden;
-
-border: 1px solid #333;
-
-margin: 15px 0;
+    width: 200px;
+    border-radius: 10px;
 
 }
 
-iframe,
+.video-box {
+
+    margin-top: 20px;
+
+}
+
+.player-wrapper {
+
+    position: relative;
+    width: 100%;
+    background: black;
+    border-radius: 10px;
+    overflow: hidden;
+
+}
+
 video {
 
-width: 100%;
-height: 100%;
-border: none;
+    width: 100%;
+    height: auto;
+    background: black;
 
 }
 
-.btn-play {
+.botao {
 
-display: block;
-
-width: 100%;
-
-padding: 16px;
-
-background: #e50914;
-
-color: #fff;
-
-border-radius: 40px;
-
-font-weight: bold;
-
-text-decoration: none;
-
-margin-top: 15px;
-
-}
-
-.sinopse {
-
-background: rgba(0,0,0,0.6);
-
-padding: 15px;
-
-border-radius: 12px;
-
-text-align: justify;
-
-font-size: 14px;
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 20px;
+    background: red;
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
 
 }
 
@@ -98,140 +87,120 @@ font-size: 14px;
 
 <body>
 
+<div class="banner">
+
 <div class="container">
 
-<h1>
+<h1>{{ filme.title }}</h1>
 
-{{ filme.title }}
+<p>
 
-</h1>
+⭐ {{ filme.vote_average }}
 
-<div>
-
-⭐ {{ "%.1f"|format(filme.vote_average) }}
-|
-{{ filme.release_date[:4] }}
-
-</div>
-
-<!-- TRAILER -->
-
-{% if trailer_key %}
-
-<div class="player-box">
-
-<iframe
-
-src="
-https://www.youtube.com/embed/{{ trailer_key }}
-
-?rel=0
-&modestbranding=1
-&playsinline=1"
-
-allowfullscreen>
-
-</iframe>
-
-</div>
-
-{% endif %}
-
-<!-- PLAYER -->
-
-<div class="player-box">
-
-<div id="player-container">
-
-Carregando...
+</p>
 
 </div>
 
 </div>
 
-<div class="sinopse">
+<div class="container">
+
+<img
+class="poster"
+src="{{ img }}{{ filme.poster_path }}"
+>
+
+<p>
 
 {{ filme.overview }}
 
-</div>
+</p>
 
-</div>
+<div class="video-box">
 
-<script>
+{% if play_link %}
 
-function isUCBrowser() {
-
-return navigator.userAgent
-.toLowerCase()
-.includes("ucbrowser")
-
-}
-
-function loadPlayer() {
-
-var link =
-"/play?url=" +
-encodeURIComponent(
-"{{ play_link }}"
-)
-
-var container =
-document.getElementById(
-"player-container"
-)
-
-if (!link) {
-
-container.innerHTML =
-
-"Filme indisponível"
-
-return
-
-}
-
-if (isUCBrowser()) {
-
-container.innerHTML = `
+<div class="player-wrapper">
 
 <video
+id="player"
 controls
 playsinline
-preload="metadata">
+preload="metadata"
+>
 
 <source
-src="${link}"
-type="video/mp4">
+src="{{ play_link }}"
+type="video/mp4"
+>
+
+Seu navegador não suporta vídeo.
 
 </video>
 
-`
+</div>
 
-} else {
+{% else %}
 
-container.innerHTML = `
+<p>
+
+Filme não disponível no momento.
+
+</p>
+
+{% endif %}
+
+</div>
+
+{% if trailer_key %}
+
+<h2>Trailer</h2>
 
 <iframe
-src="${link}"
-allowfullscreen>
+width="100%"
+height="400"
+src="https://www.youtube.com/embed/{{ trailer_key }}"
+frameborder="0"
+allowfullscreen
+>
 
 </iframe>
 
-`
+{% endif %}
 
+<a href="/" class="botao">
+
+← Voltar
+
+</a>
+
+</div>
+
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
+<script>
+
+const player = new Plyr('#player', {
+
+controls: [
+'play',
+'progress',
+'current-time',
+'mute',
+'volume',
+'fullscreen'
+],
+
+fullscreen: {
+enabled: true,
+fallback: true,
+iosNative: true
 }
 
-}
-
-document.addEventListener(
-
-"DOMContentLoaded",
-
-loadPlayer
-
-)
+});
 
 </script>
 
 </body>
+
 </html>
