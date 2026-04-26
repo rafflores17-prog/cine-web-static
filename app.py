@@ -3,6 +3,7 @@ import requests
 import re
 import os
 import random  # 🎲 IMPORTAMOS A ROLETA AQUI
+import sqlite3 # 🗄️ IMPORTAMOS A BASE DE DADOS AQUI
 
 app = Flask(__name__)
 
@@ -142,10 +143,29 @@ def proxy_video():
         return "Erro ao carregar vídeo", 500
 
 # ================================
-# BUSCAR FILME IPTV
+# BUSCAR FILME (SISTEMA HÍBRIDO: DB LOCAL -> API)
 # ================================
-def buscar_no_iptv(titulo):
-    titulo_busca = re.sub(r'[^\w\s]', '', titulo).lower().strip()
+def buscar_filme(titulo):
+    # 🗄️ TENTATIVA 1: Procurar na Base de Dados Local (filmes.db)
+    try:
+        # Pega a primeira palavra do título para ser mais assertivo na busca
+        palavra_chave = titulo.split(':')[0].strip()
+        titulo_busca_db = f"%{palavra_chave}%"
+        
+        conn = sqlite3.connect('filmes.db')
+        c = conn.cursor()
+        c.execute("SELECT url FROM playlist WHERE nome LIKE ? LIMIT 1", (titulo_busca_db,))
+        resultado = c.fetchone()
+        conn.close()
+        
+        if resultado:
+            # Encontrou! Manda para o nosso Proxy mascarado.
+            return f"/proxy?url={resultado[0]}"
+    except Exception as e:
+        print("Aviso Local DB:", e)
+
+    # 🌐 TENTATIVA 2: Fallback para a API Externa se não achar no DB local
+    titulo_busca_api = re.sub(r'[^\w\s]', '', titulo).lower().strip()
     
     # 🎲 Usamos um disfarce também na hora de buscar na API pra não levantar suspeitas
     headers_api = {
@@ -161,7 +181,7 @@ def buscar_no_iptv(titulo):
             
             for item in r.json():
                 nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                if titulo_busca in nome_iptv:
+                if titulo_busca_api in nome_iptv:
                     video_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
                     return f"/proxy?url={video_url}"
         except Exception as e:
@@ -186,7 +206,9 @@ def home():
 @app.route("/filme/<int:id>")
 def detalhes(id):
     data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos", timeout=10).json()
-    play_link = buscar_no_iptv(data.get('title', ''))
+    
+    # Atualizado: Agora chama a nova função híbrida `buscar_filme`
+    play_link = buscar_filme(data.get('title', ''))
     
     trailer = next((v['key'] for v in data.get('videos', {}).get('results', []) if v['type'] == 'Trailer'), None)
     
