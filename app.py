@@ -144,7 +144,7 @@ def proxy_video():
         return "Erro ao carregar vídeo", 500
 
 # ================================
-# BUSCAR FILME (SISTEMA HÍBRIDO: DB LOCAL -> API)
+# BUSCAR FILME (SISTEMA HÍBRIDO E INTELIGENTE)
 # ================================
 def buscar_filme(titulo):
     # 🗄️ TENTATIVA 1: Procurar na Base de Dados Local (filmes.db)
@@ -155,23 +155,22 @@ def buscar_filme(titulo):
         
         conn = sqlite3.connect('filmes.db')
         c = conn.cursor()
-        c.execute("SELECT url FROM playlist WHERE nome LIKE ? LIMIT 1", (titulo_busca_db,))
+        
+        # 🧠 O SEGREDO AQUI: ORDER BY LENGTH(nome) ASC
+        # Isso força a base de dados a entregar o nome mais curto primeiro!
+        c.execute("SELECT url, nome FROM playlist WHERE nome LIKE ? ORDER BY LENGTH(nome) ASC LIMIT 1", (titulo_busca_db,))
         resultado = c.fetchone()
         conn.close()
         
         if resultado:
-            # Encontrou! Manda para o nosso Proxy mascarado.
+            print(f"🎬 Encontrado no DB: {resultado[1]}")
             return f"/proxy?url={resultado[0]}"
     except Exception as e:
         print("Aviso Local DB:", e)
 
     # 🌐 TENTATIVA 2: Fallback para a API Externa se não achar no DB local
     titulo_busca_api = re.sub(r'[^\w\s]', '', titulo).lower().strip()
-    
-    # 🎲 Usamos um disfarce também na hora de buscar na API pra não levantar suspeitas
-    headers_api = {
-        "User-Agent": random.choice(AGENTES_VIP)
-    }
+    headers_api = {"User-Agent": random.choice(AGENTES_VIP)}
     
     for srv in SERVIDORES:
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
@@ -180,14 +179,26 @@ def buscar_filme(titulo):
             r = requests.get(url_api, headers=headers_api, timeout=10)
             if r.status_code != 200: continue
             
+            matches_api = []
+            
             for item in r.json():
-                nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                if titulo_busca_api in nome_iptv:
-                    video_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                    return f"/proxy?url={video_url}"
+                nome_iptv = item.get('name', '')
+                nome_limpo = re.sub(r'[^\w\s]', '', nome_iptv).lower()
+                if titulo_busca_api in nome_limpo:
+                    matches_api.append(item)
+            
+            if matches_api:
+                # 🧠 Aplica a mesma inteligência na API: Ordena pelo tamanho do nome
+                matches_api.sort(key=lambda x: len(x.get('name', '')))
+                item_escolhido = matches_api[0]
+                
+                video_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item_escolhido.get('stream_id')}.mp4"
+                print(f"🎬 Encontrado na API: {item_escolhido.get('name')}")
+                return f"/proxy?url={video_url}"
         except Exception as e:
             print("Erro IPTV:", e)
             continue
+            
     return None
 
 # ================================
@@ -208,7 +219,7 @@ def home():
 def detalhes(id):
     data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos", timeout=10).json()
     
-    # Atualizado: Agora chama a nova função híbrida `buscar_filme`
+    # Chama a função híbrida inteligente `buscar_filme`
     play_link = buscar_filme(data.get('title', ''))
     
     trailer = next((v['key'] for v in data.get('videos', {}).get('results', []) if v['type'] == 'Trailer'), None)
