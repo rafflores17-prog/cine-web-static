@@ -13,15 +13,16 @@ TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
+# 🚀 LISTA DE SERVIDORES ATUALIZADA (CINEVEXIO NO TOPO!)
 SERVIDORES = [
+    {"host": "http://cinevexio.top:80", "user": "175473583", "pass": "643238922"},
     {"host": "http://serv99.xyz:8880", "user": "1764371", "pass": "2419902"},
-    {"host": "http://falcon12.top:80", "user": "175473583", "pass": "643238922"},
     {"host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"},
     {"host": "http://koquwz.com:80", "user": "471204", "pass": "epp4Jx"},
     {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
 ]
 
-# 🛡️ NOSSO ARSENAL DE DISFARCES VIP (Capturados por você!)
+# 🛡️ NOSSO ARSENAL DE DISFARCES VIP
 AGENTES_VIP = [
     "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
     "purpleplayer/1.2.82",
