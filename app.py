@@ -2,8 +2,9 @@ from flask import Flask, render_template, request, send_from_directory, jsonify,
 import requests
 import re
 import os
-import random  # 🎲 IMPORTAMOS A ROLETA AQUI
-import sqlite3 # 🗄️ IMPORTAMOS A BASE DE DADOS AQUI
+import random
+import sqlite3
+import glob # 🚀 ESSENCIAL PARA LER OS 12 BANCOS
 
 app = Flask(__name__)
 
@@ -13,7 +14,6 @@ TMDB_API_KEY = "c90fb79a2f7d756a49bee848bce5f413"
 IMG = "https://image.tmdb.org/t/p/w500"
 BG = "https://image.tmdb.org/t/p/original"
 
-# 🚀 LISTA DE SERVIDORES ATUALIZADA (CINEVEXIO NO TOPO!)
 SERVIDORES = [
     {"host": "http://cinevexio.top:80", "user": "175473583", "pass": "643238922"},
     {"host": "http://serv99.xyz:8880", "user": "1764371", "pass": "2419902"},
@@ -22,7 +22,6 @@ SERVIDORES = [
     {"host": "http://techon.one:80", "user": "003008", "pass": "440144634"}
 ]
 
-# 🛡️ NOSSO ARSENAL DE DISFARCES VIP
 AGENTES_VIP = [
     "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
     "purpleplayer/1.2.82",
@@ -31,92 +30,40 @@ AGENTES_VIP = [
 ]
 
 # ================================
-# CACHE INTELIGENTE
-# ================================
-@app.after_request
-def add_cache_headers(response):
-    if request.path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".webp", ".svg")):
-        response.headers["Cache-Control"] = "public, max-age=86400"
-    else:
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    return response
-
-@app.route('/sw.js')
-def sw():
-    return send_from_directory('.', 'sw.js', mimetype='application/javascript')
-
-@app.route("/health")
-def health():
-    return "OK"
-
-@app.route('/.well-known/assetlinks.json')
-def assetlinks():
-    return jsonify([{
-        "relation": ["delegate_permission/common.handle_all_urls"],
-        "target": {
-            "namespace": "android_app",
-            "package_name": "online.cinemega.www.twa",
-            "sha256_cert_fingerprints": ["64:F7:CE:80:D5:1C:79:CE:91:A7:0E:C8:BE:71:49:E6:46:64:F6:D2:96:5F:12:D6:8F:41:DC:57:A9:4E:48:CD"]
-        }
-    }])
-
-# ================================
-# SEO (GOOGLE ROBOTS E SITEMAP)
-# ================================
-@app.route('/robots.txt')
-def robots():
-    conteudo = (
-        "User-agent: *\n"
-        "Allow: /\n"
-        "Disallow: /static/\n"
-        f"Sitemap: {SITE_URL}/sitemap.xml\n"
-    )
-    return Response(conteudo, mimetype="text/plain")
-
-@app.route('/sitemap.xml')
-def sitemap():
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-        <loc>{SITE_URL}/</loc>
-        <changefreq>hourly</changefreq>
-        <priority>1.0</priority>
-    </url>
-</urlset>"""
-    return Response(xml, mimetype="application/xml")
-
-# ================================
-# PROXY DE VÍDEO (COM ROLETA DE AGENTES)
+# PROXY DE VÍDEO (REVISADO)
 # ================================
 @app.route("/proxy")
 def proxy_video():
     url = request.args.get("url")
+    user_agent_custom = request.args.get("user_agent") # Pega o agente enviado pelo site
+    
     if not url:
         return "URL não fornecida", 400
 
     try:
-        # 🎲 Sorteia um agente diferente a cada play
-        disfarce_atual = random.choice(AGENTES_VIP)
+        # Usa o agente enviado ou sorteia um novo
+        disfarce_atual = user_agent_custom if user_agent_custom else random.choice(AGENTES_VIP)
         
         headers = {
             "User-Agent": disfarce_atual,
             "Accept": "*/*",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "Referer": "http://iptv.com" # 🛡️ Ajuda a enganar o bloqueio
         }
 
         range_header = request.headers.get('Range', None)
         if range_header:
             headers['Range'] = range_header
 
-        r = requests.get(url, headers=headers, stream=True, timeout=(5, 15), allow_redirects=True)
+        r = requests.get(url, headers=headers, stream=True, timeout=(5, 20), allow_redirects=True, verify=False)
 
         status_code = r.status_code
         if status_code not in (200, 206):
-            return "Servidor de vídeo indisponível", 502
+            return "Servidor indisponível", 502
 
         def generate():
             try:
-                for chunk in r.iter_content(1024 * 64):
+                for chunk in r.iter_content(chunk_size=1024 * 128): # 128kb para fluidez
                     if chunk: yield chunk
             finally:
                 r.close()
@@ -124,7 +71,8 @@ def proxy_video():
         resp_headers = {
             "Accept-Ranges": "bytes",
             "Cache-Control": "no-store",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*" # 🔓 Libera para o Chrome
         }
         
         if 'Content-Range' in r.headers:
@@ -140,91 +88,70 @@ def proxy_video():
         )
 
     except Exception as e:
-        print("Erro proxy:", e)
-        return "Erro ao carregar vídeo", 500
+        return f"Erro proxy: {e}", 500
 
 # ================================
-# BUSCAR FILME (SISTEMA HÍBRIDO E INTELIGENTE)
+# BUSCAR FILME (SISTEMA MULTI-BANCO DATA*.DB)
 # ================================
 def buscar_filme(titulo):
-    # 🗄️ TENTATIVA 1: Procurar na Base de Dados Local (filmes.db)
     try:
-        # Pega a primeira palavra do título para ser mais assertivo na busca
         palavra_chave = titulo.split(':')[0].strip()
-        titulo_busca_db = f"%{palavra_chave}%"
+        termo_busca = f"%{palavra_chave}%"
         
-        conn = sqlite3.connect('filmes.db')
-        c = conn.cursor()
+        # 🔍 ESCANEIA TODOS OS BANCOS DATA1.DB, DATA2.DB...
+        bancos = glob.glob("data*.db")
         
-        # 🧠 O SEGREDO AQUI: ORDER BY LENGTH(nome) ASC
-        # Isso força a base de dados a entregar o nome mais curto primeiro!
-        c.execute("SELECT url, nome FROM playlist WHERE nome LIKE ? ORDER BY LENGTH(nome) ASC LIMIT 1", (titulo_busca_db,))
-        resultado = c.fetchone()
-        conn.close()
-        
-        if resultado:
-            print(f"🎬 Encontrado no DB: {resultado[1]}")
-            return f"/proxy?url={resultado[0]}"
-    except Exception as e:
-        print("Aviso Local DB:", e)
-
-    # 🌐 TENTATIVA 2: Fallback para a API Externa se não achar no DB local
-    titulo_busca_api = re.sub(r'[^\w\s]', '', titulo).lower().strip()
-    headers_api = {"User-Agent": random.choice(AGENTES_VIP)}
-    
-    for srv in SERVIDORES:
-        url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-        
-        try:
-            r = requests.get(url_api, headers=headers_api, timeout=10)
-            if r.status_code != 200: continue
-            
-            matches_api = []
-            
-            for item in r.json():
-                nome_iptv = item.get('name', '')
-                nome_limpo = re.sub(r'[^\w\s]', '', nome_iptv).lower()
-                if titulo_busca_api in nome_limpo:
-                    matches_api.append(item)
-            
-            if matches_api:
-                # 🧠 Aplica a mesma inteligência na API: Ordena pelo tamanho do nome
-                matches_api.sort(key=lambda x: len(x.get('name', '')))
-                item_escolhido = matches_api[0]
+        for db_nome in sorted(bancos):
+            try:
+                conn = sqlite3.connect(db_nome)
+                c = conn.cursor()
+                c.execute("SELECT url FROM playlist WHERE nome LIKE ? LIMIT 1", (termo_busca,))
+                resultado = c.fetchone()
+                conn.close()
                 
-                video_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item_escolhido.get('stream_id')}.mp4"
-                print(f"🎬 Encontrado na API: {item_escolhido.get('name')}")
-                return f"/proxy?url={video_url}"
-        except Exception as e:
-            print("Erro IPTV:", e)
-            continue
+                if resultado:
+                    # Envia para o proxy com a proteção de agente
+                    agente = random.choice(AGENTES_VIP)
+                    from urllib.parse import quote
+                    return f"/proxy?url={quote(resultado[0], safe='')}&user_agent={quote(agente)}"
+            except: continue
+            
+    except Exception as e:
+        print("Erro DB:", e)
+
+    # 🌐 FALLBACK API (SE NÃO ACHAR NOS BANCOS)
+    for srv in SERVIDORES:
+        try:
+            url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
+            r = requests.get(url_api, timeout=5).json()
+            for item in r:
+                if palavra_chave.lower() in item.get('name', '').lower():
+                    v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
+                    return f"/proxy?url={v_url}"
+        except: continue
             
     return None
 
 # ================================
-# ROTAS HOME E DETALHES
+# ROTAS RESTANTES
 # ================================
 @app.route("/")
 def home():
     q = request.args.get("q")
-    if q:
-        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&language=pt-BR&query={q}"
-    else:
-        url = f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR"
-    
-    res = requests.get(url, timeout=10).json().get("results", [])
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&language=pt-BR&query={q}" if q else f"https://api.themoviedb.org/3/movie/popular?api_key={TMDB_API_KEY}&language=pt-BR"
+    try:
+        res = requests.get(url, timeout=10).json().get("results", [])
+    except: res = []
     return render_template("index.html", filmes=res[:20], img=IMG, nome_site=NOME_SITE)
 
 @app.route("/filme/<int:id>")
 def detalhes(id):
-    data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos", timeout=10).json()
-    
-    # Chama a função híbrida inteligente `buscar_filme`
-    play_link = buscar_filme(data.get('title', ''))
-    
-    trailer = next((v['key'] for v in data.get('videos', {}).get('results', []) if v['type'] == 'Trailer'), None)
-    
-    return render_template("detalhes.html", filme=data, img=IMG, bg=BG, play_link=play_link, nome_site=NOME_SITE, trailer_key=trailer)
+    try:
+        data = requests.get(f"https://api.themoviedb.org/3/movie/{id}?api_key={TMDB_API_KEY}&language=pt-BR&append_to_response=videos", timeout=10).json()
+        play_link = buscar_filme(data.get('title', ''))
+        trailer = next((v['key'] for v in data.get('videos', {}).get('results', []) if v['type'] == 'Trailer'), None)
+        return render_template("detalhes.html", filme=data, img=IMG, bg=BG, play_link=play_link, nome_site=NOME_SITE, trailer_key=trailer)
+    except: return "Erro", 404
 
 if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", 8000))
