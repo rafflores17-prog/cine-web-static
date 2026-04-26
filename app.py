@@ -8,15 +8,12 @@ from urllib.parse import quote
 
 app = Flask(__name__)
 
-# 🚀 AGENTES VIP
 AGENTES_VIP = [
     "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
     "purpleplayer/1.2.82",
-    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
-    "Dart/3.11 (dart:io)"
+    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)"
 ]
 
-# 🛡️ SERVIDORES DE APOIO (Cinevexio e Stmax)
 SERVIDORES_API = [
     {"nome": "Cinevexio", "host": "http://cinevexio.top:80", "user": "175473583", "pass": "643238922"},
     {"nome": "Stmax", "host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"}
@@ -27,49 +24,48 @@ def buscar_e_proxy():
     titulo = request.args.get("titulo")
     if not titulo: return "Título vazio", 400
 
-    try:
-        palavras = titulo.split()
-        termo = " ".join(palavras[:2]) if len(palavras) > 1 else palavras[0]
-        termo_api = re.sub(r'[^\w\s]', '', titulo).lower().strip()
+    # Limpeza para busca cirúrgica
+    titulo_limpo = titulo.strip()
+    # Pega as duas primeiras palavras para evitar erros de "O", "A", "Os"
+    palavras = titulo_limpo.split()
+    termo_base = palavras[0] if len(palavras) == 1 else " ".join(palavras[:2])
 
-        # 🔍 1º LUGAR: Busca no filmes.db (Serv99 - Mais rápido)
+    try:
         conn = sqlite3.connect('filmes.db')
         c = conn.cursor()
-        c.execute("SELECT url FROM playlist WHERE nome LIKE ? LIMIT 1", (f"%{termo}%",))
+        
+        # 🛡️ BUSCA ANTI-MENTIRA: 
+        # Ordenamos por quem tem o nome mais parecido e menor (evita pegar filme errado)
+        query = "SELECT url, nome FROM playlist WHERE nome LIKE ? ORDER BY ABS(LENGTH(nome) - LENGTH(?)) ASC LIMIT 1"
+        c.execute(query, (f"%{termo_base}%", titulo_limpo))
         resultado = c.fetchone()
         conn.close()
 
         if resultado:
-            print(f"✅ Achado no Banco Local (Serv99): {titulo}")
+            print(f"🎬 Localizado: {resultado[1]}")
             return executar_proxy(resultado[0])
-
-        # 🔍 2º LUGAR: Busca nas APIs externas (Cinevexio / Stmax)
-        print(f"⚠️ Não achou no DB, tentando APIs externas...")
+        
+        # Se não achou no DB, tenta API rápida (timeout menor para não demorar)
         for srv in SERVIDORES_API:
             try:
                 url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-                r = requests.get(url_api, timeout=5).json()
-                
+                r = requests.get(url_api, timeout=3).json() # Timeout de 3s para ser rápido
                 for item in r:
-                    nome_iptv = re.sub(r'[^\w\s]', '', item.get('name', '')).lower()
-                    if termo_api in nome_iptv:
+                    nome_api = item.get('name', '').lower()
+                    if titulo_limpo.lower() in nome_api:
                         v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                        print(f"✅ Achado na API do {srv['nome']}: {item.get('name')}")
                         return executar_proxy(v_url)
-            except:
-                continue
+            except: continue
 
-        return "Filme não encontrado em nenhum servidor.", 404
-
+        return "Não encontrado", 404
     except Exception as e:
-        return f"Erro no motor: {e}", 500
+        return str(e), 500
 
 def executar_proxy(url_video):
     agente = random.choice(AGENTES_VIP)
     headers = {
         "User-Agent": agente,
         "Accept": "*/*",
-        "Connection": "keep-alive",
         "Referer": "http://iptv.com"
     }
     
@@ -77,31 +73,25 @@ def executar_proxy(url_video):
     if range_header: headers['Range'] = range_header
 
     try:
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 30), allow_redirects=True)
+        # stream=True e um buffer maior para o player não "engasgar" no início
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 60), allow_redirects=True)
         
         def generate():
-            for chunk in r.iter_content(chunk_size=128 * 1024):
+            # Aumentamos o chunk para 256kb para carregar o início do filme mais rápido
+            for chunk in r.iter_content(chunk_size=256 * 1024):
                 if chunk: yield chunk
         
         resp_headers = {
             "Accept-Ranges": "bytes",
             "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "no-store"
+            "Content-Type": "video/mp4", # Força MP4 para o Chrome aceitar áudio melhor
+            "Cache-Control": "public, max-age=3600"
         }
         if 'Content-Range' in r.headers: resp_headers['Content-Range'] = r.headers['Content-Range']
-        if 'Content-Length' in r.headers: resp_headers['Content-Length'] = r.headers['Content-Length']
-
-        return Response(
-            stream_with_context(generate()),
-            status=r.status_code,
-            content_type=r.headers.get("Content-Type", "video/mp4"),
-            headers=resp_headers
-        )
+        
+        return Response(stream_with_context(generate()), status=r.status_code, headers=resp_headers)
     except:
-        return "Erro ao processar streaming", 500
-
-@app.route("/")
-def index(): return "🚀 Motor Cine Mega Híbrido Ativo!"
+        return "Erro", 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
