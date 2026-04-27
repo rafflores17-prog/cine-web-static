@@ -1,18 +1,30 @@
-from flask import Flask, request, Response, redirect
-import sqlite3
+from flask import Flask, request, Response, stream_with_context, redirect
 import requests
+import sqlite3
+import random
 import os
+from urllib.parse import quote
 
 app = Flask(__name__)
 
-# Servidores API de backup antigos
+# 🚀 AGENTES VIP - Enganam o servidor IPTV dizendo que somos um App Android Real
+AGENTES_VIP = [
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+    "purpleplayer/1.2.82",
+    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
+    "Dart/3.9 (dart:io)",
+    "VLC/3.0.4 LibVLC/3.0.4",
+    "okhttp/4.12.0"
+]
+
+# 🛡️ SERVIDORES DE APOIO
 SERVIDORES_API = [
     {"nome": "Cinevexio", "host": "http://cinevexio.top:80", "user": "175473583", "pass": "643238922"},
     {"nome": "Stmax", "host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"}
 ]
 
 def ler_arquivo_txt(caminho):
-    """Lê um arquivo txt e transforma em dicionário"""
+    """Lê arquivos TXT e transforma em dicionário (VIP e Gigante)"""
     acervo = {}
     if os.path.exists(caminho):
         try:
@@ -21,51 +33,50 @@ def ler_arquivo_txt(caminho):
                     if "|" in linha:
                         nome, url = linha.split("|", 1)
                         acervo[nome.strip().lower()] = url.strip()
-        except Exception as e:
-            print(f"Erro ao ler {caminho}: {e}")
+        except: pass
     return acervo
 
-# Carrega os dois arquivos separadamente na memória
-ACERVO_VIP = ler_arquivo_txt("vips.txt")
-ACERVO_GIGANTE = ler_arquivo_txt("filmes_site.txt")
-
-def proxy_video(url):
-    """ O Segredo: Mascara o link HTTP para HTTPS, usa Agentes e divide em blocos para não dar Erro 500 """
+def executar_proxy(url_video):
+    """ O Pulo do Gato: Proxy com Agentes VIP e Stream inteligente """
+    agente = random.choice(AGENTES_VIP)
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "User-Agent": agente,
         "Accept": "*/*",
-        "Connection": "keep-alive"
+        "Connection": "keep-alive",
+        "Referer": "http://iptv.com" # Disfarce adicional
     }
     
-    # Repassa a posição do vídeo para o usuário conseguir adiantar e voltar o filme
     range_header = request.headers.get('Range', None)
     if range_header:
         headers['Range'] = range_header
 
     try:
-        # stream=True impede que o Koyeb baixe o filme inteiro de uma vez (Evita Crash)
-        r = requests.get(url, headers=headers, stream=True, timeout=10)
+        # Timeout longo para evitar Erro 500 em links lentos
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 60), allow_redirects=True)
         
-        def gerar_video():
-            # Envia o filme em blocos de 2MB
-            for chunk in r.iter_content(chunk_size=2 * 1024 * 1024):
-                if chunk:
-                    yield chunk
-
+        def generate():
+            # Chunk de 256kb: Equilíbrio perfeito entre velocidade e economia de memória
+            for chunk in r.iter_content(chunk_size=256 * 1024):
+                if chunk: yield chunk
+        
         resp_headers = {
-            'Content-Type': r.headers.get('Content-Type', 'video/mp4'),
-            'Accept-Ranges': 'bytes'
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": r.headers.get("Content-Type", "video/mp4"),
+            "Cache-Control": "public, max-age=3600"
         }
         
-        if 'Content-Length' in r.headers:
-            resp_headers['Content-Length'] = r.headers['Content-Length']
-        if 'Content-Range' in r.headers:
-            resp_headers['Content-Range'] = r.headers['Content-Range']
-
-        return Response(gerar_video(), status=r.status_code, headers=resp_headers)
+        if 'Content-Range' in r.headers: resp_headers['Content-Range'] = r.headers['Content-Range']
+        if 'Content-Length' in r.headers: resp_headers['Content-Length'] = r.headers['Content-Length']
+        
+        return Response(
+            stream_with_context(generate()), 
+            status=r.status_code, 
+            headers=resp_headers
+        )
     except Exception as e:
-        print(f"Erro no proxy: {e}")
-        return "Erro ao carregar o vídeo", 500
+        print(f"Erro no streaming: {e}")
+        return "Erro ao processar vídeo", 500
 
 @app.route("/buscar")
 def buscar():
@@ -74,19 +85,23 @@ def buscar():
     
     titulo_limpo = titulo.strip().lower()
 
-    # 🥇 1º PASSO: BUSCA NO SEU VIP (SUA CORREÇÃO É A LEI)
+    # 🥇 1º LUGAR: SEU VIP (vips.txt) - Prioridade Total
+    ACERVO_VIP = ler_arquivo_txt("vips.txt")
     for nome_vip, url_vip in ACERVO_VIP.items():
         if nome_vip in titulo_limpo or titulo_limpo in nome_vip:
-            print(f"💎 ELITE VIP: Entregando {nome_vip}")
-            return proxy_video(url_vip)
+            print(f"💎 ELITE VIP: {nome_vip}")
+            # Se o link for Archive.org (HTTPS), podemos usar redirect direto. 
+            # Se for IPTV, usamos Proxy. Para garantir, vamos de Proxy.
+            return executar_proxy(url_vip)
 
-    # 🥈 2º PASSO: BUSCA NO NOVO ARQUIVO GIGANTE (filmes_site.txt)
+    # 🥈 2º LUGAR: ACERVO GIGANTE (filmes_site.txt)
+    ACERVO_GIGANTE = ler_arquivo_txt("filmes_site.txt")
     for nome_txt, url_txt in ACERVO_GIGANTE.items():
         if nome_txt in titulo_limpo or titulo_limpo in nome_txt:
-            print(f"🚀 TXT GIGANTE: Entregando {nome_txt}")
-            return proxy_video(url_txt)
+            print(f"🚀 ACERVO GIGANTE: {nome_txt}")
+            return executar_proxy(url_txt)
 
-    # 🥉 3º PASSO: BUSCA NO BANCO DE DADOS LOCAL (filmes.db)
+    # 🥉 3º LUGAR: BANCO DE DADOS LOCAL (filmes.db)
     try:
         if os.path.exists('filmes.db'):
             conn = sqlite3.connect('filmes.db')
@@ -97,11 +112,11 @@ def buscar():
             resultado = c.fetchone()
             conn.close()
             if resultado:
-                print("💾 BANCO DE DADOS: Encontrado no SQLite")
-                return proxy_video(resultado[0])
+                print("💾 DB LOCAL: Localizado")
+                return executar_proxy(resultado[0])
     except: pass
 
-    # 🏅 4º PASSO: BUSCA NAS APIs EXTERNAS (Último recurso)
+    # 🏅 4º LUGAR: APIs EXTERNAS
     for srv in SERVIDORES_API:
         try:
             url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
@@ -109,11 +124,15 @@ def buscar():
             for item in r:
                 if titulo_limpo in item.get('name', '').lower():
                     v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                    print("📡 API ANTIGA: Encontrado no backup")
-                    return proxy_video(v_url)
+                    print(f"📡 API {srv['nome']}: Localizado")
+                    return executar_proxy(v_url)
         except: continue
 
-    return "Filme não encontrado em nenhuma base", 404
+    return "Não encontrado", 404
+
+@app.route("/")
+def index():
+    return "🚀 Motor Cine Mega Blindado v3 - Online!"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
