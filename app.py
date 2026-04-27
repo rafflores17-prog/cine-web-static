@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect
+from flask import Flask, request, Response, redirect
 import sqlite3
 import requests
 import os
@@ -29,6 +29,44 @@ def ler_arquivo_txt(caminho):
 ACERVO_VIP = ler_arquivo_txt("vips.txt")
 ACERVO_GIGANTE = ler_arquivo_txt("filmes_site.txt")
 
+def proxy_video(url):
+    """ O Segredo: Mascara o link HTTP para HTTPS, usa Agentes e divide em blocos para não dar Erro 500 """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Connection": "keep-alive"
+    }
+    
+    # Repassa a posição do vídeo para o usuário conseguir adiantar e voltar o filme
+    range_header = request.headers.get('Range', None)
+    if range_header:
+        headers['Range'] = range_header
+
+    try:
+        # stream=True impede que o Koyeb baixe o filme inteiro de uma vez (Evita Crash)
+        r = requests.get(url, headers=headers, stream=True, timeout=10)
+        
+        def gerar_video():
+            # Envia o filme em blocos de 2MB
+            for chunk in r.iter_content(chunk_size=2 * 1024 * 1024):
+                if chunk:
+                    yield chunk
+
+        resp_headers = {
+            'Content-Type': r.headers.get('Content-Type', 'video/mp4'),
+            'Accept-Ranges': 'bytes'
+        }
+        
+        if 'Content-Length' in r.headers:
+            resp_headers['Content-Length'] = r.headers['Content-Length']
+        if 'Content-Range' in r.headers:
+            resp_headers['Content-Range'] = r.headers['Content-Range']
+
+        return Response(gerar_video(), status=r.status_code, headers=resp_headers)
+    except Exception as e:
+        print(f"Erro no proxy: {e}")
+        return "Erro ao carregar o vídeo", 500
+
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo")
@@ -40,13 +78,13 @@ def buscar():
     for nome_vip, url_vip in ACERVO_VIP.items():
         if nome_vip in titulo_limpo or titulo_limpo in nome_vip:
             print(f"💎 ELITE VIP: Entregando {nome_vip}")
-            return redirect(url_vip, code=302)
+            return proxy_video(url_vip)
 
     # 🥈 2º PASSO: BUSCA NO NOVO ARQUIVO GIGANTE (filmes_site.txt)
     for nome_txt, url_txt in ACERVO_GIGANTE.items():
         if nome_txt in titulo_limpo or titulo_limpo in nome_txt:
             print(f"🚀 TXT GIGANTE: Entregando {nome_txt}")
-            return redirect(url_txt, code=302)
+            return proxy_video(url_txt)
 
     # 🥉 3º PASSO: BUSCA NO BANCO DE DADOS LOCAL (filmes.db)
     try:
@@ -60,7 +98,7 @@ def buscar():
             conn.close()
             if resultado:
                 print("💾 BANCO DE DADOS: Encontrado no SQLite")
-                return redirect(resultado[0], code=302)
+                return proxy_video(resultado[0])
     except: pass
 
     # 🏅 4º PASSO: BUSCA NAS APIs EXTERNAS (Último recurso)
@@ -72,7 +110,7 @@ def buscar():
                 if titulo_limpo in item.get('name', '').lower():
                     v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
                     print("📡 API ANTIGA: Encontrado no backup")
-                    return redirect(v_url, code=302)
+                    return proxy_video(v_url)
         except: continue
 
     return "Filme não encontrado em nenhuma base", 404
