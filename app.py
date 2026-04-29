@@ -16,10 +16,9 @@ AGENTES = [
     "okhttp/4.12.0"
 ]
 
+# Função que deixa apenas LETRAS (Mata o erro do ano e pontos)
 def extrair_letras(txt):
     if not txt: return ""
-    # Deixa apenas LETRAS. Remove números, anos, parênteses e espaços.
-    # Exemplo: "O Som da Morte (2026)" vira "osomdamorte"
     txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
     return re.sub(r'[^a-z]', '', txt.lower())
 
@@ -46,32 +45,25 @@ def buscar():
     titulo = request.args.get("titulo")
     if not titulo: return "Vazio", 400
 
-    # Pega apenas as letras do que o site mandou
     alvo = extrair_letras(titulo)
-    print(f"🔎 Mestre, rastreando apenas letras: {alvo}")
+    print(f"🔎 Rastreando: {alvo}")
 
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            
-            # BUSCA ULTRA FLEXÍVEL: 
-            # Ele busca no banco qualquer coisa que contenha as letras do título
             c.execute("SELECT url, nome FROM filmes")
             todos = c.fetchall()
             conn.close()
 
             for row in todos:
                 url_db, nome_db = row
-                # Compara as letras do banco com as letras que o site enviou
+                # Se o que o site pede está no banco ou vice-versa (só letras!)
                 if alvo in extrair_letras(nome_db) or extrair_letras(nome_db) in alvo:
-                    print(f"✅ ACHOU NO DB: {nome_db}")
                     return executar_proxy(url_db)
+        except: pass
 
-        except Exception as e:
-            print(f"Erro no rastreio: {e}")
-
-    # BACKUP VIP.TXT (Com a mesma lógica de letras)
+    # Backup VIP.txt
     if os.path.exists("vips.txt"):
         with open("vips.txt", "r", encoding="utf-8", errors="ignore") as f:
             for linha in f:
@@ -80,10 +72,12 @@ def buscar():
                     if alvo in extrair_letras(nome_vip) or extrair_letras(nome_vip) in alvo:
                         return executar_proxy(url_vip.strip())
 
-    return "Filme nao encontrado no seu acervo", 404
+    return "Nao encontrado", 404
 
 @app.route("/")
-def index(): return "🚀 Motor v22 - Rastreador de Elite Ativo"
+def index(): return "🚀 Motor v22 - Limpo e Operacional"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    # O segredo para o Koyeb rodar sem comando manual é ler a porta do sistema
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
