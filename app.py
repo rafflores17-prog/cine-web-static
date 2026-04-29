@@ -10,25 +10,46 @@ import datetime
 app = Flask(__name__)
 
 # =========================
-# CONFIG
+# CONFIG PREMIUM
 # =========================
 
 LOG_FILE = "logs_erros.txt"
 
-TIMEOUT_CONNECT = 10
-TIMEOUT_READ = 180
+TIMEOUT_CONNECT = 8
+TIMEOUT_READ = 300
 
-CHUNK_SIZE = 1024 * 128
+CHUNK_SIZE = 1024 * 256
 
 # =========================
-# AGENTES
+# CACHE SIMPLES (ANTI-REPETIÇÃO)
+# =========================
+
+CACHE_STREAM = {}
+
+# =========================
+# AGENTES "PLAYER REAL"
 # =========================
 
 AGENTES = [
-    "Mozilla/5.0",
-    "okhttp/4.12.0",
-    "VLC/3.0.4",
-    "Dalvik/2.1.0"
+
+    # IPTV REAL
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+    "PurplePlayer/1.2.82",
+    "OTT Navigator/1.6.5",
+    "Kodi/20.3 (Linux; Android 14)",
+
+    # PLAYER PROFISSIONAL
+    "VLC/3.0.20 LibVLC/3.0.20",
+    "ExoPlayerLib/2.19.1",
+
+    # ANDROID REAL
+    "Dalvik/2.1.0 (Linux; U; Android 14; Mobile)",
+
+    # CHROME (IMPORTANTE)
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+
+    # BACKUP HTTP
+    "okhttp/4.12.0"
 ]
 
 # =========================
@@ -37,20 +58,14 @@ AGENTES = [
 
 def registrar_log(titulo, url, erro):
     try:
-        agora = datetime.datetime.now()
+        now = datetime.datetime.now()
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(
-                f"\n{agora}\n"
-                f"FILME: {titulo}\n"
-                f"URL: {url}\n"
-                f"ERRO: {erro}\n"
-                "----------------------\n"
-            )
+            f.write(f"\n{now}\n{titulo}\n{url}\n{erro}\n-------------------\n")
     except:
         pass
 
 # =========================
-# LIMPAR TEXTO
+# LIMPEZA
 # =========================
 
 def limpar_texto(texto):
@@ -68,19 +83,20 @@ def limpar_texto(texto):
     return texto.strip().lower()
 
 # =========================
-# SIMILARIDADE
+# SIMILARIDADE (MELHORADA)
 # =========================
 
 def similaridade(a, b):
-    a_words = set(a.split())
-    b_words = set(b.split())
 
-    if not a_words or not b_words:
+    a_set = set(a.split())
+    b_set = set(b.split())
+
+    if not a_set or not b_set:
         return 0
 
-    inter = a_words.intersection(b_words)
+    inter = a_set.intersection(b_set)
 
-    score = len(inter) / max(len(a_words), len(b_words))
+    score = len(inter) / max(len(a_set), len(b_set))
 
     if any(c.isdigit() for c in a) != any(c.isdigit() for c in b):
         score *= 0.6
@@ -117,10 +133,10 @@ print("Carregando listas...")
 VIP_CACHE = carregar_txt("vips.txt")
 SITE_CACHE = carregar_txt("filmes_site.txt")
 
-print("Listas carregadas.")
+print("OK")
 
 # =========================
-# BUSCA TXT
+# BUSCA INTELIGENTE
 # =========================
 
 def buscar_txt(titulo_limpo, acervo):
@@ -128,18 +144,18 @@ def buscar_txt(titulo_limpo, acervo):
     if titulo_limpo in acervo:
         return acervo[titulo_limpo]
 
-    melhor_url = None
-    melhor_score = 0
+    best = None
+    best_score = 0
 
     for nome, url in acervo.items():
         score = similaridade(titulo_limpo, nome)
 
-        if score > melhor_score:
-            melhor_score = score
-            melhor_url = url
+        if score > best_score:
+            best_score = score
+            best = url
 
-    if melhor_score >= 0.6:
-        return melhor_url
+    if best_score >= 0.6:
+        return best
 
     return None
 
@@ -163,32 +179,39 @@ def buscar_db(titulo_limpo):
         res = c.fetchone()
         conn.close()
 
-        if res:
-            return res[0]
+        return res[0] if res else None
 
     except:
-        pass
-
-    return None
+        return None
 
 # =========================
-# PROXY CORRIGIDO (SEEK REAL)
+# 🔥 MOTOR NETFLIX PRO LITE
 # =========================
 
 def executar_proxy(url_video, titulo):
 
     try:
 
+        # 🔥 CACHE (evita travar em requests repetidos)
+        if url_video in CACHE_STREAM:
+            return redirect(url_video)
+
         agente = random.choice(AGENTES)
+
+        range_header = request.headers.get("Range")
 
         headers = {
             "User-Agent": agente,
             "Accept": "*/*",
+            "Accept-Encoding": "identity",
             "Connection": "keep-alive",
-            "Accept-Encoding": "identity"
+            "Accept-Language": "en-US,en;q=0.9",
+
+            # simula player real
+            "Referer": url_video,
+            "Origin": "/".join(url_video.split("/")[:3])
         }
 
-        range_header = request.headers.get("Range")
         if range_header:
             headers["Range"] = range_header
 
@@ -202,7 +225,7 @@ def executar_proxy(url_video, titulo):
 
         status = r.status_code
 
-        # 🔥 garante compatibilidade de seek
+        # 🔥 FIX NETFLIX SEEK
         if range_header and status == 200:
             status = 206
 
@@ -215,7 +238,7 @@ def executar_proxy(url_video, titulo):
                 if chunk:
                     yield chunk
 
-        resp_headers = {
+        headers_resp = {
             "Content-Type": r.headers.get("Content-Type", "video/mp4"),
             "Accept-Ranges": "bytes",
             "Access-Control-Allow-Origin": "*",
@@ -224,15 +247,18 @@ def executar_proxy(url_video, titulo):
         }
 
         if "Content-Range" in r.headers:
-            resp_headers["Content-Range"] = r.headers["Content-Range"]
+            headers_resp["Content-Range"] = r.headers["Content-Range"]
 
         if "Content-Length" in r.headers:
-            resp_headers["Content-Length"] = r.headers["Content-Length"]
+            headers_resp["Content-Length"] = r.headers["Content-Length"]
+
+        # salva cache leve
+        CACHE_STREAM[url_video] = True
 
         return Response(
             stream_with_context(generate()),
             status=status,
-            headers=resp_headers
+            headers=headers_resp
         )
 
     except Exception as e:
@@ -251,12 +277,12 @@ def buscar():
     if not titulo:
         return "Título vazio", 400
 
-    titulo_limpo = limpar_texto(titulo)
+    t = limpar_texto(titulo)
 
     fontes = [
-        buscar_txt(titulo_limpo, VIP_CACHE),
-        buscar_db(titulo_limpo),
-        buscar_txt(titulo_limpo, SITE_CACHE)
+        buscar_txt(t, VIP_CACHE),
+        buscar_db(t),
+        buscar_txt(t, SITE_CACHE)
     ]
 
     for url in fontes:
@@ -271,7 +297,4 @@ def buscar():
 # =========================
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000))
-    )
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
