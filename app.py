@@ -9,10 +9,6 @@ import datetime
 
 app = Flask(__name__)
 
-# =========================
-# CONFIG PREMIUM
-# =========================
-
 LOG_FILE = "logs_erros.txt"
 
 TIMEOUT_CONNECT = 8
@@ -20,34 +16,10 @@ TIMEOUT_READ = 300
 
 CHUNK_SIZE = 1024 * 256
 
-# =========================
-# CACHE SIMPLES (ANTI-REPETIÇÃO)
-# =========================
-
-CACHE_STREAM = {}
-
-# =========================
-# AGENTES "PLAYER REAL"
-# =========================
-
 AGENTES = [
-    # IPTV REAL
-    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
-    "PurplePlayer/1.2.82",
-    "OTT Navigator/1.6.5",
-    "Kodi/20.3 (Linux; Android 14)",
-
-    # PLAYER PROFISSIONAL
     "VLC/3.0.20 LibVLC/3.0.20",
     "ExoPlayerLib/2.19.1",
-
-    # ANDROID REAL
-    "Dalvik/2.1.0 (Linux; U; Android 14; Mobile)",
-
-    # CHROME (IMPORTANTE)
-    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
-
-    # BACKUP HTTP
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
     "okhttp/4.12.0"
 ]
 
@@ -82,11 +54,10 @@ def limpar_texto(texto):
     return texto.strip().lower()
 
 # =========================
-# SIMILARIDADE (MELHORADA)
+# SIMILARIDADE
 # =========================
 
 def similaridade(a, b):
-
     a_set = set(a.split())
     b_set = set(b.split())
 
@@ -120,26 +91,20 @@ def ler_txt(caminho):
 
     return acervo
 
-
 def carregar_txt(nome):
     for arq in [nome, nome.lower(), nome.upper()]:
         if os.path.exists(arq):
             return ler_txt(arq)
     return {}
 
-print("Carregando listas...")
-
 VIP_CACHE = carregar_txt("vips.txt")
 SITE_CACHE = carregar_txt("filmes_site.txt")
 
-print("OK")
-
 # =========================
-# BUSCA INTELIGENTE
+# BUSCA
 # =========================
 
 def buscar_txt(titulo_limpo, acervo):
-
     if titulo_limpo in acervo:
         return acervo[titulo_limpo]
 
@@ -157,10 +122,6 @@ def buscar_txt(titulo_limpo, acervo):
         return best
 
     return None
-
-# =========================
-# DB
-# =========================
 
 def buscar_db(titulo_limpo):
     try:
@@ -184,35 +145,24 @@ def buscar_db(titulo_limpo):
         return None
 
 # =========================
-# 🔥 MOTOR NETFLIX PRO LITE (CORRIGIDO)
+# PROXY STREAM (CORRIGIDO)
 # =========================
 
-def executar_proxy(url_video, titulo):
-
+def proxy_stream(url_video, titulo):
     try:
-        # 🔥 CACHE (evita travar em requests repetidos)
-        if url_video in CACHE_STREAM:
-            return redirect(url_video)
-
-        # Detecta se é um player externo para repassar o User-Agent real
-        ua_cliente = request.headers.get("User-Agent", "")
-        if any(player in ua_cliente for player in ["VLC", "ExoPlayer", "Player", "Kodi"]):
-            agente = ua_cliente
-        else:
-            agente = random.choice(AGENTES)
-
+        agente = random.choice(AGENTES)
         range_header = request.headers.get("Range")
 
         headers = {
             "User-Agent": agente,
             "Accept": "*/*",
-            "Connection": "keep-alive",
-            "Referer": url_video,
-            "Origin": "/".join(url_video.split("/")[:3])
+            "Connection": "keep-alive"
         }
 
         if range_header:
             headers["Range"] = range_header
+        else:
+            headers["Range"] = "bytes=0-"
 
         r = requests.get(
             url_video,
@@ -222,41 +172,37 @@ def executar_proxy(url_video, titulo):
             allow_redirects=True
         )
 
-        # Removemos a conversão forçada de 200 para 206 que causava erro no Chrome
         status = r.status_code
+
+        if "Content-Range" in r.headers:
+            status = 206
 
         if status not in (200, 206):
             registrar_log(titulo, url_video, f"HTTP {status}")
             return redirect(url_video)
-
-        headers_resp = {
-            "Content-Type": r.headers.get("Content-Type", "video/mp4"),
-            "Accept-Ranges": "bytes",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "no-cache",
-        }
-
-        if "Content-Range" in r.headers:
-            headers_resp["Content-Range"] = r.headers["Content-Range"]
-        if "Content-Length" in r.headers:
-            headers_resp["Content-Length"] = r.headers["Content-Length"]
 
         def generate():
             try:
                 for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                     if chunk:
                         yield chunk
-            except Exception:
-                pass # Evita o registo de erro no log se o visualizador fechar o stream
+            finally:
+                r.close()
 
-        # Salva cache leve
-        CACHE_STREAM[url_video] = True
+        headers_resp = {
+            "Content-Type": r.headers.get("Content-Type", "video/mp4"),
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Connection": "keep-alive"
+        }
+
+        if "Content-Range" in r.headers:
+            headers_resp["Content-Range"] = r.headers["Content-Range"]
 
         return Response(
             stream_with_context(generate()),
             status=status,
-            headers=headers_resp,
-            direct_passthrough=True # Garante a entrega nativa e sem estrangulamento
+            headers=headers_resp
         )
 
     except Exception as e:
@@ -264,12 +210,42 @@ def executar_proxy(url_video, titulo):
         return redirect(url_video)
 
 # =========================
+# M3U8 SUPORTE (IPTV)
+# =========================
+
+def proxy_m3u8(url):
+    r = requests.get(url, timeout=10)
+
+    conteudo = r.text
+    base = url.rsplit("/", 1)[0]
+
+    linhas = []
+
+    for linha in conteudo.splitlines():
+        if linha.startswith("#") or not linha.strip():
+            linhas.append(linha)
+        else:
+            linhas.append(f"/segmento?url={base}/{linha}")
+
+    return Response("\n".join(linhas), content_type="application/vnd.apple.mpegurl")
+
+@app.route("/segmento")
+def segmento():
+    url = request.args.get("url")
+
+    r = requests.get(url, stream=True)
+
+    return Response(
+        r.iter_content(chunk_size=CHUNK_SIZE),
+        content_type="video/MP2T"
+    )
+
+# =========================
 # BUSCA PRINCIPAL
 # =========================
 
 @app.route("/buscar")
 def buscar():
-
     titulo = request.args.get("titulo")
 
     if not titulo:
@@ -285,14 +261,17 @@ def buscar():
 
     for url in fontes:
         if url:
-            return executar_proxy(url, titulo)
+
+            if ".m3u8" in url:
+                return proxy_m3u8(url)
+
+            return proxy_stream(url, titulo)
 
     registrar_log(titulo, "nenhuma fonte", "não encontrado")
 
     return "Filme não encontrado", 404
 
-
 # =========================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    app.run(host="0.0.0.0", port=8000)
