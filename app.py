@@ -7,19 +7,13 @@ from flask import Flask, request, Response, stream_with_context, redirect
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DAS FONTES ---
+# --- APENAS OS DOIS SERVIDORES "QUERIDINHOS" ---
 FONTES = {
-    "1": {"host": "http://newoneblue.site:80", "user": "58257413", "pass": "19193442"},
-    "2": {"host": "http://9thgen.skin:80", "user": "11974034383", "pass": "eduardo0102"},
-    "3": {"host": "http://zerohop.sbs:80", "user": "65989464", "pass": "29348534"},
-    "4": {"host": "http://dnmxelk01.top:80", "user": "881101381017", "pass": "896811296068"}
+    "1": {"nome": "Servidor 99", "host": "http://serv99.xyz:8880", "user": "1764371", "pass": "2419902"},
+    "2": {"nome": "NX Panel", "host": "http://nxpanelxr51.info", "user": "sandroalvares2", "pass": "T9er2T"}
 }
 
-AGENTES_VIP = [
-    "EPPIPROPLAYER/1.0.8 (Linux;Android 14)",
-    "VLC/3.0.4 LibVLC/3.0.4",
-    "okhttp/4.12.0"
-]
+AGENTES_VIP = ["VLC/3.0.4 LibVLC/3.0.4", "okhttp/4.12.0", "EPPIPROPLAYER/1.0.8"]
 
 def limpar(txt):
     if not txt: return ""
@@ -27,20 +21,16 @@ def limpar(txt):
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
 def executar_proxy(url_video):
-    # ESTRATÉGIA ANTI-100%-CPU:
-    # Qualquer link de IPTV (porta 80, 8880, etc) vai via REDIRECT.
-    # O Koyeb NÃO PODE tocar no tráfego de vídeo ou ele morre.
-    if any(x in url_video.lower() for x in [":80", ":8880", "movie", "archive", "storage"]):
-        print(f"⏩ REDIRECT (CPU SAFE): {url_video[:50]}")
+    # REDIRECT em portas 80 e 8880 para manter a CPU em 0%
+    if any(x in url_video.lower() for x in [":80", ":8880", "archive", "storage"]):
         return redirect(url_video)
 
     headers = {"User-Agent": random.choice(AGENTES_VIP), "Range": request.headers.get("Range", "bytes=0-")}
     try:
-        # Timeout agressivo para não prender o worker
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(3, 10))
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(3, 300))
         def generate():
             try:
-                for chunk in r.iter_content(chunk_size=1024*16):
+                for chunk in r.iter_content(chunk_size=1024*32):
                     if chunk: yield chunk
             except: pass
             finally: r.close()
@@ -57,27 +47,22 @@ def play():
     
     if not srv: return "Fonte OFF", 404
 
-    print(f"🎯 Mestre, rastreando F{fonte_id}: {alvo}")
-
     try:
-        # Busca direta na API selecionada
+        # Busca na API dos queridinhos
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-        r = requests.get(url_api, timeout=4)
-        dados = r.json()
+        dados = requests.get(url_api, timeout=4).json()
         
         for item in dados:
             if alvo in limpar(item.get('name', '')):
+                # Link final para VOD
                 v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
                 return executar_proxy(v_url)
-    except Exception as e:
-        print(f"❌ Erro na F{fonte_id}: {e}")
-        
-    return "Nao encontrado nesta fonte", 404
+    except: pass
+    return "Nao encontrado", 404
 
 @app.route("/")
 def index():
-    return "Cine Mega v43 - Online"
+    return "Cine Mega v44 - Queridinhos Ativos"
 
 if __name__ == "__main__":
-    # threaded=True permite lidar com as requisições sem congelar o master
     app.run(host="0.0.0.0", port=8000, threaded=True)
