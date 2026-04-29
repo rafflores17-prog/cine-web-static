@@ -18,7 +18,8 @@ LOG_FILE = "logs_erros.txt"
 TIMEOUT_CONNECT = 10
 TIMEOUT_READ = 180
 
-CHUNK_SIZE = 1024 * 1024
+# STREAM MAIS ESTÁVEL
+CHUNK_SIZE = 1024 * 256
 
 # =========================
 # AGENTES
@@ -90,7 +91,23 @@ def limpar_texto(texto):
     return texto.strip().lower()
 
 # =========================
-# CARREGAR TXT COM PROTEÇÃO
+# SIMILARIDADE INTELIGENTE
+# =========================
+
+def similaridade(a, b):
+
+    a_set = set(a.split())
+    b_set = set(b.split())
+
+    if not a_set or not b_set:
+        return 0
+
+    inter = a_set.intersection(b_set)
+
+    return len(inter) / max(len(a_set), len(b_set))
+
+# =========================
+# CARREGAR TXT
 # =========================
 
 def carregar_txt(nome):
@@ -152,6 +169,83 @@ VIP_CACHE = carregar_txt("vips.txt")
 SITE_CACHE = carregar_txt("filmes_site.txt")
 
 print("Listas carregadas.")
+
+# =========================
+# BUSCA TXT INTELIGENTE
+# =========================
+
+def buscar_txt(titulo_limpo, acervo):
+
+    # busca exata
+    if titulo_limpo in acervo:
+        return acervo[titulo_limpo]
+
+    melhor_url = None
+    melhor_score = 0
+
+    for nome, url in acervo.items():
+
+        score = similaridade(
+            titulo_limpo,
+            nome
+        )
+
+        if score > melhor_score:
+
+            melhor_score = score
+            melhor_url = url
+
+    if melhor_score >= 0.6:
+
+        return melhor_url
+
+    return None
+
+# =========================
+# BUSCA DB SEGURA
+# =========================
+
+def buscar_db(titulo_limpo):
+
+    try:
+
+        if not os.path.exists("filmes.db"):
+            return None
+
+        conn = sqlite3.connect("filmes.db")
+
+        c = conn.cursor()
+
+        c.execute(
+
+            """
+            SELECT url
+            FROM filmes
+            WHERE nome_busca = ?
+            LIMIT 1
+            """,
+
+            (titulo_limpo,)
+
+        )
+
+        res = c.fetchone()
+
+        conn.close()
+
+        if res:
+
+            return res[0]
+
+    except Exception as e:
+
+        registrar_log(
+            titulo_limpo,
+            "DB",
+            str(e)
+        )
+
+    return None
 
 # =========================
 # PROXY ULTRA ESTÁVEL
@@ -255,71 +349,6 @@ def executar_proxy(url_video, titulo):
         return redirect(url_video)
 
 # =========================
-# BUSCA TXT INTELIGENTE
-# =========================
-
-def buscar_txt(titulo_limpo, acervo):
-
-    if titulo_limpo in acervo:
-
-        return acervo[titulo_limpo]
-
-    for nome, url in acervo.items():
-
-        if nome.startswith(titulo_limpo):
-
-            return url
-
-    return None
-
-# =========================
-# BUSCA DB SEGURA
-# =========================
-
-def buscar_db(titulo_limpo):
-
-    try:
-
-        if not os.path.exists("filmes.db"):
-
-            return None
-
-        conn = sqlite3.connect("filmes.db")
-
-        c = conn.cursor()
-
-        c.execute(
-
-            """
-            SELECT url
-            FROM filmes
-            WHERE nome_busca = ?
-            LIMIT 1
-            """,
-
-            (titulo_limpo,)
-
-        )
-
-        res = c.fetchone()
-
-        conn.close()
-
-        if res:
-
-            return res[0]
-
-    except Exception as e:
-
-        registrar_log(
-            titulo_limpo,
-            "DB",
-            str(e)
-        )
-
-    return None
-
-# =========================
 # ROTA PRINCIPAL
 # =========================
 
@@ -359,14 +388,10 @@ def buscar():
 
         if url:
 
-            resp = executar_proxy(
+            return executar_proxy(
                 url,
                 titulo
             )
-
-            if resp:
-
-                return resp
 
     registrar_log(
         titulo,
@@ -375,6 +400,21 @@ def buscar():
     )
 
     return "Filme não encontrado", 404
+
+# =========================
+# HEALTH CHECK
+# =========================
+
+@app.route("/health")
+
+def health():
+
+    return {
+
+        "status": "online",
+        "motor": "OK"
+
+    }
 
 # =========================
 
