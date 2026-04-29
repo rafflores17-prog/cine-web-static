@@ -10,233 +10,106 @@ import datetime
 app = Flask(__name__)
 
 # =========================
-# CONFIG
+# CONFIGURAÇÕES OTIMIZADAS
 # =========================
-
 LOG_FILE = "logs_erros.txt"
+DB_PATH = "filmes.db"
 
 TIMEOUT_CONNECT = 10
 TIMEOUT_READ = 180
 
-CHUNK_SIZE = 1024 * 1024
+# Chunk de 256KB: O "Ponto Doce" para não crashar o Chrome nem o UC Browser
+CHUNK_SIZE = 1024 * 256 
 
-# =========================
-# AGENTES
-# =========================
-
+# Seus Agentes de Elite para enganar qualquer servidor
 AGENTES = [
-
-    "Mozilla/5.0",
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+    "purpleplayer/1.2.82",
+    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
+    "VLC/3.0.4 LibVLC/3.0.4",
     "okhttp/4.12.0",
-    "VLC/3.0.4",
-    "Dalvik/2.1.0"
-
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 ]
 
-# =========================
-# LOG
-# =========================
-
 def registrar_log(titulo, url, erro):
-
     try:
-
         agora = datetime.datetime.now()
-
-        linha = (
-            f"\n{agora}\n"
-            f"FILME: {titulo}\n"
-            f"URL: {url}\n"
-            f"ERRO: {erro}\n"
-            "----------------------\n"
-        )
-
+        linha = f"\n{agora}\nFILME: {titulo}\nURL: {url}\nERRO: {erro}\n----------------------\n"
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-
             f.write(linha)
-
     except:
         pass
 
-# =========================
-# LIMPAR TEXTO
-# =========================
-
 def limpar_texto(texto):
-
-    if not texto:
-        return ""
-
-    texto = ''.join(
-        c for c in unicodedata.normalize(
-            'NFD',
-            str(texto)
-        )
-        if unicodedata.category(c) != 'Mn'
-    )
-
-    texto = re.sub(
-        r'[^a-zA-Z0-9\s]',
-        ' ',
-        texto
-    )
-
-    texto = re.sub(
-        r'\s+',
-        ' ',
-        texto
-    )
-
-    return texto.strip().lower()
+    if not texto: return ""
+    texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
+    texto = re.sub(r'[^a-zA-Z0-9\s]', ' ', texto)
+    return re.sub(r'\s+', ' ', texto).strip().lower()
 
 # =========================
-# CARREGAR TXT COM PROTEÇÃO
+# LEITOR DE TXT (VIP.TXT)
 # =========================
 
-def carregar_txt(nome):
-
-    arquivos = [
-
-        nome,
-        nome.lower(),
-        nome.upper()
-
-    ]
-
-    for arq in arquivos:
-
-        if os.path.exists(arq):
-
-            return ler_txt(arq)
-
-    print("Arquivo não encontrado:", nome)
-
-    return {}
-
-def ler_txt(caminho):
-
+def ler_txt_vip():
     acervo = {}
-
-    try:
-
-        with open(
-            caminho,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            for linha in f:
-
-                if "|" in linha:
-
-                    nome, url = linha.split("|", 1)
-
-                    nome_limpo = limpar_texto(nome)
-
-                    acervo[nome_limpo] = url.strip()
-
-    except Exception as e:
-
-        registrar_log(
-            "LER_TXT",
-            caminho,
-            str(e)
-        )
-
+    caminho = "vips.txt"
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                for linha in f:
+                    if "|" in linha:
+                        nome, url = linha.split("|", 1)
+                        # Limpa espaços e normaliza para a busca bater
+                        acervo[limpar_texto(nome.strip())] = url.strip()
+        except Exception as e:
+            registrar_log("LER_VIP", caminho, str(e))
     return acervo
 
-print("Carregando listas...")
-
-VIP_CACHE = carregar_txt("vips.txt")
-
-SITE_CACHE = carregar_txt("filmes_site.txt")
-
-print("Listas carregadas.")
-
 # =========================
-# PROXY ULTRA ESTÁVEL
+# PROXY ULTRA ESTÁVEL (CORREÇÃO M3GAN)
 # =========================
 
 def executar_proxy(url_video, titulo):
-
     try:
-
-        agente = random.choice(AGENTES)
-
         headers = {
-
-            "User-Agent": agente,
-            "Connection": "keep-alive"
-
+            "User-Agent": random.choice(AGENTES),
+            "Connection": "keep-alive",
+            "Accept": "*/*"
         }
 
         range_header = request.headers.get("Range")
-
         if range_header:
-
             headers["Range"] = range_header
 
         r = requests.get(
-
             url_video,
             headers=headers,
             stream=True,
             timeout=(TIMEOUT_CONNECT, TIMEOUT_READ),
             allow_redirects=True
-
         )
 
         if r.status_code >= 400:
-
-            registrar_log(
-                titulo,
-                url_video,
-                f"HTTP {r.status_code}"
-            )
-
+            registrar_log(titulo, url_video, f"HTTP {r.status_code}")
             return redirect(url_video)
 
-        content_type = r.headers.get(
-            "Content-Type",
-            "video/mp4"
-        )
-
-        content_length = r.headers.get(
-            "Content-Length"
-        )
-
-        content_range = r.headers.get(
-            "Content-Range"
-        )
-
         def generate():
-
-            for chunk in r.iter_content(
-                chunk_size=CHUNK_SIZE
-            ):
-
+            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk:
-
                     yield chunk
 
         resp_headers = {
-
-            "Content-Type": content_type,
+            "Content-Type": "video/mp4",
             "Accept-Ranges": "bytes",
             "Access-Control-Allow-Origin": "*",
-            "Connection": "keep-alive",
             "Cache-Control": "no-cache",
             "X-Content-Type-Options": "nosniff"
-
         }
 
-        if content_length:
-
-            resp_headers["Content-Length"] = content_length
-
-        if content_range:
-
-            resp_headers["Content-Range"] = content_range
+        if r.headers.get("Content-Length"):
+            resp_headers["Content-Length"] = r.headers["Content-Length"]
+        if r.headers.get("Content-Range"):
+            resp_headers["Content-Range"] = r.headers["Content-Range"]
 
         return Response(
             stream_with_context(generate()),
@@ -245,150 +118,78 @@ def executar_proxy(url_video, titulo):
         )
 
     except Exception as e:
-
-        registrar_log(
-            titulo,
-            url_video,
-            str(e)
-        )
-
+        registrar_log(titulo, url_video, str(e))
         return redirect(url_video)
 
 # =========================
-# BUSCA TXT INTELIGENTE
-# =========================
-
-def buscar_txt(titulo_limpo, acervo):
-
-    if titulo_limpo in acervo:
-
-        return acervo[titulo_limpo]
-
-    for nome, url in acervo.items():
-
-        if nome.startswith(titulo_limpo):
-
-            return url
-
-    return None
-
-# =========================
-# BUSCA DB SEGURA
+# BUSCA DB OTIMIZADA
 # =========================
 
 def buscar_db(titulo_limpo):
-
+    if not os.path.exists(DB_PATH):
+        return None
     try:
-
-        if not os.path.exists("filmes.db"):
-
-            return None
-
-        conn = sqlite3.connect("filmes.db")
-
+        # Usamos o row_factory para ler melhor as colunas se precisar
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-
-        c.execute(
-
-            """
-            SELECT url
-            FROM filmes
-            WHERE nome_busca = ?
-            LIMIT 1
-            """,
-
-            (titulo_limpo,)
-
-        )
-
+        
+        # 1. TENTA BUSCA EXATA (Para não trocar o 1 pelo 2)
+        c.execute("SELECT url FROM filmes WHERE nome_busca = ? LIMIT 1", (titulo_limpo,))
         res = c.fetchone()
-
+        
+        # 2. SE NÃO ACHOU, TENTA BUSCA POR INÍCIO (Startswith)
+        if not res:
+            c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ? LIMIT 1", (f"{titulo_limpo}%",))
+            res = c.fetchone()
+            
         conn.close()
-
-        if res:
-
-            return res[0]
-
+        return res[0] if res else None
     except Exception as e:
-
-        registrar_log(
-            titulo_limpo,
-            "DB",
-            str(e)
-        )
-
-    return None
+        registrar_log(titulo_limpo, "ERRO_DB", str(e))
+        return None
 
 # =========================
 # ROTA PRINCIPAL
 # =========================
 
 @app.route("/buscar")
-
 def buscar():
-
     titulo = request.args.get("titulo")
-
     if not titulo:
-
         return "Título vazio", 400
 
     titulo_limpo = limpar_texto(titulo)
+    print(f"🎯 Mestre, buscando no DB: {titulo_limpo}")
 
-    print("Buscando:", titulo_limpo)
+    # --- ORDEM DE PRIORIDADE ---
+    
+    # 1. BANCO DE DADOS (Seu foco total)
+    url = buscar_db(titulo_limpo)
+    
+    # 2. VIP.TXT (Backup manual em segundo lugar)
+    if not url:
+        vips = ler_txt_vip()
+        if titulo_limpo in vips:
+            url = vips[titulo_limpo]
+        else:
+            # Tenta busca aproximada no VIP se não achou exata
+            for nome, u in vips.items():
+                if nome.startswith(titulo_limpo):
+                    url = u
+                    break
 
-    fontes = [
+    if url:
+        return executar_proxy(url, titulo)
 
-        buscar_txt(
-            titulo_limpo,
-            VIP_CACHE
-        ),
-
-        buscar_db(
-            titulo_limpo
-        ),
-
-        buscar_txt(
-            titulo_limpo,
-            SITE_CACHE
-        )
-
-    ]
-
-    for url in fontes:
-
-        if url:
-
-            resp = executar_proxy(
-                url,
-                titulo
-            )
-
-            if resp:
-
-                return resp
-
-    registrar_log(
-        titulo,
-        "nenhuma fonte",
-        "Filme não encontrado"
-    )
-
+    registrar_log(titulo, "Global", "Filme não encontrado em nenhuma fonte")
     return "Filme não encontrado", 404
 
-# =========================
+@app.route("/")
+def index():
+    return "🚀 Motor Cine Mega v19 - Foco DB & VIP Ativo!"
 
 if __name__ == "__main__":
-
     app.run(
-
         host="0.0.0.0",
-
-        port=int(
-            os.environ.get(
-                "PORT",
-                8000
-            )
-        )
-
+        port=int(os.environ.get("PORT", 8000))
     )
