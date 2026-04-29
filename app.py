@@ -4,22 +4,21 @@ import sqlite3
 import os
 import re
 import unicodedata
-import random
 
 app = Flask(__name__)
 DB_PATH = "filmes.db"
 
-# Função para limpar texto e evitar erros de busca
+# Limpa o texto para busca (remove acentos e espaços extras)
 def limpar(txt):
     if not txt: return ""
     txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
     return re.sub(r'\s+', ' ', re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)).strip().lower()
 
 @app.route("/")
-def home():
-    return {"status": "online", "motor": "Flask/Gunicorn"}
+def health():
+    return "Motor Cine Mega Online 🚀"
 
-# BUSCA INTELIGENTE: Resolve o erro do Jumanji (Prioriza o Exato)
+# BUSCA INTELIGENTE: Prioriza o exato para não bugar o Jumanji
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo")
@@ -30,22 +29,22 @@ def buscar():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # 1. Tenta achar o nome EXATO (evita abrir Jumanji 2 no lugar do 1)
-    c.execute("SELECT nome, url FROM filmes WHERE nome_busca = ? LIMIT 1", (t,))
+    # 1. Tenta o nome EXATO primeiro
+    c.execute("SELECT url, nome FROM filmes WHERE nome_busca = ? LIMIT 1", (t,))
     res = c.fetchone()
     
-    # 2. Se não achou exato, tenta o que começa com o nome
+    # 2. Se não achou exato, tenta o aproximado (LIKE)
     if not res:
-        c.execute("SELECT nome, url FROM filmes WHERE nome_busca LIKE ? LIMIT 1", (f"{t}%",))
+        c.execute("SELECT url, nome FROM filmes WHERE nome_busca LIKE ? LIMIT 1", (f"{t}%",))
         res = c.fetchone()
     
     conn.close()
 
-    if not res: return jsonify({"erro": "filme não encontrado no banco"}), 404
+    if not res: return jsonify({"erro": "não encontrado no banco"}), 404
     
     return stream(res["url"], res["nome"])
 
-# MOTOR DE STREAMING (Anti-Crash para o Chrome)
+# MOTOR DE STREAMING (Anti-Crash)
 def stream(url, title):
     try:
         headers = {
@@ -71,7 +70,7 @@ def stream(url, title):
                 "Cache-Control": "no-cache"
             }
         )
-    except Exception as e:
+    except:
         return redirect(url)
 
 if __name__ == "__main__":
