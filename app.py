@@ -1,4 +1,3 @@
-
 from flask import Flask, request, Response, stream_with_context, redirect
 import requests
 import sqlite3
