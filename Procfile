@@ -1,1 +1,1 @@
-web: uvicorn app:app --host 0.0.0.0 --port 8000
+web: gunicorn app:app --timeout 7200 --threads 8
