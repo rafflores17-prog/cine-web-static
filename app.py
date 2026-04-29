@@ -3,6 +3,8 @@ import requests
 import sqlite3
 import random
 import os
+import unicodedata
+import re
 
 app = Flask(__name__)
 
@@ -23,8 +25,18 @@ SERVIDORES_API = [
     {"nome": "Stmax", "host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"}
 ]
 
+# 🔥 A MÁGICA DO MESTRE: Normaliza texto (Tira acentos, símbolos e espaços duplos)
+def limpar_texto(texto):
+    if not texto: return ""
+    # Remove acentos e cedilhas
+    texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
+    # Remove caracteres especiais (deixa só letras e números)
+    texto = re.sub(r'[^a-zA-Z0-9\s]', ' ', texto)
+    # Tira espaços duplicados e deixa minúsculo
+    return re.sub(r'\s+', ' ', texto).strip().lower()
+
 def ler_txt(caminho):
-    """Lê arquivos TXT e transforma em dicionário para busca ultra rápida"""
+    """Lê arquivos TXT e já limpa os nomes para a busca não falhar"""
     acervo = {}
     if os.path.exists(caminho):
         try:
@@ -32,8 +44,10 @@ def ler_txt(caminho):
                 for linha in f:
                     if "|" in linha:
                         n, u = linha.split("|", 1)
-                        acervo[n.strip().lower()] = u.strip()
-        except: pass
+                        # Guarda no dicionário já limpo!
+                        acervo[limpar_texto(n)] = u.strip()
+        except Exception as e: 
+            print(f"Erro ao ler {caminho}: {e}")
     return acervo
 
 def executar_proxy(url_video):
@@ -45,7 +59,6 @@ def executar_proxy(url_video):
 
     agente = random.choice(AGENTES_VIP)
     
-    # Cabeçalhos para enganar o servidor IPTV e forçar o Chrome a mostrar vídeo
     headers = {
         "User-Agent": agente,
         "Accept": "video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5",
@@ -53,36 +66,31 @@ def executar_proxy(url_video):
         "Icy-MetaData": "1"
     }
     
-    # Repassa a posição do vídeo (Range) para o usuário conseguir adiantar o filme
     range_header = request.headers.get('Range', None)
     if range_header:
         headers['Range'] = range_header
 
     try:
-        # Timeout de 120s para o servidor IPTV não desistir de carregar
         r = requests.get(url_video, headers=headers, stream=True, timeout=(10, 120), allow_redirects=True)
         
         def generate():
-            # Chunk de 256kb: O tamanho perfeito para o Chrome não travar
             for chunk in r.iter_content(chunk_size=256 * 1024):
                 if chunk: yield chunk
         
         resp_headers = {
             "Accept-Ranges": "bytes",
             "Access-Control-Allow-Origin": "*",
-            "Content-Type": "video/mp4", # Força o motor de vídeo do navegador
-            "X-Content-Type-Options": "nosniff", # Impede o bug de carregar só áudio
+            "Content-Type": "video/mp4", 
+            "X-Content-Type-Options": "nosniff", 
             "Cache-Control": "no-cache"
         }
         
-        # Repassa metadados do arquivo original para o player funcionar 100%
         if 'Content-Range' in r.headers: resp_headers['Content-Range'] = r.headers['Content-Range']
         if 'Content-Length' in r.headers: resp_headers['Content-Length'] = r.headers['Content-Length']
         
         return Response(stream_with_context(generate()), status=r.status_code, headers=resp_headers)
     except Exception as e:
         print(f"Erro no Proxy: {e}")
-        # Tentativa final: Redirect se o Proxy falhar
         return redirect(url_video.replace("http://", "https://"))
 
 @app.route("/buscar")
@@ -90,40 +98,57 @@ def buscar():
     titulo = request.args.get("titulo")
     if not titulo: return "Título vazio", 400
     
-    t_limpo = titulo.strip().lower()
+    # 🧼 Limpa a busca que vem da Vitrine
+    t_limpo = limpar_texto(titulo)
 
     # 🥇 1º LUGAR: SEU VIP (vips.txt) - Prioridade Máxima
     VIP = ler_txt("vips.txt")
-    if t_limpo in VIP:
-        print(f"💎 VIP ENCONTRADO: {t_limpo}")
-        return executar_proxy(VIP[t_limpo])
+    for nome_db, url in VIP.items():
+        if t_limpo in nome_db or nome_db in t_limpo:
+            print(f"💎 VIP ENCONTRADO: {nome_db}")
+            return executar_proxy(url)
 
-    # 🥈 2º LUGAR: FILMES_SITE.TXT (O seu novo acervo gigante)
+    # 🥈 2º LUGAR: FILMES_SITE.TXT
     GIGANTE = ler_txt("filmes_site.txt")
-    if t_limpo in GIGANTE:
-        print(f"🚀 GIGANTE ENCONTRADO: {t_limpo}")
-        return executar_proxy(GIGANTE[t_limpo])
+    for nome_db, url in GIGANTE.items():
+        if t_limpo in nome_db or nome_db in t_limpo:
+            print(f"🚀 GIGANTE ENCONTRADO: {nome_db}")
+            return executar_proxy(url)
 
-    # 🥉 3º LUGAR: BANCO DE DADOS LOCAL (filmes.db)
+    # 🥉 3º LUGAR: BANCO DE DADOS LOCAL (filmes.db turbinado com search_name)
     try:
         if os.path.exists('filmes.db'):
             conn = sqlite3.connect('filmes.db')
             c = conn.cursor()
-            c.execute("SELECT url FROM playlist WHERE nome LIKE ? LIMIT 1", (f"%{t_limpo}%",))
+            
+            # Tenta buscar pela sua nova coluna 'search_name'. Se por acaso a coluna faltar em algum filme, o 'name' antigo serve de backup.
+            try:
+                c.execute("""
+                    SELECT url FROM playlist 
+                    WHERE LOWER(search_name) LIKE ? 
+                    OR LOWER(name) LIKE ? 
+                    LIMIT 1
+                """, (f"%{t_limpo}%", f"%{t_limpo}%"))
+            except sqlite3.OperationalError:
+                # Fallback caso a tabela antiga não tenha a coluna search_name
+                c.execute("SELECT url FROM playlist WHERE LOWER(name) LIKE ? LIMIT 1", (f"%{t_limpo}%",))
+                
             res = c.fetchone()
             conn.close()
             if res: 
                 print(f"💾 DB ENCONTRADO: {t_limpo}")
                 return executar_proxy(res[0])
-    except: pass
+    except Exception as e: 
+        print(f"Erro no DB local: {e}")
 
-    # 🏅 4º LUGAR: APIs EXTERNAS (Cinevexio / Stmax)
+    # 🏅 4º LUGAR: APIs EXTERNAS
     for srv in SERVIDORES_API:
         try:
             url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
             r = requests.get(url_api, timeout=4).json()
             for item in r:
-                if t_limpo == item.get('name', '').lower():
+                nome_api_limpo = limpar_texto(item.get('name', ''))
+                if t_limpo in nome_api_limpo or nome_api_limpo in t_limpo:
                     v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
                     print(f"📡 API {srv['nome']} ENCONTRADA")
                     return executar_proxy(v_url)
@@ -133,8 +158,7 @@ def buscar():
 
 @app.route("/")
 def index():
-    return "🚀 Motor Cine Mega v7 Híbrido - Online e Operacional!"
+    return "🚀 Motor Cine Mega v8 Híbrido DB - Online e Operacional!"
 
 if __name__ == "__main__":
-    # Rodando na porta do Koyeb
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
