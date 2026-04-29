@@ -24,7 +24,7 @@ SERVIDORES_API = [
     {"nome": "Stmax", "host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"}
 ]
 
-# 🔥 A MÁGICA DO MESTRE: Limpa o texto para a busca não falhar por causa de acentos
+# 🔥 Limpeza de Texto (Arranca acentos e caracteres estranhos)
 def limpar_texto(texto):
     if not texto: return ""
     texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
@@ -32,7 +32,6 @@ def limpar_texto(texto):
     return re.sub(r'\s+', ' ', texto).strip().lower()
 
 def ler_txt(caminho):
-    """Lê arquivos TXT e já limpa os nomes na memória para busca ultra rápida"""
     acervo = {}
     if os.path.exists(caminho):
         try:
@@ -40,10 +39,17 @@ def ler_txt(caminho):
                 for linha in f:
                     if "|" in linha:
                         n, u = linha.split("|", 1)
+                        # Guarda o nome limpo no dicionário
                         acervo[limpar_texto(n)] = u.strip()
-        except Exception as e: 
-            pass
+        except: pass
     return acervo
+
+# ⚡ CACHE NA MEMÓRIA (A cura da Lentidão!)
+# O Koyeb lê isso apenas UMA VEZ ao iniciar, deixando a busca na velocidade da luz.
+print("Carregando acervos para a memória...")
+VIP_CACHE = ler_txt("vips.txt")
+GIGANTE_CACHE = ler_txt("filmes_site.txt")
+print(f"Acervos Prontos: VIPs e Gigantes carregados na RAM!")
 
 def executar_proxy(url_video):
     if "archive.org" in url_video.lower():
@@ -77,7 +83,7 @@ def executar_proxy(url_video):
         if 'Content-Length' in r.headers: resp_headers['Content-Length'] = r.headers['Content-Length']
         
         return Response(stream_with_context(generate()), status=r.status_code, headers=resp_headers)
-    except Exception as e:
+    except:
         return redirect(url_video.replace("http://", "https://"))
 
 @app.route("/buscar")
@@ -87,17 +93,17 @@ def buscar():
     
     t_limpo = limpar_texto(titulo)
 
-    # 🥇 1º LUGAR: SEU VIP (Busca Direta Instantânea)
-    VIP = ler_txt("vips.txt")
-    if t_limpo in VIP:
-        print(f"💎 VIP ENCONTRADO: {t_limpo}")
-        return executar_proxy(VIP[t_limpo])
+    # 🥇 1º LUGAR: VIP
+    for nome_db, url in VIP_CACHE.items():
+        if t_limpo in nome_db or nome_db in t_limpo:
+            print(f"💎 VIP ENCONTRADO: {nome_db}")
+            return executar_proxy(url)
 
-    # 🥈 2º LUGAR: FILMES_SITE.TXT (Busca Direta Instantânea)
-    GIGANTE = ler_txt("filmes_site.txt")
-    if t_limpo in GIGANTE:
-        print(f"🚀 GIGANTE ENCONTRADO: {t_limpo}")
-        return executar_proxy(GIGANTE[t_limpo])
+    # 🥈 2º LUGAR: GIGANTE
+    for nome_db, url in GIGANTE_CACHE.items():
+        if t_limpo in nome_db or nome_db in t_limpo:
+            print(f"🚀 GIGANTE ENCONTRADO: {nome_db}")
+            return executar_proxy(url)
 
     # 🥉 3º LUGAR: BANCO DE DADOS LOCAL
     try:
@@ -105,8 +111,8 @@ def buscar():
             conn = sqlite3.connect('filmes.db')
             c = conn.cursor()
             
+            # 🛡️ Volta a busca do DB para o seu padrão original "CONTAINS" (% LIKE %)
             try:
-                # Busca pelo search_name exato ou parecido
                 c.execute("""
                     SELECT url FROM playlist 
                     WHERE LOWER(search_name) LIKE ? 
@@ -114,6 +120,7 @@ def buscar():
                     LIMIT 1
                 """, (f"%{t_limpo}%", f"%{t_limpo}%"))
             except sqlite3.OperationalError:
+                # Backup se a coluna search_name faltar
                 c.execute("SELECT url FROM playlist WHERE LOWER(name) LIKE ? LIMIT 1", (f"%{t_limpo}%",))
                 
             res = c.fetchone()
@@ -121,8 +128,7 @@ def buscar():
             if res: 
                 print(f"💾 DB ENCONTRADO: {t_limpo}")
                 return executar_proxy(res[0])
-    except Exception as e: 
-        print(f"Erro no DB local: {e}")
+    except Exception as e: pass
 
     # 🏅 4º LUGAR: APIs EXTERNAS
     for srv in SERVIDORES_API:
@@ -131,16 +137,12 @@ def buscar():
             r = requests.get(url_api, timeout=4).json()
             for item in r:
                 nome_api = limpar_texto(item.get('name', ''))
-                if t_limpo == nome_api:
+                if t_limpo in nome_api or nome_api in t_limpo:
                     v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
                     return executar_proxy(v_url)
         except: continue
 
     return "Filme não encontrado nas bases de dados", 404
-
-@app.route("/")
-def index():
-    return "🚀 Motor Cine Mega Híbrido DB - Corrigido e Ultra Rápido!"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
