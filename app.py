@@ -1,12 +1,11 @@
-from flask import Flask, request, Response, stream_with_context, redirect
+from flask import Flask, request, Response, stream_with_context
 import requests
 import sqlite3
-import random
 import os
 import unicodedata
 import re
+import random
 import datetime
-from difflib import SequenceMatcher
 
 app = Flask(__name__)
 
@@ -14,160 +13,153 @@ app = Flask(__name__)
 # CONFIG
 # =========================
 
-DB_PATH = "filmes.db"
+DB_FILE = "filmes.db"
 VIP_FILE = "vips.txt"
 LOG_FILE = "logs_erros.txt"
 
-TIMEOUT = (10, 180)
-CHUNK_SIZE = 1024 * 512
+TIMEOUT = (5, 60)
+CHUNK_SIZE = 1024 * 64  # 🔥 seguro (64KB)
 
 AGENTES = [
-    "Mozilla/5.0 (Linux; Android 14) Chrome/120",
+    "Mozilla/5.0",
     "okhttp/4.12.0",
-    "VLC/3.0.20",
-    "ExoPlayerLib/2.19.1",
-    "Dalvik/2.1.0",
+    "VLC/3.0",
+    "Dalvik/2.1.0"
 ]
 
 # =========================
 # LOG
 # =========================
 
-def log(err, title="", url=""):
+def log(titulo, url, erro):
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"\n{datetime.datetime.now()}\n{title}\n{url}\n{err}\n")
+            f.write(f"\n{datetime.datetime.now()}\n{titulo}\n{url}\n{erro}\n")
     except:
         pass
 
 # =========================
-# NORMALIZAÇÃO (CRÍTICO)
+# NORMALIZAR TEXTO
 # =========================
 
-def norm(t):
+def normalizar(t):
     if not t:
         return ""
 
-    t = unicodedata.normalize("NFD", str(t))
-    t = ''.join(c for c in t if unicodedata.category(c) != 'Mn')
-    t = t.lower()
+    t = ''.join(
+        c for c in unicodedata.normalize("NFD", str(t))
+        if unicodedata.category(c) != "Mn"
+    )
 
-    t = re.sub(r'[^a-z0-9\s]', ' ', t)
-    t = re.sub(r'\s+', ' ', t)
+    t = re.sub(r"[^a-zA-Z0-9\s]", " ", t)
+    t = re.sub(r"\s+", " ", t)
 
-    return t.strip()
-
-# =========================
-# SIMILARIDADE INTELIGENTE
-# =========================
-
-def score(a, b):
-    return SequenceMatcher(None, a, b).ratio()
+    return t.strip().lower()
 
 # =========================
-# VIP TXT
+# DB SEARCH (PRIORIDADE TOTAL)
 # =========================
 
-def load_txt(file):
-    data = {}
-    if not os.path.exists(file):
-        return data
+def buscar_db(nome):
+    try:
+        if not os.path.exists(DB_FILE):
+            return None
 
-    with open(file, "r", encoding="utf-8") as f:
-        for line in f:
-            if "|" in line:
-                name, url = line.split("|", 1)
-                data[norm(name)] = url.strip()
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
 
-    return data
+        n = normalizar(nome)
 
-VIP = load_txt(VIP_FILE)
+        # 🔥 exato primeiro
+        c.execute("""
+            SELECT url FROM filmes
+            WHERE nome_busca = ?
+            LIMIT 1
+        """, (n,))
 
-# =========================
-# DB SEARCH (ROBUSTO)
-# =========================
+        r = c.fetchone()
 
-def buscar_db(title):
-    if not os.path.exists(DB_PATH):
+        if r:
+            conn.close()
+            return r[0]
+
+        # 🔥 fallback LIKE
+        c.execute("""
+            SELECT url FROM filmes
+            WHERE nome_busca LIKE ?
+            LIMIT 1
+        """, (f"%{n}%",))
+
+        r = c.fetchone()
+
+        conn.close()
+
+        return r[0] if r else None
+
+    except Exception as e:
+        log(nome, "DB", str(e))
         return None
 
-    t = norm(title)
+# =========================
+# VIP TXT (SECUNDÁRIO)
+# =========================
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+def buscar_vip(nome):
+    try:
+        if not os.path.exists(VIP_FILE):
+            return None
 
-    c.execute("SELECT nome, url FROM filmes")
-    rows = c.fetchall()
-    conn.close()
+        n = normalizar(nome)
 
-    best = None
-    best_score = 0
+        with open(VIP_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                if "|" in line:
+                    t, url = line.split("|", 1)
+                    if normalizar(t) == n:
+                        return url.strip()
 
-    for nome, url in rows:
-        n = norm(nome)
-        s = score(t, n)
-
-        if s > best_score:
-            best_score = s
-            best = url
-
-    if best_score >= 0.65:
-        return best
+    except Exception as e:
+        log(nome, "VIP", str(e))
 
     return None
 
 # =========================
-# VIP SEARCH
+# STREAM SEGURO (ANTI CRASH GUNICORN)
 # =========================
 
-def buscar_vip(title):
-    t = norm(title)
-
-    if t in VIP:
-        return VIP[t]
-
-    best = None
-    best_score = 0
-
-    for k, v in VIP.items():
-        s = score(t, k)
-        if s > best_score:
-            best_score = s
-            best = v
-
-    return best if best_score >= 0.7 else None
-
-# =========================
-# STREAM RESISTENTE
-# =========================
-
-def stream(url, title):
+def stream(url, titulo):
     try:
         headers = {
             "User-Agent": random.choice(AGENTES),
-            "Accept": "*/*",
             "Connection": "keep-alive",
-            "Accept-Encoding": "identity"
+            "Accept": "*/*"
         }
 
         if "Range" in request.headers:
             headers["Range"] = request.headers["Range"]
 
-        r = requests.get(url, headers=headers, stream=True, timeout=TIMEOUT)
+        r = requests.get(
+            url,
+            headers=headers,
+            stream=True,
+            timeout=TIMEOUT,
+            allow_redirects=True
+        )
 
         if r.status_code >= 400:
-            return redirect(url)
+            log(titulo, url, f"HTTP {r.status_code}")
+            return ("erro stream", 502)
 
-        def gen():
+        def generate():
             try:
                 for chunk in r.iter_content(CHUNK_SIZE):
                     if chunk:
                         yield chunk
             except Exception as e:
-                log(str(e), title, url)
+                log(titulo, url, str(e))
 
         return Response(
-            stream_with_context(gen()),
+            stream_with_context(generate()),
             status=r.status_code,
             headers={
                 "Content-Type": r.headers.get("Content-Type", "video/mp4"),
@@ -178,29 +170,37 @@ def stream(url, title):
         )
 
     except Exception as e:
-        log(str(e), title, url)
-        return redirect(url)
+        log(titulo, url, str(e))
+        return ("erro geral", 500)
 
 # =========================
-# ROUTE
+# ROTA PRINCIPAL
 # =========================
 
 @app.route("/buscar")
 def buscar():
+
     titulo = request.args.get("titulo")
 
     if not titulo:
         return "sem titulo", 400
 
-    # ordem REAL
-    url = buscar_db(titulo) or buscar_vip(titulo)
+    print("BUSCANDO:", titulo)
+
+    url = (
+        buscar_db(titulo)
+        or buscar_vip(titulo)
+    )
 
     if not url:
-        return "nao encontrado", 404
+        return "não encontrado", 404
 
     return stream(url, titulo)
 
 # =========================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000))
+    )
