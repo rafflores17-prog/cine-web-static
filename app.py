@@ -1,192 +1,259 @@
 from flask import Flask, request, Response, stream_with_context, redirect
 import requests
 import sqlite3
-import os
-import re
-import unicodedata
 import random
+import os
+import unicodedata
+import re
 import datetime
 
 app = Flask(__name__)
 
 # =========================
-# CONFIG
+# CONFIG ESTÁVEL
 # =========================
 
-DB_PATH = "filmes.db"
 LOG_FILE = "logs_erros.txt"
 
+TIMEOUT_CONNECT = 10
+TIMEOUT_READ = 300
+
 CHUNK_SIZE = 1024 * 256
-TIMEOUT = (8, 300)
 
 # =========================
-# AGENTES IPTV / CHROME
+# AGENTES (ANTI-BLOCK REALISTA)
 # =========================
 
 AGENTES = [
-    "EPPIPROPLAYER/1.0.8",
-    "OTT Navigator",
-    "VLC/3.0.20",
+
+    # IPTV / players reais (melhor evasão)
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+    "PurplePlayer/1.2.82",
+    "OTT Navigator/1.6.5",
+    "Kodi/20.3 (Linux; Android 14)",
+
+    # players técnicos
+    "VLC/3.0.20 LibVLC/3.0.20",
     "ExoPlayerLib/2.19.1",
-    "Dalvik/2.1.0",
-    "Mozilla/5.0 (Android 14) Chrome/120 Mobile"
+
+    # Android real
+    "Dalvik/2.1.0 (Linux; U; Android 14; Mobile)",
+
+    # Chrome (IMPORTANTE p/ seu público)
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+
+    # fallback técnico
+    "okhttp/4.12.0"
 ]
 
 # =========================
 # LOG
 # =========================
 
-def log(err, title="", url=""):
+def registrar_log(titulo, url, erro):
     try:
+        now = datetime.datetime.now()
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"\n{datetime.datetime.now()}\n{title}\n{url}\n{err}\n")
+            f.write(f"\n{now}\n{titulo}\n{url}\n{erro}\n-------------------\n")
     except:
         pass
 
 # =========================
-# LIMPEZA
+# LIMPEZA TEXTO
 # =========================
 
-def limpar(txt):
-    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt))
-                  if unicodedata.category(c) != 'Mn')
-    txt = re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)
-    txt = re.sub(r'\s+', ' ', txt)
-    return txt.strip().lower()
+def limpar_texto(texto):
+    if not texto:
+        return ""
 
-# =========================
-# CRIA DB AUTOMÁTICO
-# =========================
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS filmes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT,
-        nome_busca TEXT,
-        url TEXT
+    texto = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
     )
-    """)
 
-    conn.commit()
-    conn.close()
+    texto = re.sub(r'[^a-zA-Z0-9\s]', ' ', texto)
+    texto = re.sub(r'\s+', ' ', texto)
 
-init_db()
-
-# =========================
-# ROBÔ: ORGANIZAR TXT -> DB
-# =========================
-
-def importar_txt_para_db(txt_file):
-    if not os.path.exists(txt_file):
-        return
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    with open(txt_file, "r", encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            if "|" in line:
-                nome, url = line.split("|", 1)
-                nome_limpo = limpar(nome)
-
-                c.execute("""
-                    INSERT INTO filmes (nome, nome_busca, url)
-                    VALUES (?, ?, ?)
-                """, (nome.strip(), nome_limpo, url.strip()))
-
-    conn.commit()
-    conn.close()
+    return texto.strip().lower()
 
 # =========================
-# BUSCA (SEMPRE POR ID REAL)
+# SIMILARIDADE
 # =========================
 
-def buscar_filme(titulo):
-    titulo = limpar(titulo)
+def similaridade(a, b):
+    a_set = set(a.split())
+    b_set = set(b.split())
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    if not a_set or not b_set:
+        return 0
 
-    # 🔥 exato primeiro
-    c.execute("SELECT id, nome, url FROM filmes WHERE nome_busca = ? LIMIT 1", (titulo,))
-    res = c.fetchone()
+    inter = a_set.intersection(b_set)
+    score = len(inter) / max(len(a_set), len(b_set))
 
-    if res:
-        conn.close()
-        return res
+    if any(c.isdigit() for c in a) != any(c.isdigit() for c in b):
+        score *= 0.6
 
-    # 🔥 fallback seguro (sem confundir franquia)
-    c.execute("SELECT id, nome, url FROM filmes WHERE nome_busca LIKE ? LIMIT 5", (f"{titulo}%",))
-    res = c.fetchall()
+    return score
 
-    conn.close()
+# =========================
+# TXT
+# =========================
 
-    if res:
-        return res[0]
+def ler_txt(caminho):
+    acervo = {}
+
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            for linha in f:
+                if "|" in linha:
+                    nome, url = linha.split("|", 1)
+                    acervo[limpar_texto(nome)] = url.strip()
+    except:
+        pass
+
+    return acervo
+
+
+def carregar_txt(nome):
+    for arq in [nome, nome.lower(), nome.upper()]:
+        if os.path.exists(arq):
+            return ler_txt(arq)
+    return {}
+
+print("Carregando listas...")
+
+VIP_CACHE = carregar_txt("vips.txt")
+SITE_CACHE = carregar_txt("filmes_site.txt")
+
+print("Listas OK")
+
+# =========================
+# BUSCA INTELIGENTE
+# =========================
+
+def buscar_txt(titulo_limpo, acervo):
+
+    if titulo_limpo in acervo:
+        return acervo[titulo_limpo]
+
+    best = None
+    best_score = 0
+
+    for nome, url in acervo.items():
+        score = similaridade(titulo_limpo, nome)
+
+        if score > best_score:
+            best_score = score
+            best = url
+
+    if best_score >= 0.6:
+        return best
 
     return None
 
 # =========================
-# STREAM ROBUSTO (ANTI-CRASH CHROME)
+# DB
 # =========================
 
-def stream(url, title):
+def buscar_db(titulo_limpo):
+    try:
+        if not os.path.exists("filmes.db"):
+            return None
+
+        conn = sqlite3.connect("filmes.db")
+        c = conn.cursor()
+
+        c.execute(
+            "SELECT url FROM filmes WHERE nome_busca = ? LIMIT 1",
+            (titulo_limpo,)
+        )
+
+        res = c.fetchone()
+        conn.close()
+
+        return res[0] if res else None
+
+    except:
+        return None
+
+# =========================
+# 🔥 PROXY ANTI-BLOCK + CHROME FIX
+# =========================
+
+def executar_proxy(url_video, titulo):
 
     try:
-        agent = random.choice(AGENTES)
+
+        agente = random.choice(AGENTES)
 
         headers = {
-            "User-Agent": agent,
+            "User-Agent": agente,
+
+            # 🔥 ESSENCIAL PRA CHROME NÃO CRASHAR
             "Accept": "*/*",
-            "Connection": "keep-alive",
             "Accept-Encoding": "identity",
-            "Referer": url
+            "Connection": "keep-alive",
+            "Accept-Language": "en-US,en;q=0.9",
+
+            # 🔥 FAZ O SERVIDOR PARECER PLAYER REAL
+            "Referer": url_video,
+            "Origin": "/".join(url_video.split("/")[:3])
         }
 
         range_header = request.headers.get("Range")
+
         if range_header:
             headers["Range"] = range_header
 
         r = requests.get(
-            url,
+            url_video,
             headers=headers,
             stream=True,
-            timeout=TIMEOUT,
+            timeout=(TIMEOUT_CONNECT, TIMEOUT_READ),
             allow_redirects=True
         )
 
-        if r.status_code >= 400:
-            log("HTTP ERROR", title, url)
-            return redirect(url)
+        status = r.status_code
 
-        status = 206 if range_header else 200
+        # 🔥 FIX CHROME SEEK + BUFFER
+        if range_header and status == 200:
+            status = 206
+
+        if status not in (200, 206):
+            registrar_log(titulo, url_video, f"HTTP {status}")
+            return redirect(url_video)
 
         def generate():
-            for chunk in r.iter_content(CHUNK_SIZE):
+            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk:
                     yield chunk
+
+        resp_headers = {
+            "Content-Type": r.headers.get("Content-Type", "video/mp4"),
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+
+        if "Content-Range" in r.headers:
+            resp_headers["Content-Range"] = r.headers["Content-Range"]
+
+        if "Content-Length" in r.headers:
+            resp_headers["Content-Length"] = r.headers["Content-Length"]
 
         return Response(
             stream_with_context(generate()),
             status=status,
-            headers={
-                "Content-Type": r.headers.get("Content-Type", "video/mp4"),
-                "Accept-Ranges": "bytes",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "no-cache"
-            }
+            headers=resp_headers
         )
 
     except Exception as e:
-        log(str(e), title, url)
-        return redirect(url)
+        registrar_log(titulo, url_video, str(e))
+        return redirect(url_video)
 
 # =========================
-# SEARCH (RETORNA LISTA ORGANIZADA)
+# BUSCA
 # =========================
 
 @app.route("/buscar")
@@ -195,27 +262,26 @@ def buscar():
     titulo = request.args.get("titulo")
 
     if not titulo:
-        return "vazio", 400
+        return "Título vazio", 400
 
-    filme = buscar_filme(titulo)
+    t = limpar_texto(titulo)
 
-    if not filme:
-        return "não encontrado", 404
+    fontes = [
+        buscar_txt(t, VIP_CACHE),
+        buscar_db(t),
+        buscar_txt(t, SITE_CACHE)
+    ]
 
-    _id, nome, url = filme
+    for url in fontes:
+        if url:
+            return executar_proxy(url, titulo)
 
-    return stream(url, nome)
+    registrar_log(titulo, "nenhuma fonte", "não encontrado")
 
-# =========================
-# IMPORT AUTOMÁTICO EXEMPLO
-# =========================
+    return "Filme não encontrado", 404
 
-@app.route("/importar")
-def importar():
-    importar_txt_para_db("filmes_site.txt")
-    return "OK importado"
 
 # =========================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
