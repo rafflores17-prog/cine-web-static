@@ -8,177 +8,545 @@ import re
 
 app = Flask(__name__)
 
-# 🚀 AGENTES DE ELITE
+# =========================
+# AGENTES
+# =========================
+
 AGENTES_VIP = [
-    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
-    "purpleplayer/1.2.82",
-    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
-    "VLC/3.0.4 LibVLC/3.0.4",
-    "Dart/3.9 (dart:io)",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "okhttp/4.12.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+    "VLC/3.0.4 LibVLC/3.0.4",
+    "Dalvik/2.1.0 (Linux; Android 14)",
 ]
 
-# 🛡️ SERVIDORES DE APOIO (MNBA Liderando)
+# =========================
+# SERVIDORES API
+# =========================
+
 SERVIDORES_API = [
-    {"nome": "Mnba", "host": "http://mnba.shop:80", "user": "danicamara", "pass": "acg2010v"},
-    {"nome": "Dnsrot", "host": "http://play.dnsrot.vip:80", "user": "sheilalima11", "pass": "s6dfkck1jlq"},
-    {"nome": "Kmediaplay", "host": "http://kmediaplay.click:80", "user": "Indio1432", "pass": "indio1433"}
+    {
+        "nome": "Mnba",
+        "host": "http://mnba.shop:80",
+        "user": "danicamara",
+        "pass": "acg2010v",
+    },
+    {
+        "nome": "Dnsrot",
+        "host": "http://play.dnsrot.vip:80",
+        "user": "sheilalima11",
+        "pass": "s6dfkck1jlq",
+    },
 ]
 
-# 🎬 REGRA DO MESTRE: Franquias que vão direto para a API primeiro
+API_CACHE = {}
+
+# =========================
+# FRANQUIAS
+# =========================
+
 FRANQUIAS_DIRETO_API = [
     "american pie",
     "velozes e furiosos",
     "harry potter",
     "senhor dos aneis",
     "star wars",
-    "crepusculo",
-    "jogos vorazes",
-    "matrix"
+    "matrix",
 ]
 
-# 🔥 Limpeza de Texto
+# =========================
+# LIMPAR TEXTO
+# =========================
+
 def limpar_texto(texto):
-    if not texto: return ""
-    texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
-    texto = re.sub(r'[^a-zA-Z0-9\s]', ' ', texto)
-    return re.sub(r'\s+', ' ', texto).strip().lower()
 
-def ler_txt(caminho):
-    acervo = {}
-    if os.path.exists(caminho):
-        try:
-            with open(caminho, "r", encoding="utf-8") as f:
-                for linha in f:
-                    if "|" in linha:
-                        n, u = linha.split("|", 1)
-                        acervo[limpar_texto(n)] = u.strip()
-        except: pass
-    return acervo
+    if not texto:
+        return ""
 
-# ⚡ CACHE NA MEMÓRIA
-print("Carregando acervos para a memória...")
-VIP_CACHE = ler_txt("vips.txt")
-GIGANTE_CACHE = ler_txt("filmes_site.txt")
-print(f"Acervos Prontos!")
+    texto = ''.join(
+        c for c in unicodedata.normalize(
+            'NFD',
+            str(texto)
+        )
+        if unicodedata.category(c) != 'Mn'
+    )
 
-def busca_segura(t_limpo, acervo):
-    if t_limpo in acervo: return acervo[t_limpo]
-    for nome_db, url in acervo.items():
-        if nome_db.startswith(t_limpo + " "): return url
-    if len(t_limpo) > 3:
-        for nome_db, url in acervo.items():
-            if t_limpo in nome_db: return url
+    texto = re.sub(
+        r'[^a-zA-Z0-9\s]',
+        ' ',
+        texto
+    )
+
+    return re.sub(
+        r'\s+',
+        ' ',
+        texto
+    ).strip().lower()
+
+# =========================
+# EXTRAIR NÚMERO
+# =========================
+
+def extrair_numero(texto):
+
+    numeros = re.findall(r'\b\d+\b', texto)
+
+    if numeros:
+        return numeros[0]
+
     return None
 
+# =========================
+# CARREGAR TXT
+# =========================
+
+def ler_txt(caminho):
+
+    acervo = {}
+
+    if os.path.exists(caminho):
+
+        with open(
+            caminho,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            for linha in f:
+
+                if "|" in linha:
+
+                    n, u = linha.split(
+                        "|",
+                        1
+                    )
+
+                    acervo[
+                        limpar_texto(n)
+                    ] = u.strip()
+
+    return acervo
+
+print("Carregando acervos...")
+
+VIP_CACHE = ler_txt("vips.txt")
+
+GIGANTE_CACHE = ler_txt("filmes_site.txt")
+
+print("Acervos carregados.")
+
+# =========================
+# BUSCA SEGURA
+# =========================
+
+def busca_segura(t_limpo, acervo):
+
+    numero_busca = extrair_numero(t_limpo)
+
+    for nome_db, url in acervo.items():
+
+        if t_limpo == nome_db:
+            return url
+
+        if nome_db.startswith(t_limpo + " "):
+            return url
+
+        if numero_busca:
+
+            numero_nome = extrair_numero(nome_db)
+
+            if (
+                numero_nome
+                and numero_nome == numero_busca
+                and t_limpo.split()[0] in nome_db
+            ):
+                return url
+
+    return None
+
+# =========================
+# PROXY
+# =========================
+
 def executar_proxy(url_video):
+
     if "archive.org" in url_video.lower():
         return redirect(url_video, code=302)
 
-    agente = random.choice(AGENTES_VIP)
+    agente = random.choice(
+        AGENTES_VIP
+    )
+
     headers = {
         "User-Agent": agente,
-        "Accept": "video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5",
-        "Connection": "keep-alive",
-        "Icy-MetaData": "1"
+        "Connection": "keep-alive"
     }
-    
-    range_header = request.headers.get('Range', None)
-    if range_header: headers['Range'] = range_header
+
+    range_header = request.headers.get(
+        "Range"
+    )
+
+    if range_header:
+        headers["Range"] = range_header
 
     try:
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(10, 120), allow_redirects=True)
+
+        r = requests.get(
+            url_video,
+            headers=headers,
+            stream=True,
+            timeout=(10, 120),
+            allow_redirects=True
+        )
+
+        content_type = r.headers.get(
+            "Content-Type",
+            "application/octet-stream"
+        )
+
         def generate():
-            for chunk in r.iter_content(chunk_size=256 * 1024):
-                if chunk: yield chunk
-        
-        resp_headers = {
-            "Accept-Ranges": "bytes",
-            "Access-Control-Allow-Origin": "*",
-            "Content-Type": "video/mp4",
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-cache"
-        }
-        if 'Content-Range' in r.headers: resp_headers['Content-Range'] = r.headers['Content-Range']
-        if 'Content-Length' in r.headers: resp_headers['Content-Length'] = r.headers['Content-Length']
-        
-        return Response(stream_with_context(generate()), status=r.status_code, headers=resp_headers)
-    except:
-        return redirect(url_video.replace("http://", "https://"))
 
-# --- FUNÇÕES DE BUSCA MODULARIZADAS ---
+            for chunk in r.iter_content(
+                chunk_size=1024 * 1024
+            ):
+                if chunk:
+                    yield chunk
+
+        resp_headers = {
+
+            "Accept-Ranges": "bytes",
+
+            "Access-Control-Allow-Origin": "*",
+
+            "Content-Type": content_type,
+
+            "Cache-Control": "no-cache",
+
+            "X-Content-Type-Options": "nosniff"
+        }
+
+        if "Content-Range" in r.headers:
+
+            resp_headers[
+                "Content-Range"
+            ] = r.headers[
+                "Content-Range"
+            ]
+
+        if "Content-Length" in r.headers:
+
+            resp_headers[
+                "Content-Length"
+            ] = r.headers[
+                "Content-Length"
+            ]
+
+        return Response(
+            stream_with_context(
+                generate()
+            ),
+            status=r.status_code,
+            headers=resp_headers
+        )
+
+    except Exception as e:
+
+        print(
+            "Erro proxy:",
+            e
+        )
+
+        return redirect(
+            url_video
+        )
+
+# =========================
+# BUSCA NO DB
+# =========================
+
 def buscar_no_db(t_limpo):
+
     try:
-        if os.path.exists('filmes.db'):
-            conn = sqlite3.connect('filmes.db')
-            c = conn.cursor()
-            try:
-                c.execute("SELECT url FROM playlist WHERE LOWER(search_name) = ? OR LOWER(search_name) LIKE ? LIMIT 1", (t_limpo, f"{t_limpo} %"))
-                res = c.fetchone()
-                if not res and len(t_limpo) > 3:
-                    c.execute("SELECT url FROM playlist WHERE LOWER(search_name) LIKE ? LIMIT 1", (f"%{t_limpo}%",))
-                    res = c.fetchone()
-            except sqlite3.OperationalError:
-                c.execute("SELECT url FROM playlist WHERE LOWER(name) LIKE ? LIMIT 1", (f"%{t_limpo}%",))
-                res = c.fetchone()
+
+        if not os.path.exists(
+            "filmes.db"
+        ):
+            return None
+
+        conn = sqlite3.connect(
+            "filmes.db"
+        )
+
+        c = conn.cursor()
+
+        c.execute(
+            """
+            SELECT url
+            FROM filmes
+            WHERE nome_busca = ?
+            LIMIT 1
+            """,
+            (
+                t_limpo,
+            )
+        )
+
+        res = c.fetchone()
+
+        if res:
+
             conn.close()
-            if res: return res[0]
-    except: pass
+
+            return res[0]
+
+        numero_busca = extrair_numero(
+            t_limpo
+        )
+
+        if numero_busca:
+
+            c.execute(
+                """
+                SELECT url, nome_busca
+                FROM filmes
+                WHERE nome_busca LIKE ?
+                """,
+                (
+                    f"%{numero_busca}%",
+                )
+            )
+
+            resultados = c.fetchall()
+
+            for url, nome in resultados:
+
+                numero_nome = extrair_numero(
+                    nome
+                )
+
+                if numero_nome == numero_busca:
+
+                    conn.close()
+
+                    return url
+
+        conn.close()
+
+    except Exception as e:
+
+        print(
+            "Erro DB:",
+            e
+        )
+
     return None
+
+# =========================
+# BUSCA NAS APIs
+# =========================
 
 def buscar_nas_apis(t_limpo):
+
+    numero_busca = extrair_numero(
+        t_limpo
+    )
+
     for srv in SERVIDORES_API:
+
         try:
-            url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-            r = requests.get(url_api, timeout=4).json()
-            for item in r:
-                nome_api = limpar_texto(item.get('name', ''))
-                if t_limpo == nome_api or nome_api.startswith(t_limpo + " ") or (len(t_limpo) > 3 and t_limpo in nome_api):
-                    return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-        except: continue
+
+            if srv["nome"] in API_CACHE:
+
+                dados = API_CACHE[
+                    srv["nome"]
+                ]
+
+            else:
+
+                url_api = (
+                    f"{srv['host']}/player_api.php"
+                    f"?username={srv['user']}"
+                    f"&password={srv['pass']}"
+                    f"&action=get_vod_streams"
+                )
+
+                dados = requests.get(
+                    url_api,
+                    timeout=5
+                ).json()
+
+                API_CACHE[
+                    srv["nome"]
+                ] = dados
+
+            # MATCH EXATO
+
+            for item in dados:
+
+                nome_api = limpar_texto(
+                    item.get("name", "")
+                )
+
+                if t_limpo == nome_api:
+
+                    return (
+                        f"{srv['host']}/movie/"
+                        f"{srv['user']}/"
+                        f"{srv['pass']}/"
+                        f"{item.get('stream_id')}.mp4"
+                    )
+
+            # MATCH POR NÚMERO
+
+            if numero_busca:
+
+                for item in dados:
+
+                    nome_api = limpar_texto(
+                        item.get("name", "")
+                    )
+
+                    numero_nome = extrair_numero(
+                        nome_api
+                    )
+
+                    if (
+                        numero_nome
+                        and numero_nome == numero_busca
+                        and t_limpo.split()[0] in nome_api
+                    ):
+
+                        return (
+                            f"{srv['host']}/movie/"
+                            f"{srv['user']}/"
+                            f"{srv['pass']}/"
+                            f"{item.get('stream_id')}.mp4"
+                        )
+
+        except Exception as e:
+
+            print(
+                "Erro API:",
+                e
+            )
+
     return None
 
+# =========================
+# ROTA PRINCIPAL
+# =========================
+
 @app.route("/buscar")
+
 def buscar():
-    titulo = request.args.get("titulo")
-    if not titulo: return "Título vazio", 400
-    t_limpo = limpar_texto(titulo)
 
-    # 🥇 1º LUGAR: VIP (Imbatível)
-    url_vip = busca_segura(t_limpo, VIP_CACHE)
-    if url_vip: 
-        print(f"💎 VIP: {t_limpo}")
-        return executar_proxy(url_vip)
+    titulo = request.args.get(
+        "titulo"
+    )
 
-    # 🔄 VERIFICA SE É FRANQUIA PARA INVERTER A BUSCA
-    is_franquia = any(f in t_limpo for f in FRANQUIAS_DIRETO_API)
+    if not titulo:
+
+        return "Título vazio", 400
+
+    t_limpo = limpar_texto(
+        titulo
+    )
+
+    print(
+        "Buscando:",
+        t_limpo
+    )
+
+    # VIP
+
+    url = busca_segura(
+        t_limpo,
+        VIP_CACHE
+    )
+
+    if url:
+
+        print("VIP")
+
+        return executar_proxy(
+            url
+        )
+
+    # FRANQUIA
+
+    is_franquia = any(
+        f in t_limpo
+        for f in FRANQUIAS_DIRETO_API
+    )
 
     if is_franquia:
-        print(f"🎬 FRANQUIA DETECTADA! Buscando {t_limpo} nas APIs primeiro...")
-        url = buscar_nas_apis(t_limpo)
-        if url: return executar_proxy(url)
-        # Se API falhar, tenta o DB
-        url = buscar_no_db(t_limpo)
-        if url: return executar_proxy(url)
-    else:
-        # Fluxo Normal (DB -> APIs)
-        url = buscar_no_db(t_limpo)
-        if url: 
-            print(f"💾 DB: {t_limpo}")
-            return executar_proxy(url)
-        url = buscar_nas_apis(t_limpo)
-        if url: 
-            print(f"📡 API: {t_limpo}")
-            return executar_proxy(url)
 
-    # 🏅 ÚLTIMO LUGAR: GIGANTE
-    url_gigante = busca_segura(t_limpo, GIGANTE_CACHE)
-    if url_gigante: 
-        print(f"🚀 GIGANTE: {t_limpo}")
-        return executar_proxy(url_gigante)
+        url = buscar_nas_apis(
+            t_limpo
+        )
+
+        if url:
+
+            print("API franquia")
+
+            return executar_proxy(
+                url
+            )
+
+    # DB
+
+    url = buscar_no_db(
+        t_limpo
+    )
+
+    if url:
+
+        print("DB")
+
+        return executar_proxy(
+            url
+        )
+
+    # API
+
+    url = buscar_nas_apis(
+        t_limpo
+    )
+
+    if url:
+
+        print("API")
+
+        return executar_proxy(
+            url
+        )
+
+    # GIGANTE
+
+    url = busca_segura(
+        t_limpo,
+        GIGANTE_CACHE
+    )
+
+    if url:
+
+        print("GIGANTE")
+
+        return executar_proxy(
+            url
+        )
 
     return "Filme não encontrado", 404
 
+# =========================
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+
+    app.run(
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                8000
+            )
+        )
+    )
