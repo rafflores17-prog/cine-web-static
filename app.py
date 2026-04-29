@@ -9,9 +9,8 @@ import re
 app = Flask(__name__)
 DB_PATH = "filmes.db"
 
-# CHUNK REDUZIDO: Essencial para não dar "Out of Memory" no Koyeb
-# 64KB é o limite de segurança para manter o CPU e RAM baixos
-CHUNK_SIZE = 1024 * 64 
+# CHUNK MÍNIMO para não travar a RAM
+CHUNK_SIZE = 1024 * 32 
 
 SERVIDORES_API = [
     {"host": "http://newoneblue.site:80", "user": "58257413", "pass": "19193442"},
@@ -33,8 +32,10 @@ def limpar(txt):
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
 def executar_proxy(url_video):
-    # REGRA DE OURO: Se o link for do Archive ou Google, REDIRECT (Salva o servidor)
-    if any(x in url_video.lower() for x in ["archive.org", "googlevideo", "blogspot"]):
+    # ESTRATÉGIA ANTI-TRAVAMENTO:
+    # Se o link for de IPTV direto (.mp4, .mkv ou portas :80, :8880), 
+    # mandamos o Player abrir DIRETO. Isso evita 100% o erro de memória no Koyeb.
+    if any(x in url_video.lower() for x in [":80", ":8880", "movie", "archive", "blogspot"]):
         return redirect(url_video)
 
     headers = {
@@ -43,26 +44,18 @@ def executar_proxy(url_video):
     }
 
     try:
-        # stream=True e timeout menor para não travar o worker
         r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 300))
-        
         def generate():
             try:
-                # O segredo está aqui: ler pedaços pequenos e soltar logo
                 for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-                    if chunk:
-                        yield chunk
-            except:
-                pass
-            finally:
-                r.close()
+                    if chunk: yield chunk
+            except: pass
+            finally: r.close()
 
         resp = Response(stream_with_context(generate()), status=r.status_code)
         resp.headers["Content-Type"] = "video/mp4"
         resp.headers["Accept-Ranges"] = "bytes"
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        if 'Content-Range' in r.headers: resp.headers['Content-Range'] = r.headers['Content-Range']
-        if 'Content-Length' in r.headers: resp.headers['Content-Length'] = r.headers['Content-Length']
         return resp
     except:
         return redirect(url_video)
@@ -75,7 +68,7 @@ def buscar():
     alvo = limpar(titulo)
     print(f"🎯 Mestre, rastreando: {alvo}")
 
-    # 1. VIP e LOCAL
+    # 1. VIP / TXT LOCAL
     for arq in ["vips.txt", "filmes_site.txt"]:
         if os.path.exists(arq):
             with open(arq, "r", encoding="utf-8", errors="ignore") as f:
@@ -84,20 +77,18 @@ def buscar():
                         n, u = linha.split("|", 1)
                         if alvo == limpar(n): return executar_proxy(u.strip())
 
-    # 2. BANCO DE DADOS (Organizado)
+    # 2. BANCO DE DADOS (Busca Rápida)
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute("SELECT url, nome FROM filmes ORDER BY nome ASC")
-            for url_db, nome_db in c.fetchall():
-                if alvo == limpar(nome_db):
-                    conn.close()
-                    return executar_proxy(url_db)
+            c.execute("SELECT url FROM filmes WHERE nome_busca = ? LIMIT 1", (alvo,))
+            res = c.fetchone()
             conn.close()
+            if res: return executar_proxy(res[0])
         except: pass
 
-    # 3. APIs (Busca direta por VOD)
+    # 3. APIs (Busca em todos os servidores novos)
     for srv in SERVIDORES_API:
         try:
             url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
@@ -112,4 +103,4 @@ def buscar():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port, threaded=True) # Threaded Ativado para não travar
+    app.run(host="0.0.0.0", port=port, threaded=True)
