@@ -1,185 +1,97 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse, RedirectResponse
-import requests
+import httpx
 import sqlite3
 import random
 import os
 import unicodedata
 import re
-import datetime
+from datetime import datetime
 
 app = FastAPI()
 
-# =========================
-# CONFIG
-# =========================
-
 DB_PATH = "filmes.db"
-LOG_FILE = "logs_erros.txt"
-
-TIMEOUT_CONNECT = 5
-TIMEOUT_READ = 120
-CHUNK_SIZE = 1024 * 256
-
 AGENTES = [
-    "EPPIPROPLAYER/1.0.8",
-    "OTT Navigator",
     "VLC/3.0.20",
-    "ExoPlayerLib/2.19.1",
     "Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile"
 ]
 
 # =========================
-# HEALTH CHECK (KOYEB OBRIGATÓRIO)
+# LIMPEZA E BUSCA (RESOLVE JUMANJI)
 # =========================
-@app.get("/")
-def home():
-    return {"status": "ok", "service": "cine-mega"}
-
-# =========================
-# LOG
-# =========================
-
-def log(err, title="", url=""):
-    try:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"\n{datetime.datetime.now()}\n{title}\n{url}\n{err}\n")
-    except:
-        pass
-
-# =========================
-# LIMPAR TEXTO
-# =========================
-
 def limpar(txt):
-    if not txt:
-        return ""
-
-    txt = ''.join(
-        c for c in unicodedata.normalize('NFD', str(txt))
-        if unicodedata.category(c) != 'Mn'
-    )
-
-    txt = re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)
-    txt = re.sub(r'\s+', ' ', txt)
-
-    return txt.strip().lower()
-
-# =========================
-# DB SIMPLES E RÁPIDO
-# =========================
+    if not txt: return ""
+    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
+    return re.sub(r'\s+', ' ', re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)).strip().lower()
 
 def buscar_filme(titulo):
     t = limpar(titulo)
-
-    if not os.path.exists(DB_PATH):
-        return None
-
+    if not os.path.exists(DB_PATH): return None
+    
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    # exato
-    c.execute("""
-        SELECT id, nome, url
-        FROM filmes
-        WHERE nome_busca = ?
-        LIMIT 1
-    """, (t,))
-
+    # BUSCA INTELIGENTE: Tenta o nome exato primeiro para não vir filme errado
+    c.execute("SELECT nome, url FROM filmes WHERE nome_busca = ? LIMIT 1", (t,))
     res = c.fetchone()
-
-    if res:
-        conn.close()
-        return res
-
-    # fallback leve
-    c.execute("""
-        SELECT id, nome, url
-        FROM filmes
-        WHERE nome_busca LIKE ?
-        LIMIT 1
-    """, (f"{t}%",))
-
-    res = c.fetchone()
+    
+    if not res:
+        # Se não achou exato, pega o que começa com o nome (evita lixo do meio)
+        c.execute("SELECT nome, url FROM filmes WHERE nome_busca LIKE ? LIMIT 1", (f"{t}%",))
+        res = c.fetchone()
+    
     conn.close()
-
     return res
 
 # =========================
-# STREAM (SEM PENDENTE)
+# MOTOR DE STREAM (ANTI-CRASH CHROME)
 # =========================
-
-def stream(url, title, request):
-
+async def stream_video(url, request: Request):
+    headers = {
+        "User-Agent": random.choice(AGENTES),
+        "Range": request.headers.get("Range", "bytes=0-")
+    }
+    
+    # httpx é assíncrono, não trava o Koyeb!
+    client = httpx.AsyncClient(timeout=15.0)
     try:
-        headers = {
-            "User-Agent": random.choice(AGENTES),
-            "Accept": "*/*",
-            "Connection": "keep-alive",
-            "Accept-Encoding": "identity"
-        }
+        # Usamos stream para não carregar o filme na RAM do servidor
+        req = client.build_request("GET", url, headers=headers)
+        r = await client.send(req, stream=True)
 
-        range_header = request.headers.get("Range")
-        if range_header:
-            headers["Range"] = range_header
-
-        r = requests.get(
-            url,
-            headers=headers,
-            stream=True,
-            timeout=(TIMEOUT_CONNECT, TIMEOUT_READ),
-            allow_redirects=True
-        )
-
-        # se falhar não trava
         if r.status_code >= 400:
             return RedirectResponse(url)
 
-        def generate():
-            for chunk in r.iter_content(CHUNK_SIZE):
-                if chunk:
-                    yield chunk
-
         return StreamingResponse(
-            generate(),
+            r.aiter_bytes(chunk_size=1024*256),
+            status_code=r.status_code,
             headers={
                 "Content-Type": r.headers.get("Content-Type", "video/mp4"),
                 "Accept-Ranges": "bytes",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "no-cache"
+                "Access-Control-Allow-Origin": "*"
             }
         )
-
-    except Exception as e:
-        log(str(e), title, url)
+    except:
         return RedirectResponse(url)
 
 # =========================
-# ROTA PRINCIPAL
+# ROTAS
 # =========================
+@app.get("/")
+def health():
+    return {"status": "ok", "time": str(datetime.now())}
 
 @app.get("/buscar")
-def buscar(request: Request):
-
-    titulo = request.query_params.get("titulo")
-
-    if not titulo:
-        return {"erro": "vazio"}
-
+async def buscar(titulo: str, request: Request):
+    if not titulo: return {"erro": "vazio"}
+    
     filme = buscar_filme(titulo)
+    if not filme: return {"erro": "não encontrado"}
+    
+    nome, url = filme
+    return await stream_video(url, request)
 
-    if not filme:
-        return {"erro": "não encontrado"}
-
-    _id, nome, url = filme
-
-    return stream(url, nome, request)
-
-# =========================
-# START SAFE (KOYEB)
-# =========================
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
+# Inicia o DB se não existir
+if not os.path.exists(DB_PATH):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("CREATE TABLE IF NOT EXISTS filmes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, nome_busca TEXT, url TEXT)")
+    conn.close()
