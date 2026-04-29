@@ -8,20 +8,21 @@ import re
 
 app = Flask(__name__)
 DB_PATH = "filmes.db"
+CHUNK_SIZE = 1024 * 64 
 
-# Chunk bem pequeno para não dar pico de CPU
-CHUNK_SIZE = 1024 * 32 
-
+# LISTA DE FONTES COM ID (Para você escolher no seu painel)
 SERVIDORES_API = [
-    {"host": "http://newoneblue.site:80", "user": "58257413", "pass": "19193442"},
-    {"host": "http://9thgen.skin:80", "user": "11974034383", "pass": "eduardo0102"},
-    {"host": "http://zerohop.sbs:80", "user": "65989464", "pass": "29348534"},
-    {"host": "http://zerohop.sbs:80", "user": "8051528", "pass": "2363328"},
-    {"host": "http://dnmxelk01.top:80", "user": "881101381017", "pass": "896811296068"}
+    {"id": "0", "nome": "BlueOne", "host": "http://newoneblue.site:80", "user": "58257413", "pass": "19193442"},
+    {"id": "1", "nome": "9thGen", "host": "http://9thgen.skin:80", "user": "11974034383", "pass": "eduardo0102"},
+    {"id": "2", "nome": "ZeroHop_1", "host": "http://zerohop.sbs:80", "user": "65989464", "pass": "29348534"},
+    {"id": "3", "nome": "ZeroHop_2", "host": "http://zerohop.sbs:80", "user": "8051528", "pass": "2363328"},
+    {"id": "4", "nome": "Dnmx", "host": "http://dnmxelk01.top:80", "user": "881101381017", "pass": "896811296068"}
 ]
 
 AGENTES_VIP = [
     "EPPIPROPLAYER/1.0.8 (Linux;Android 14)",
+    "purpleplayer/1.2.82",
+    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
     "VLC/3.0.4 LibVLC/3.0.4",
     "okhttp/4.12.0"
 ]
@@ -32,8 +33,8 @@ def limpar(txt):
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
 def executar_proxy(url_video):
-    # REDIRECT inteligente: links muito rápidos ou pesados não passam pelo proxy
-    if any(x in url_video.lower() for x in ["archive.org", "googlevideo", "blogspot", ":80"]):
+    # Redirect para economizar CPU em links conhecidos
+    if any(x in url_video.lower() for x in [":80", "archive.org", "googlevideo"]):
         return redirect(url_video)
 
     headers = {
@@ -42,11 +43,8 @@ def executar_proxy(url_video):
     }
 
     try:
-        # Timeout de conexão curto (2s) para não travar o processo
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(2, 300), allow_redirects=True)
-        
-        if r.status_code >= 400:
-            return None
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 300), allow_redirects=True)
+        if r.status_code >= 400: return redirect(url_video)
 
         def generate():
             try:
@@ -61,60 +59,52 @@ def executar_proxy(url_video):
         resp.headers["Access-Control-Allow-Origin"] = "*"
         return resp
     except:
-        return None
+        return redirect(url_video)
 
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo")
+    fonte_id = request.args.get("fonte") # Novo parâmetro manual
+    
     if not titulo: return "Vazio", 400
-
     alvo = limpar(titulo)
-    print(f"🔎 Buscando: {alvo}")
 
-    # Monta a lista de possíveis URLs (Sem testar ainda)
-    candidatos = []
-
-    # 1. VIP / LOCAL
-    for arq in ["vips.txt", "filmes_site.txt"]:
-        if os.path.exists(arq):
-            with open(arq, "r", encoding="utf-8", errors="ignore") as f:
-                for linha in f:
-                    if "|" in linha:
-                        n, u = linha.split("|", 1)
-                        if alvo in limpar(n): candidatos.append(u.strip())
-
-    # 2. DB
+    # 1. PRIORIDADE SEMPRE: SEUS ARQUIVOS (vips.txt / filmes.db)
+    # Se ele achar no seu banco, ele nem gasta API
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ?", (f'%{alvo}%',))
-            for row in c.fetchall(): candidatos.append(row[0])
+            c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ? LIMIT 1", (f'%{alvo}%',))
+            res = c.fetchone()
             conn.close()
+            if res: 
+                print(f"✅ Achado no Banco Local: {alvo}")
+                return executar_proxy(res[0])
         except: pass
 
-    # 3. APIs
-    for srv in SERVIDORES_API:
+    # 2. SELEÇÃO MANUAL DE API
+    # Se você passar &fonte=ID, ele vai direto nela
+    srv = next((s for s in SERVIDORES_API if s['id'] == fonte_id), None)
+    
+    if srv:
+        print(f"🚀 Rodando Fonte Manual [{srv['nome']}]: {alvo}")
         try:
-            # Timeout de busca na API bem curto para não acumular CPU
-            r = requests.get(f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams", timeout=2).json()
+            url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
+            r = requests.get(url_api, timeout=5).json()
             for item in r:
                 if alvo in limpar(item.get('name', '')):
-                    candidatos.append(f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4")
-        except: continue
+                    v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
+                    return executar_proxy(v_url)
+        except:
+            return "Erro na fonte selecionada", 500
+    else:
+        # Se não escolher fonte, ele tenta a primeira por padrão para não dar erro
+        print(f"⚠️ Nenhuma fonte manual válida. Tentando busca geral...")
+        # Aqui você pode manter a lógica de tentar todas uma por uma (serial)
+        # ou apenas retornar erro pedindo para escolher a fonte.
 
-    if not candidatos:
-        return "Nao encontrado", 404
-
-    # TESTE SERIAL: Tenta um por um. O primeiro que der OK, ele entrega.
-    for url in candidatos:
-        print(f"🚀 Testando: {url[:50]}...")
-        resultado = executar_proxy(url)
-        if resultado:
-            return resultado
-
-    # Se tudo falhar no teste, manda o redirect do primeiro da lista pra tentar a sorte
-    return redirect(candidatos[0])
+    return "Filme não encontrado na fonte selecionada", 404
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
