@@ -19,12 +19,14 @@ AGENTES_VIP = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
 ]
 
+# 🛡️ SERVIDORES DE APOIO (Novas APIs - MNBA no topo como Especial)
 SERVIDORES_API = [
-    {"nome": "Cinevexio", "host": "http://cinevexio.top:80", "user": "175473583", "pass": "643238922"},
-    {"nome": "Stmax", "host": "http://stmax.top:80", "user": "lucas6043", "pass": "px2926br"}
+    {"nome": "Mnba", "host": "http://mnba.shop:80", "user": "danicamara", "pass": "acg2010v"},
+    {"nome": "Dnsrot", "host": "http://play.dnsrot.vip:80", "user": "sheilalima11", "pass": "s6dfkck1jlq"},
+    {"nome": "Kmediaplay", "host": "http://kmediaplay.click:80", "user": "Indio1432", "pass": "indio1433"}
 ]
 
-# 🔥 Limpeza de Texto
+# 🔥 Limpeza de Texto (Blindagem contra erros de digitação e acentos)
 def limpar_texto(texto):
     if not texto: return ""
     texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
@@ -59,7 +61,6 @@ def busca_segura(t_limpo, acervo):
         if nome_db.startswith(t_limpo + " "): return url
         
     # Nível 3: Contém (ex: "lagoa azul" acha "a lagoa azul")
-    # Só ativa se tiver mais de 3 letras (evita o bug do "up" e "superman")
     if len(t_limpo) > 3:
         for nome_db, url in acervo.items():
             if t_limpo in nome_db: return url
@@ -114,13 +115,7 @@ def buscar():
         print(f"💎 VIP: {t_limpo}")
         return executar_proxy(url_vip)
 
-    # 🥈 2º LUGAR: GIGANTE
-    url_gigante = busca_segura(t_limpo, GIGANTE_CACHE)
-    if url_gigante: 
-        print(f"🚀 GIGANTE: {t_limpo}")
-        return executar_proxy(url_gigante)
-
-    # 🥉 3º LUGAR: BANCO DE DADOS LOCAL
+    # 🥈 2º LUGAR: BANCO DE DADOS LOCAL (filmes.db)
     try:
         if os.path.exists('filmes.db'):
             conn = sqlite3.connect('filmes.db')
@@ -152,7 +147,7 @@ def buscar():
                 return executar_proxy(res[0])
     except Exception as e: pass
 
-    # 🏅 4º LUGAR: APIs EXTERNAS
+    # 🥉 3º LUGAR: APIs EXTERNAS (Com MNBA liderando)
     for srv in SERVIDORES_API:
         try:
             url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
@@ -162,8 +157,15 @@ def buscar():
                 # Verifica Exato, Começa com ou Contém
                 if t_limpo == nome_api or nome_api.startswith(t_limpo + " ") or (len(t_limpo) > 3 and t_limpo in nome_api):
                     v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
+                    print(f"📡 API {srv['nome']} ENCONTRADA")
                     return executar_proxy(v_url)
         except: continue
+
+    # 🏅 4º LUGAR: GIGANTE (O "Quebra-galho" final)
+    url_gigante = busca_segura(t_limpo, GIGANTE_CACHE)
+    if url_gigante: 
+        print(f"🚀 GIGANTE: {t_limpo}")
+        return executar_proxy(url_gigante)
 
     return "Filme não encontrado nas bases de dados", 404
 
