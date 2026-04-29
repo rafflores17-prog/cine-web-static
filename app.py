@@ -18,7 +18,6 @@ LOG_FILE = "logs_erros.txt"
 TIMEOUT_CONNECT = 10
 TIMEOUT_READ = 180
 
-# 🔥 mais estável no Chrome
 CHUNK_SIZE = 1024 * 128
 
 # =========================
@@ -39,20 +38,19 @@ AGENTES = [
 def registrar_log(titulo, url, erro):
     try:
         agora = datetime.datetime.now()
-        linha = (
-            f"\n{agora}\n"
-            f"FILME: {titulo}\n"
-            f"URL: {url}\n"
-            f"ERRO: {erro}\n"
-            "----------------------\n"
-        )
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(linha)
+            f.write(
+                f"\n{agora}\n"
+                f"FILME: {titulo}\n"
+                f"URL: {url}\n"
+                f"ERRO: {erro}\n"
+                "----------------------\n"
+            )
     except:
         pass
 
 # =========================
-# LIMPAR TEXTO (CORRIGIDO)
+# LIMPAR TEXTO
 # =========================
 
 def limpar_texto(texto):
@@ -70,11 +68,10 @@ def limpar_texto(texto):
     return texto.strip().lower()
 
 # =========================
-# SIMILARIDADE MELHORADA
+# SIMILARIDADE
 # =========================
 
 def similaridade(a, b):
-
     a_words = set(a.split())
     b_words = set(b.split())
 
@@ -85,14 +82,13 @@ def similaridade(a, b):
 
     score = len(inter) / max(len(a_words), len(b_words))
 
-    # 🔥 evita confundir sequências (1, 2, 3)
     if any(c.isdigit() for c in a) != any(c.isdigit() for c in b):
         score *= 0.6
 
     return score
 
 # =========================
-# CARREGAR TXT
+# TXT
 # =========================
 
 def ler_txt(caminho):
@@ -103,8 +99,7 @@ def ler_txt(caminho):
             for linha in f:
                 if "|" in linha:
                     nome, url = linha.split("|", 1)
-                    nome_limpo = limpar_texto(nome)
-                    acervo[nome_limpo] = url.strip()
+                    acervo[limpar_texto(nome)] = url.strip()
     except:
         pass
 
@@ -115,7 +110,6 @@ def carregar_txt(nome):
     for arq in [nome, nome.lower(), nome.upper()]:
         if os.path.exists(arq):
             return ler_txt(arq)
-
     return {}
 
 print("Carregando listas...")
@@ -126,12 +120,11 @@ SITE_CACHE = carregar_txt("filmes_site.txt")
 print("Listas carregadas.")
 
 # =========================
-# BUSCA INTELIGENTE
+# BUSCA TXT
 # =========================
 
 def buscar_txt(titulo_limpo, acervo):
 
-    # 1 - exato
     if titulo_limpo in acervo:
         return acervo[titulo_limpo]
 
@@ -139,7 +132,6 @@ def buscar_txt(titulo_limpo, acervo):
     melhor_score = 0
 
     for nome, url in acervo.items():
-
         score = similaridade(titulo_limpo, nome)
 
         if score > melhor_score:
@@ -180,7 +172,7 @@ def buscar_db(titulo_limpo):
     return None
 
 # =========================
-# PROXY ESTÁVEL (CHROME FIX)
+# PROXY CORRIGIDO (SEEK REAL)
 # =========================
 
 def executar_proxy(url_video, titulo):
@@ -190,19 +182,13 @@ def executar_proxy(url_video, titulo):
         agente = random.choice(AGENTES)
 
         headers = {
-
             "User-Agent": agente,
-
-            "Accept": "video/mp4,video/*;q=0.9,*/*;q=0.8",
-
+            "Accept": "*/*",
             "Connection": "keep-alive",
-
             "Accept-Encoding": "identity"
-
         }
 
         range_header = request.headers.get("Range")
-
         if range_header:
             headers["Range"] = range_header
 
@@ -214,30 +200,39 @@ def executar_proxy(url_video, titulo):
             allow_redirects=True
         )
 
-        # 🔥 fallback seguro
-        if not r or r.status_code >= 400:
-            registrar_log(titulo, url_video, f"HTTP {getattr(r,'status_code','NO')}")
+        status = r.status_code
+
+        # 🔥 garante compatibilidade de seek
+        if range_header and status == 200:
+            status = 206
+
+        if status not in (200, 206):
+            registrar_log(titulo, url_video, f"HTTP {status}")
             return redirect(url_video)
-
-        content_type = r.headers.get("Content-Type", "video/mp4")
-
-        if "video" not in content_type:
-            content_type = "video/mp4"
 
         def generate():
             for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk:
                     yield chunk
 
+        resp_headers = {
+            "Content-Type": r.headers.get("Content-Type", "video/mp4"),
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+
+        if "Content-Range" in r.headers:
+            resp_headers["Content-Range"] = r.headers["Content-Range"]
+
+        if "Content-Length" in r.headers:
+            resp_headers["Content-Length"] = r.headers["Content-Length"]
+
         return Response(
             stream_with_context(generate()),
-            headers={
-                "Content-Type": content_type,
-                "Accept-Ranges": "bytes",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive"
-            }
+            status=status,
+            headers=resp_headers
         )
 
     except Exception as e:
@@ -259,11 +254,9 @@ def buscar():
     titulo_limpo = limpar_texto(titulo)
 
     fontes = [
-
         buscar_txt(titulo_limpo, VIP_CACHE),
         buscar_db(titulo_limpo),
         buscar_txt(titulo_limpo, SITE_CACHE)
-
     ]
 
     for url in fontes:
@@ -273,6 +266,7 @@ def buscar():
     registrar_log(titulo, "nenhuma fonte", "não encontrado")
 
     return "Filme não encontrado", 404
+
 
 # =========================
 
