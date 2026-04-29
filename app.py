@@ -26,7 +26,7 @@ def limpar(txt):
     return re.sub(r'\s+', ' ', re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)).strip().lower()
 
 # =========================
-# BUSCA (RESOLVE O ERRO DO JUMANJI)
+# BUSCA INTELIGENTE (SEM MISTURAR FILMES)
 # =========================
 
 @app.get("/pesquisar")
@@ -35,24 +35,25 @@ async def pesquisar(q: str = ""):
     
     termo = limpar(q)
     conn = get_db()
-    # Busca filmes que começam com o termo ou contêm o termo
+    
+    # Prioriza o nome EXATO, depois nomes que COMEÇAM com o termo
     cursor = conn.execute("""
         SELECT id, nome FROM filmes 
         WHERE nome_busca LIKE ? 
         ORDER BY (nome_busca = ?) DESC, (nome_busca LIKE ?) DESC, nome_busca ASC 
         LIMIT 15
-    """, (f"{termo}%", termo, f"{termo}%"))
+    """, (f"%{termo}%", termo, f"{termo}%"))
     
     res = [{"id": r["id"], "nome": r["nome"]} for r in cursor.fetchall()]
     conn.close()
     return res
 
 # =========================
-# PLAY POR ID (O SEGREDO DO CLIQUE CERTO)
+# PLAY POR ID (O CLIQUE CERTO)
 # =========================
 
 @app.get("/assistir/{filme_id}")
-async def assistir(filme_id: int, request: Request):
+async def assistir(filme_id: int):
     conn = get_db()
     res = conn.execute("SELECT nome, url FROM filmes WHERE id = ?", (filme_id,)).fetchone()
     conn.close()
@@ -62,22 +63,26 @@ async def assistir(filme_id: int, request: Request):
 
     url = res["url"]
     
-    # Tenta fazer o streaming, se falhar, redireciona para a URL original
-    try:
-        async def stream_video():
-            async with httpx.AsyncClient() as client:
-                async with client.stream("GET", url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10) as r:
+    # Função de streaming assíncrono para o FastAPI
+    async def stream_video():
+        async with httpx.AsyncClient() as client:
+            try:
+                async with client.stream("GET", url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15) as r:
                     async for chunk in r.aiter_bytes(chunk_size=1024*512):
                         yield chunk
-        
-        return StreamingResponse(stream_video(), media_type="video/mp4")
-    except:
-        return RedirectResponse(url)
+            except:
+                # Se o stream falhar, o player lida com o erro ou tenta o redirect
+                pass
+    
+    return StreamingResponse(stream_video(), media_type="video/mp4")
 
-# Comando para importar (Exemplo: /importar?nome=Filme&url=http://...)
+# =========================
+# IMPORTADOR SIMPLES
+# =========================
+
 @app.get("/importar")
 async def importar(nome: str, url: str):
     nome_busca = limpar(nome)
     with get_db() as conn:
         conn.execute("INSERT INTO filmes (nome, nome_busca, url) VALUES (?, ?, ?)", (nome, nome_busca, url))
-    return {"status": "ok"}
+    return {"status": "ok", "filme": nome}
