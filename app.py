@@ -18,7 +18,6 @@ SERVIDORES_API = [
     {"host": "http://dnmxelk01.top:80", "user": "881101381017", "pass": "896811296068"}
 ]
 
-# AGENTES VIP: O segredo para o Rambo e outros títulos antigos voltarem
 AGENTES_VIP = [
     "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
     "purpleplayer/1.2.82",
@@ -33,22 +32,21 @@ def limpar(txt):
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
 def executar_proxy(url_video):
-    # Se for link de acervo pesado, manda direto para não travar o servidor
+    # Se for link pesado, joga direto pro player
     if any(x in url_video.lower() for x in ["archive.org", "googlevideo", "blogspot"]):
         return redirect(url_video)
 
     headers = {
         "User-Agent": random.choice(AGENTES_VIP),
-        "Connection": "keep-alive",
         "Range": request.headers.get("Range", "bytes=0-")
     }
 
     try:
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 300), allow_redirects=True)
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 120), allow_redirects=True)
         
-        # Se o servidor de origem der erro, redireciona o usuário para o link bruto
+        # Se o link estiver quebrado ou barrado, não fica "rodando", ele tenta o próximo link
         if r.status_code >= 400:
-            return redirect(url_video)
+            return None
 
         def generate():
             try:
@@ -63,50 +61,66 @@ def executar_proxy(url_video):
         resp.headers["Access-Control-Allow-Origin"] = "*"
         return resp
     except:
-        return redirect(url_video)
+        return None
 
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo")
-    if not titulo: return "Título vazio", 400
+    if not titulo: return "Vazio", 400
 
     alvo = limpar(titulo)
-    print(f"🎯 Busca Mestre: {alvo}")
+    print(f"🔎 Analisando todas as fontes para: {alvo}")
 
-    # 1. TENTA VIP E TXT (Sua curadoria manual)
+    links_encontrados = []
+
+    # 1. PEGA DO VIP E FILMES_SITE.TXT
     for arq in ["vips.txt", "filmes_site.txt"]:
         if os.path.exists(arq):
             with open(arq, "r", encoding="utf-8", errors="ignore") as f:
                 for linha in f:
                     if "|" in linha:
                         n, u = linha.split("|", 1)
-                        if alvo in limpar(n): return executar_proxy(u.strip())
+                        if alvo in limpar(n):
+                            links_encontrados.append(u.strip())
 
-    # 2. TENTA NO BANCO DE DADOS (Busca por aproximação)
+    # 2. PEGA DO BANCO DE DADOS
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            # Busca com LIKE para garantir que ache mesmo com nome incompleto
-            c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ? LIMIT 1", (f'%{alvo}%',))
-            res = c.fetchone()
+            c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ?", (f'%{alvo}%',))
+            for row in c.fetchall():
+                links_encontrados.append(row[0])
             conn.close()
-            if res: return executar_proxy(res[0])
         except: pass
 
-    # 3. VARREDURA NAS APIs (Fallback automático)
+    # 3. VARRE TODAS AS APIs E JUNTA OS LINKS
     for srv in SERVIDORES_API:
         try:
-            # Filtro para pegar apenas VOD (Filmes)
             url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-            r = requests.get(url_api, timeout=4).json()
+            r = requests.get(url_api, timeout=3).json()
             for item in r:
                 if alvo in limpar(item.get('name', '')):
                     v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                    return executar_proxy(v_url)
+                    links_encontrados.append(v_url)
         except: continue
 
-    return "Filme não encontrado em nenhuma fonte", 404
+    # ==========================================
+    # HORA DA VERDADE: TESTAR QUAL LINK RESPONDE
+    # ==========================================
+    if not links_encontrados:
+        return "Nenhum link encontrado em nenhuma fonte", 404
+
+    print(f"📊 Encontrei {len(links_encontrados)} links. Testando o melhor...")
+
+    # Tenta rodar cada link encontrado até um funcionar
+    for url in links_encontrados:
+        resultado = executar_proxy(url)
+        if resultado:
+            return resultado
+
+    # Se todos falharem no proxy, tenta o redirect do último achado como última esperança
+    return redirect(links_encontrados[0])
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
