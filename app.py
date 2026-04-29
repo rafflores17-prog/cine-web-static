@@ -1,4 +1,4 @@
-from flask import Flask, request, Response, stream_with_context, redirect, jsonify
+from flask import Flask, request, Response, stream_with_context, redirect
 import requests
 import sqlite3
 import random
@@ -10,45 +10,33 @@ app = Flask(__name__)
 DB_PATH = "filmes.db"
 CHUNK_SIZE = 1024 * 256 
 
-# Agentes para Smart TV e Apps não darem erro
 AGENTES = [
     "VLC/3.0.20 LibVLC/3.0.20",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "okhttp/4.12.0"
 ]
 
-def limpar_texto(texto):
-    if not texto: return ""
-    # Remove acentos
-    texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
-    # Mantém apenas letras e números (remove parênteses do ano, pontos, etc)
-    texto = re.sub(r'[^a-zA-Z0-9]', '', texto)
-    return texto.lower().strip()
+def extrair_letras(txt):
+    if not txt: return ""
+    # Deixa apenas LETRAS. Remove números, anos, parênteses e espaços.
+    # Exemplo: "O Som da Morte (2026)" vira "osomdamorte"
+    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
+    return re.sub(r'[^a-z]', '', txt.lower())
 
 def executar_proxy(url_video):
-    headers = {
-        "User-Agent": random.choice(AGENTES),
-        "Connection": "keep-alive",
-        "Accept": "*/*"
-    }
+    headers = {"User-Agent": random.choice(AGENTES), "Connection": "keep-alive"}
     range_header = request.headers.get("Range")
     if range_header: headers["Range"] = range_header
 
     try:
         r = requests.get(url_video, headers=headers, stream=True, timeout=(15, 300), allow_redirects=True)
-        
         def generate():
             for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk: yield chunk
-
         resp = Response(stream_with_context(generate()), status=r.status_code)
         resp.headers["Content-Type"] = "video/mp4"
         resp.headers["Accept-Ranges"] = "bytes"
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        
-        if 'Content-Length' in r.headers: resp.headers['Content-Length'] = r.headers['Content-Length']
-        if 'Content-Range' in r.headers: resp.headers['Content-Range'] = r.headers['Content-Range']
-        
         return resp
     except:
         return redirect(url_video)
@@ -58,50 +46,44 @@ def buscar():
     titulo = request.args.get("titulo")
     if not titulo: return "Vazio", 400
 
-    # Limpamos o título que vem do site (ex: "M3GAN (2022)" vira "m3gan2022")
-    t_limpo = limpar_texto(titulo)
-    # Criamos uma versão sem o ano para fallback (ex: "m3gan")
-    t_sem_ano = re.sub(r'\d{4}$', '', t_limpo)
-
-    print(f"🎯 Mestre, buscando no DB: {t_limpo} ou {t_sem_ano}")
+    # Pega apenas as letras do que o site mandou
+    alvo = extrair_letras(titulo)
+    print(f"🔎 Mestre, rastreando apenas letras: {alvo}")
 
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             
-            # BUSCA INTELIGENTE: Tenta o nome com ano, depois sem ano, depois por aproximação
-            c.execute("""
-                SELECT url FROM filmes 
-                WHERE nome_busca = ? 
-                OR nome_busca = ? 
-                OR nome_busca LIKE ? 
-                LIMIT 1
-            """, (t_limpo, t_sem_ano, f"%{t_sem_ano}%"))
-            
-            res = c.fetchone()
+            # BUSCA ULTRA FLEXÍVEL: 
+            # Ele busca no banco qualquer coisa que contenha as letras do título
+            c.execute("SELECT url, nome FROM filmes")
+            todos = c.fetchall()
             conn.close()
-            
-            if res:
-                return executar_proxy(res[0])
-        except Exception as e:
-            print(f"Erro DB: {e}")
 
-    # BACKUP VIP.TXT
+            for row in todos:
+                url_db, nome_db = row
+                # Compara as letras do banco com as letras que o site enviou
+                if alvo in extrair_letras(nome_db) or extrair_letras(nome_db) in alvo:
+                    print(f"✅ ACHOU NO DB: {nome_db}")
+                    return executar_proxy(url_db)
+
+        except Exception as e:
+            print(f"Erro no rastreio: {e}")
+
+    # BACKUP VIP.TXT (Com a mesma lógica de letras)
     if os.path.exists("vips.txt"):
         with open("vips.txt", "r", encoding="utf-8", errors="ignore") as f:
             for linha in f:
                 if "|" in linha:
-                    nome, url = linha.split("|", 1)
-                    n_vip = limpar_texto(nome)
-                    if t_sem_ano in n_vip or n_vip in t_sem_ano:
-                        return executar_proxy(url.strip())
+                    nome_vip, url_vip = linha.split("|", 1)
+                    if alvo in extrair_letras(nome_vip) or extrair_letras(nome_vip) in alvo:
+                        return executar_proxy(url_vip.strip())
 
-    return "Filme não encontrado no DB", 404
+    return "Filme nao encontrado no seu acervo", 404
 
 @app.route("/")
-def index():
-    return "🚀 Motor v21 - Sincronizado com filmes.db!"
+def index(): return "🚀 Motor v22 - Rastreador de Elite Ativo"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
