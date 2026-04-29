@@ -8,7 +8,9 @@ import re
 
 app = Flask(__name__)
 DB_PATH = "filmes.db"
-CHUNK_SIZE = 1024 * 256 
+
+# CHUNK MENOR = CPU BAIXO. 128KB é perfeito para streaming sem travar o servidor.
+CHUNK_SIZE = 1024 * 128 
 
 AGENTES = [
     "VLC/3.0.20 LibVLC/3.0.20",
@@ -16,26 +18,36 @@ AGENTES = [
     "okhttp/4.12.0"
 ]
 
-# Função que deixa apenas LETRAS (Mata o erro do ano e pontos)
 def extrair_letras(txt):
     if not txt: return ""
     txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
-    return re.sub(r'[^a-z]', '', txt.lower())
+    return re.sub(r'[^a-z0-9]', '', txt.lower()) # Mantemos números para diferenciar o 1 do 2!
 
 def executar_proxy(url_video):
-    headers = {"User-Agent": random.choice(AGENTES), "Connection": "keep-alive"}
-    range_header = request.headers.get("Range")
-    if range_header: headers["Range"] = range_header
+    headers = {
+        "User-Agent": random.choice(AGENTES),
+        "Connection": "keep-alive",
+        "Range": request.headers.get("Range", "bytes=0-")
+    }
 
     try:
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(15, 300), allow_redirects=True)
+        # Timeout curto na conexão para não prender o CPU
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 300), allow_redirects=True)
+        
         def generate():
-            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-                if chunk: yield chunk
+            try:
+                for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                    if chunk: yield chunk
+            except:
+                pass # Se a conexão quebrar, ele apenas para de enviar em vez de dar erro 500
+
         resp = Response(stream_with_context(generate()), status=r.status_code)
         resp.headers["Content-Type"] = "video/mp4"
         resp.headers["Accept-Ranges"] = "bytes"
         resp.headers["Access-Control-Allow-Origin"] = "*"
+        if 'Content-Range' in r.headers: resp.headers['Content-Range'] = r.headers['Content-Range']
+        if 'Content-Length' in r.headers: resp.headers['Content-Length'] = r.headers['Content-Length']
+        
         return resp
     except:
         return redirect(url_video)
@@ -45,8 +57,9 @@ def buscar():
     titulo = request.args.get("titulo")
     if not titulo: return "Vazio", 400
 
+    # Agora limpamos mantendo os números para não confundir as franquias
     alvo = extrair_letras(titulo)
-    print(f"🔎 Rastreando: {alvo}")
+    print(f"🔎 Buscando: {alvo}")
 
     if os.path.exists(DB_PATH):
         try:
@@ -56,28 +69,30 @@ def buscar():
             todos = c.fetchall()
             conn.close()
 
-            for row in todos:
-                url_db, nome_db = row
-                # Se o que o site pede está no banco ou vice-versa (só letras!)
-                if alvo in extrair_letras(nome_db) or extrair_letras(nome_db) in alvo:
+            # BUSCA DE PRECISÃO:
+            # 1. Tenta achar exatamente o que foi pedido (Nome + Ano/Número)
+            for url_db, nome_db in todos:
+                if alvo == extrair_letras(nome_db):
                     return executar_proxy(url_db)
+            
+            # 2. Se não achou exato, tenta o que começa com (StartsWith)
+            for url_db, nome_db in todos:
+                if extrair_letras(nome_db).startswith(alvo):
+                    return executar_proxy(url_db)
+                    
         except: pass
 
-    # Backup VIP.txt
+    # Backup VIP.txt (Mesma lógica de precisão)
     if os.path.exists("vips.txt"):
         with open("vips.txt", "r", encoding="utf-8", errors="ignore") as f:
             for linha in f:
                 if "|" in linha:
                     nome_vip, url_vip = linha.split("|", 1)
-                    if alvo in extrair_letras(nome_vip) or extrair_letras(nome_vip) in alvo:
+                    if alvo == extrair_letras(nome_vip):
                         return executar_proxy(url_vip.strip())
 
     return "Nao encontrado", 404
 
-@app.route("/")
-def index(): return "🚀 Motor v22 - Limpo e Operacional"
-
 if __name__ == "__main__":
-    # O segredo para o Koyeb rodar sem comando manual é ler a porta do sistema
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
