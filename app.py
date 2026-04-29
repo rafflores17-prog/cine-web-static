@@ -7,7 +7,7 @@ from flask import Flask, request, Response, stream_with_context, redirect
 
 app = Flask(__name__)
 
-# --- APENAS OS DOIS SERVIDORES "QUERIDINHOS" ---
+# --- OS 2 QUERIDINHOS (DADOS ATUALIZADOS) ---
 FONTES = {
     "1": {"nome": "Servidor 99", "host": "http://serv99.xyz:8880", "user": "1764371", "pass": "2419902"},
     "2": {"nome": "NX Panel", "host": "http://nxpanelxr51.info", "user": "sandroalvares2", "pass": "T9er2T"}
@@ -15,13 +15,17 @@ FONTES = {
 
 AGENTES_VIP = ["VLC/3.0.4 LibVLC/3.0.4", "okhttp/4.12.0", "EPPIPROPLAYER/1.0.8"]
 
-def limpar(txt):
+def limpar_radical(txt):
     if not txt: return ""
-    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
+    # Remove o ano (ex: 1999, 2026) para a busca ser mais certeira
+    txt = re.sub(r'\(\d{4}\)', '', str(txt))
+    # Remove acentos e deixa minusculo
+    txt = ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
+    # Deixa apenas letras e numeros
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
 def executar_proxy(url_video):
-    # REDIRECT em portas 80 e 8880 para manter a CPU em 0%
+    # REDIRECT em portas 80 e 8880 para CPU 0%
     if any(x in url_video.lower() for x in [":80", ":8880", "archive", "storage"]):
         return redirect(url_video)
 
@@ -42,27 +46,33 @@ def executar_proxy(url_video):
 def play():
     titulo = request.args.get("titulo")
     fonte_id = request.args.get("fonte", "1")
-    alvo = limpar(titulo)
+    
+    if not titulo: return "Vazio", 400
+    
+    # Limpa o título tirando o ano para buscar na API
+    alvo = limpar_radical(titulo)
     srv = FONTES.get(fonte_id)
     
     if not srv: return "Fonte OFF", 404
 
     try:
-        # Busca na API dos queridinhos
         url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
         dados = requests.get(url_api, timeout=4).json()
         
         for item in dados:
-            if alvo in limpar(item.get('name', '')):
-                # Link final para VOD
+            nome_api = limpar_radical(item.get('name', ''))
+            # Se o nome que você quer estiver dentro do nome da API, ele libera
+            if alvo in nome_api or nome_api in alvo:
                 v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
+                print(f"✅ Sucesso! Achou {item.get('name')} na F{fonte_id}")
                 return executar_proxy(v_url)
     except: pass
-    return "Nao encontrado", 404
+    
+    return f"Nao achou {alvo} na fonte {fonte_id}", 404
 
 @app.route("/")
 def index():
-    return "Cine Mega v44 - Queridinhos Ativos"
+    return "Cine Mega v45 - Busca Flexivel Ativa"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, threaded=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), threaded=True)
