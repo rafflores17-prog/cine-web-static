@@ -19,14 +19,26 @@ AGENTES_VIP = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
 ]
 
-# 🛡️ SERVIDORES DE APOIO (Novas APIs - MNBA no topo como Especial)
+# 🛡️ SERVIDORES DE APOIO (MNBA Liderando)
 SERVIDORES_API = [
     {"nome": "Mnba", "host": "http://mnba.shop:80", "user": "danicamara", "pass": "acg2010v"},
     {"nome": "Dnsrot", "host": "http://play.dnsrot.vip:80", "user": "sheilalima11", "pass": "s6dfkck1jlq"},
     {"nome": "Kmediaplay", "host": "http://kmediaplay.click:80", "user": "Indio1432", "pass": "indio1433"}
 ]
 
-# 🔥 Limpeza de Texto (Blindagem contra erros de digitação e acentos)
+# 🎬 REGRA DO MESTRE: Franquias que vão direto para a API primeiro
+FRANQUIAS_DIRETO_API = [
+    "american pie",
+    "velozes e furiosos",
+    "harry potter",
+    "senhor dos aneis",
+    "star wars",
+    "crepusculo",
+    "jogos vorazes",
+    "matrix"
+]
+
+# 🔥 Limpeza de Texto
 def limpar_texto(texto):
     if not texto: return ""
     texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
@@ -51,20 +63,13 @@ VIP_CACHE = ler_txt("vips.txt")
 GIGANTE_CACHE = ler_txt("filmes_site.txt")
 print(f"Acervos Prontos!")
 
-# 🛡️ BUSCA DE 3 NÍVEIS
 def busca_segura(t_limpo, acervo):
-    # Nível 1: Exato
     if t_limpo in acervo: return acervo[t_limpo]
-    
-    # Nível 2: Começa Com (ex: "socorro" acha "socorro 2026")
     for nome_db, url in acervo.items():
         if nome_db.startswith(t_limpo + " "): return url
-        
-    # Nível 3: Contém (ex: "lagoa azul" acha "a lagoa azul")
     if len(t_limpo) > 3:
         for nome_db, url in acervo.items():
             if t_limpo in nome_db: return url
-            
     return None
 
 def executar_proxy(url_video):
@@ -102,72 +107,78 @@ def executar_proxy(url_video):
     except:
         return redirect(url_video.replace("http://", "https://"))
 
-@app.route("/buscar")
-def buscar():
-    titulo = request.args.get("titulo")
-    if not titulo: return "Título vazio", 400
-    
-    t_limpo = limpar_texto(titulo)
-
-    # 🥇 1º LUGAR: VIP
-    url_vip = busca_segura(t_limpo, VIP_CACHE)
-    if url_vip: 
-        print(f"💎 VIP: {t_limpo}")
-        return executar_proxy(url_vip)
-
-    # 🥈 2º LUGAR: BANCO DE DADOS LOCAL (filmes.db)
+# --- FUNÇÕES DE BUSCA MODULARIZADAS ---
+def buscar_no_db(t_limpo):
     try:
         if os.path.exists('filmes.db'):
             conn = sqlite3.connect('filmes.db')
             c = conn.cursor()
-            
             try:
-                # Nível 1 e 2 do Banco de Dados
-                c.execute("""
-                    SELECT url FROM playlist 
-                    WHERE LOWER(search_name) = ? 
-                    OR LOWER(search_name) LIKE ? 
-                    LIMIT 1
-                """, (t_limpo, f"{t_limpo} %"))
+                c.execute("SELECT url FROM playlist WHERE LOWER(search_name) = ? OR LOWER(search_name) LIKE ? LIMIT 1", (t_limpo, f"{t_limpo} %"))
                 res = c.fetchone()
-                
-                # Nível 3 (Contém) do Banco de Dados
                 if not res and len(t_limpo) > 3:
                     c.execute("SELECT url FROM playlist WHERE LOWER(search_name) LIKE ? LIMIT 1", (f"%{t_limpo}%",))
                     res = c.fetchone()
-                    
             except sqlite3.OperationalError:
-                # Backup se a coluna search_name não existir
                 c.execute("SELECT url FROM playlist WHERE LOWER(name) LIKE ? LIMIT 1", (f"%{t_limpo}%",))
                 res = c.fetchone()
-                
             conn.close()
-            if res: 
-                print(f"💾 DB: {t_limpo}")
-                return executar_proxy(res[0])
-    except Exception as e: pass
+            if res: return res[0]
+    except: pass
+    return None
 
-    # 🥉 3º LUGAR: APIs EXTERNAS (Com MNBA liderando)
+def buscar_nas_apis(t_limpo):
     for srv in SERVIDORES_API:
         try:
             url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
             r = requests.get(url_api, timeout=4).json()
             for item in r:
                 nome_api = limpar_texto(item.get('name', ''))
-                # Verifica Exato, Começa com ou Contém
                 if t_limpo == nome_api or nome_api.startswith(t_limpo + " ") or (len(t_limpo) > 3 and t_limpo in nome_api):
-                    v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                    print(f"📡 API {srv['nome']} ENCONTRADA")
-                    return executar_proxy(v_url)
+                    return f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
         except: continue
+    return None
 
-    # 🏅 4º LUGAR: GIGANTE (O "Quebra-galho" final)
+@app.route("/buscar")
+def buscar():
+    titulo = request.args.get("titulo")
+    if not titulo: return "Título vazio", 400
+    t_limpo = limpar_texto(titulo)
+
+    # 🥇 1º LUGAR: VIP (Imbatível)
+    url_vip = busca_segura(t_limpo, VIP_CACHE)
+    if url_vip: 
+        print(f"💎 VIP: {t_limpo}")
+        return executar_proxy(url_vip)
+
+    # 🔄 VERIFICA SE É FRANQUIA PARA INVERTER A BUSCA
+    is_franquia = any(f in t_limpo for f in FRANQUIAS_DIRETO_API)
+
+    if is_franquia:
+        print(f"🎬 FRANQUIA DETECTADA! Buscando {t_limpo} nas APIs primeiro...")
+        url = buscar_nas_apis(t_limpo)
+        if url: return executar_proxy(url)
+        # Se API falhar, tenta o DB
+        url = buscar_no_db(t_limpo)
+        if url: return executar_proxy(url)
+    else:
+        # Fluxo Normal (DB -> APIs)
+        url = buscar_no_db(t_limpo)
+        if url: 
+            print(f"💾 DB: {t_limpo}")
+            return executar_proxy(url)
+        url = buscar_nas_apis(t_limpo)
+        if url: 
+            print(f"📡 API: {t_limpo}")
+            return executar_proxy(url)
+
+    # 🏅 ÚLTIMO LUGAR: GIGANTE
     url_gigante = busca_segura(t_limpo, GIGANTE_CACHE)
     if url_gigante: 
         print(f"🚀 GIGANTE: {t_limpo}")
         return executar_proxy(url_gigante)
 
-    return "Filme não encontrado nas bases de dados", 404
+    return "Filme não encontrado", 404
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
