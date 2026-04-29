@@ -1,10 +1,11 @@
 # ==========================================
 # MOTOR CINE MEGA PRO - MODO FUTURO (ASYNC)
-# Desenvolvido para alta performance
+# Com Health Check integrado para a Koyeb
+# Desenvolvido por: @ApkBugado
 # ==========================================
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse
 import httpx
 import sqlite3
 import random
@@ -135,7 +136,6 @@ def buscar_db(titulo_limpo):
 # =========================
 
 async def executar_proxy_async(url_video: str, titulo: str, request: Request):
-    # Inteligência de detecção de Player Nativo vs Navegador
     ua_cliente = request.headers.get("User-Agent", "")
     if any(player in ua_cliente for player in ["VLC", "ExoPlayer", "Player", "Kodi"]):
         agente = ua_cliente
@@ -156,11 +156,9 @@ async def executar_proxy_async(url_video: str, titulo: str, request: Request):
         req_headers["Range"] = range_header
 
     try:
-        # Cliente HTTPX Assíncrono (Alta performance, não bloqueia o servidor)
         client = httpx.AsyncClient(timeout=httpx.Timeout(TIMEOUT_CONNECT, read=TIMEOUT_READ))
         req = client.build_request("GET", url_video, headers=req_headers)
         
-        # Inicia a conexão de streaming
         response = await client.send(req, stream=True, follow_redirects=True)
         status = response.status_code
 
@@ -170,7 +168,6 @@ async def executar_proxy_async(url_video: str, titulo: str, request: Request):
             await client.aclose()
             return Response(content="Erro na fonte", status_code=status)
 
-        # Prepara cabeçalhos de resposta exatos
         headers_resp = {
             "Content-Type": response.headers.get("Content-Type", "video/mp4"),
             "Accept-Ranges": "bytes",
@@ -183,19 +180,16 @@ async def executar_proxy_async(url_video: str, titulo: str, request: Request):
         if "Content-Length" in response.headers:
             headers_resp["Content-Length"] = response.headers["Content-Length"]
 
-        # Gerador assíncrono para bombear os bytes
         async def stream_generator():
             try:
                 async for chunk in response.aiter_bytes(chunk_size=CHUNK_SIZE):
                     if chunk:
                         yield chunk
             except asyncio.CancelledError:
-                # O usuário adiantou o filme ou fechou o app, encerra limpo sem crash
                 pass
             except Exception:
                 pass
             finally:
-                # Libera a memória instantaneamente
                 await response.aclose()
                 await client.aclose()
 
@@ -210,7 +204,14 @@ async def executar_proxy_async(url_video: str, titulo: str, request: Request):
         return Response(content="Falha de Conexão Crítica", status_code=500)
 
 # =========================
-# ROTA PRINCIPAL
+# HEALTH CHECK PARA A KOYEB (A ROTA VERDE)
+# =========================
+@app.get("/")
+async def raiz():
+    return {"status": "online", "motor": "Cine Mega Pro Async", "by": "@ApkBugado"}
+
+# =========================
+# ROTA PRINCIPAL DE BUSCA
 # =========================
 
 @app.get("/buscar")
@@ -241,5 +242,4 @@ async def buscar(request: Request):
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORT", 8000))
-    # Uvicorn é o servidor de alta velocidade para FastAPI
     uvicorn.run("app:app", host="0.0.0.0", port=porta, workers=2)
