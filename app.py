@@ -15,33 +15,48 @@ app = Flask(__name__)
 
 LOG_FILE = "logs_erros.txt"
 
+TIMEOUT_CONNECT = 10
+TIMEOUT_READ = 180
+
+CHUNK_SIZE = 1024 * 1024
+
 # =========================
 # AGENTES
 # =========================
 
-AGENTES_VIP = [
+AGENTES = [
+
     "Mozilla/5.0",
     "okhttp/4.12.0",
     "VLC/3.0.4",
     "Dalvik/2.1.0"
-]
-
-# =========================
-# SERVIDORES API
-# =========================
-
-SERVIDORES_API = [
-
-    {
-        "nome": "Srv1",
-        "host": "http://servidor1:80",
-        "user": "user",
-        "pass": "pass"
-    }
 
 ]
 
-API_CACHE = {}
+# =========================
+# LOG
+# =========================
+
+def registrar_log(titulo, url, erro):
+
+    try:
+
+        agora = datetime.datetime.now()
+
+        linha = (
+            f"\n{agora}\n"
+            f"FILME: {titulo}\n"
+            f"URL: {url}\n"
+            f"ERRO: {erro}\n"
+            "----------------------\n"
+        )
+
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+
+            f.write(linha)
+
+    except:
+        pass
 
 # =========================
 # LIMPAR TEXTO
@@ -66,66 +81,43 @@ def limpar_texto(texto):
         texto
     )
 
-    return re.sub(
+    texto = re.sub(
         r'\s+',
         ' ',
         texto
-    ).strip().lower()
-
-# =========================
-# EXTRAIR NUMERO
-# =========================
-
-def extrair_numero(texto):
-
-    numeros = re.findall(
-        r'\b\d+\b',
-        texto
     )
 
-    if numeros:
-        return numeros[0]
-
-    return None
+    return texto.strip().lower()
 
 # =========================
-# LOG ERROS
+# CARREGAR TXT COM PROTEÇÃO
 # =========================
 
-def registrar_log(titulo, url, erro):
+def carregar_txt(nome):
 
-    try:
+    arquivos = [
 
-        agora = datetime.datetime.now()
+        nome,
+        nome.lower(),
+        nome.upper()
 
-        linha = (
-            f"\n{agora}\n"
-            f"FILME: {titulo}\n"
-            f"URL: {url}\n"
-            f"ERRO: {erro}\n"
-            "----------------------\n"
-        )
+    ]
 
-        with open(
-            LOG_FILE,
-            "a",
-            encoding="utf-8"
-        ) as f:
+    for arq in arquivos:
 
-            f.write(linha)
+        if os.path.exists(arq):
 
-    except:
-        pass
+            return ler_txt(arq)
 
-# =========================
-# CARREGAR TXT
-# =========================
+    print("Arquivo não encontrado:", nome)
+
+    return {}
 
 def ler_txt(caminho):
 
     acervo = {}
 
-    if os.path.exists(caminho):
+    try:
 
         with open(
             caminho,
@@ -137,89 +129,61 @@ def ler_txt(caminho):
 
                 if "|" in linha:
 
-                    n, u = linha.split("|", 1)
+                    nome, url = linha.split("|", 1)
 
-                    acervo[
-                        limpar_texto(n)
-                    ] = u.strip()
+                    nome_limpo = limpar_texto(nome)
+
+                    acervo[nome_limpo] = url.strip()
+
+    except Exception as e:
+
+        registrar_log(
+            "LER_TXT",
+            caminho,
+            str(e)
+        )
 
     return acervo
 
 print("Carregando listas...")
 
-VIP_CACHE = ler_txt("vips.txt")
+VIP_CACHE = carregar_txt("vips.txt")
 
-GIGANTE_CACHE = ler_txt("Filmes_site.txt")
+SITE_CACHE = carregar_txt("filmes_site.txt")
 
 print("Listas carregadas.")
 
 # =========================
-# BUSCA SEGURA
-# =========================
-
-def busca_segura(t_limpo, acervo):
-
-    numero_busca = extrair_numero(
-        t_limpo
-    )
-
-    for nome_db, url in acervo.items():
-
-        if t_limpo == nome_db:
-            return url
-
-        if nome_db.startswith(
-            t_limpo + " "
-        ):
-            return url
-
-        if numero_busca:
-
-            numero_nome = extrair_numero(
-                nome_db
-            )
-
-            if (
-                numero_nome
-                and numero_nome == numero_busca
-                and t_limpo.split()[0] in nome_db
-            ):
-                return url
-
-    return None
-
-# =========================
-# PROXY
+# PROXY ULTRA ESTÁVEL
 # =========================
 
 def executar_proxy(url_video, titulo):
 
-    agente = random.choice(
-        AGENTES_VIP
-    )
-
-    headers = {
-
-        "User-Agent": agente,
-
-        "Connection": "keep-alive"
-    }
-
-    range_header = request.headers.get(
-        "Range"
-    )
-
-    if range_header:
-        headers["Range"] = range_header
-
     try:
 
+        agente = random.choice(AGENTES)
+
+        headers = {
+
+            "User-Agent": agente,
+            "Connection": "keep-alive"
+
+        }
+
+        range_header = request.headers.get("Range")
+
+        if range_header:
+
+            headers["Range"] = range_header
+
         r = requests.get(
+
             url_video,
             headers=headers,
             stream=True,
-            timeout=(10, 120),
+            timeout=(TIMEOUT_CONNECT, TIMEOUT_READ),
             allow_redirects=True
+
         )
 
         if r.status_code >= 400:
@@ -227,45 +191,56 @@ def executar_proxy(url_video, titulo):
             registrar_log(
                 titulo,
                 url_video,
-                "HTTP erro"
+                f"HTTP {r.status_code}"
             )
 
-            return None
+            return redirect(url_video)
 
         content_type = r.headers.get(
             "Content-Type",
-            "application/octet-stream"
+            "video/mp4"
+        )
+
+        content_length = r.headers.get(
+            "Content-Length"
+        )
+
+        content_range = r.headers.get(
+            "Content-Range"
         )
 
         def generate():
 
             for chunk in r.iter_content(
-                chunk_size=1024 * 1024
+                chunk_size=CHUNK_SIZE
             ):
+
                 if chunk:
+
                     yield chunk
 
         resp_headers = {
 
-            "Accept-Ranges": "bytes",
-
-            "Access-Control-Allow-Origin": "*",
-
             "Content-Type": content_type,
-
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Connection": "keep-alive",
             "Cache-Control": "no-cache",
-
             "X-Content-Type-Options": "nosniff"
+
         }
 
+        if content_length:
+
+            resp_headers["Content-Length"] = content_length
+
+        if content_range:
+
+            resp_headers["Content-Range"] = content_range
+
         return Response(
-
-            stream_with_context(
-                generate()
-            ),
-
+            stream_with_context(generate()),
             status=r.status_code,
-
             headers=resp_headers
         )
 
@@ -277,37 +252,53 @@ def executar_proxy(url_video, titulo):
             str(e)
         )
 
-        return None
+        return redirect(url_video)
 
 # =========================
-# BUSCA NO DB
+# BUSCA TXT INTELIGENTE
 # =========================
 
-def buscar_no_db(t_limpo):
+def buscar_txt(titulo_limpo, acervo):
+
+    if titulo_limpo in acervo:
+
+        return acervo[titulo_limpo]
+
+    for nome, url in acervo.items():
+
+        if nome.startswith(titulo_limpo):
+
+            return url
+
+    return None
+
+# =========================
+# BUSCA DB SEGURA
+# =========================
+
+def buscar_db(titulo_limpo):
 
     try:
 
-        if not os.path.exists(
-            "filmes.db"
-        ):
+        if not os.path.exists("filmes.db"):
+
             return None
 
-        conn = sqlite3.connect(
-            "filmes.db"
-        )
+        conn = sqlite3.connect("filmes.db")
 
         c = conn.cursor()
 
         c.execute(
+
             """
             SELECT url
             FROM filmes
             WHERE nome_busca = ?
             LIMIT 1
             """,
-            (
-                t_limpo,
-            )
+
+            (titulo_limpo,)
+
         )
 
         res = c.fetchone()
@@ -315,12 +306,13 @@ def buscar_no_db(t_limpo):
         conn.close()
 
         if res:
+
             return res[0]
 
     except Exception as e:
 
         registrar_log(
-            t_limpo,
+            titulo_limpo,
             "DB",
             str(e)
         )
@@ -328,111 +320,37 @@ def buscar_no_db(t_limpo):
     return None
 
 # =========================
-# BUSCA API
-# =========================
-
-def buscar_nas_apis(t_limpo):
-
-    numero_busca = extrair_numero(
-        t_limpo
-    )
-
-    for srv in SERVIDORES_API:
-
-        try:
-
-            if srv["nome"] in API_CACHE:
-
-                dados = API_CACHE[
-                    srv["nome"]
-                ]
-
-            else:
-
-                url_api = (
-                    f"{srv['host']}/player_api.php"
-                    f"?username={srv['user']}"
-                    f"&password={srv['pass']}"
-                    f"&action=get_vod_streams"
-                )
-
-                dados = requests.get(
-                    url_api,
-                    timeout=5
-                ).json()
-
-                API_CACHE[
-                    srv["nome"]
-                ] = dados
-
-            for item in dados:
-
-                nome_api = limpar_texto(
-                    item.get("name", "")
-                )
-
-                if t_limpo == nome_api:
-
-                    return (
-                        f"{srv['host']}/movie/"
-                        f"{srv['user']}/"
-                        f"{srv['pass']}/"
-                        f"{item.get('stream_id')}.mp4"
-                    )
-
-        except Exception as e:
-
-            registrar_log(
-                t_limpo,
-                "API",
-                str(e)
-            )
-
-    return None
-
-# =========================
-# ROTA
+# ROTA PRINCIPAL
 # =========================
 
 @app.route("/buscar")
 
 def buscar():
 
-    titulo = request.args.get(
-        "titulo"
-    )
+    titulo = request.args.get("titulo")
 
     if not titulo:
 
         return "Título vazio", 400
 
-    t_limpo = limpar_texto(
-        titulo
-    )
+    titulo_limpo = limpar_texto(titulo)
 
-    print(
-        "Buscando:",
-        t_limpo
-    )
+    print("Buscando:", titulo_limpo)
 
     fontes = [
 
-        busca_segura(
-            t_limpo,
+        buscar_txt(
+            titulo_limpo,
             VIP_CACHE
         ),
 
-        buscar_nas_apis(
-            t_limpo
+        buscar_db(
+            titulo_limpo
         ),
 
-        buscar_no_db(
-            t_limpo
-        ),
-
-        busca_segura(
-            t_limpo,
-            GIGANTE_CACHE
+        buscar_txt(
+            titulo_limpo,
+            SITE_CACHE
         )
 
     ]
@@ -447,6 +365,7 @@ def buscar():
             )
 
             if resp:
+
                 return resp
 
     registrar_log(
@@ -462,11 +381,14 @@ def buscar():
 if __name__ == "__main__":
 
     app.run(
+
         host="0.0.0.0",
+
         port=int(
             os.environ.get(
                 "PORT",
                 8000
             )
         )
+
     )
