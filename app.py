@@ -8,6 +8,8 @@ import re
 
 app = Flask(__name__)
 DB_PATH = "filmes.db"
+
+# Chunk bem pequeno para não dar pico de CPU
 CHUNK_SIZE = 1024 * 32 
 
 SERVIDORES_API = [
@@ -19,9 +21,7 @@ SERVIDORES_API = [
 ]
 
 AGENTES_VIP = [
-    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
-    "purpleplayer/1.2.82",
-    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14)",
     "VLC/3.0.4 LibVLC/3.0.4",
     "okhttp/4.12.0"
 ]
@@ -32,8 +32,8 @@ def limpar(txt):
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
 def executar_proxy(url_video):
-    # Se for link pesado, joga direto pro player
-    if any(x in url_video.lower() for x in ["archive.org", "googlevideo", "blogspot"]):
+    # REDIRECT inteligente: links muito rápidos ou pesados não passam pelo proxy
+    if any(x in url_video.lower() for x in ["archive.org", "googlevideo", "blogspot", ":80"]):
         return redirect(url_video)
 
     headers = {
@@ -42,9 +42,9 @@ def executar_proxy(url_video):
     }
 
     try:
-        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 120), allow_redirects=True)
+        # Timeout de conexão curto (2s) para não travar o processo
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(2, 300), allow_redirects=True)
         
-        # Se o link estiver quebrado ou barrado, não fica "rodando", ele tenta o próximo link
         if r.status_code >= 400:
             return None
 
@@ -69,58 +69,52 @@ def buscar():
     if not titulo: return "Vazio", 400
 
     alvo = limpar(titulo)
-    print(f"🔎 Analisando todas as fontes para: {alvo}")
+    print(f"🔎 Buscando: {alvo}")
 
-    links_encontrados = []
+    # Monta a lista de possíveis URLs (Sem testar ainda)
+    candidatos = []
 
-    # 1. PEGA DO VIP E FILMES_SITE.TXT
+    # 1. VIP / LOCAL
     for arq in ["vips.txt", "filmes_site.txt"]:
         if os.path.exists(arq):
             with open(arq, "r", encoding="utf-8", errors="ignore") as f:
                 for linha in f:
                     if "|" in linha:
                         n, u = linha.split("|", 1)
-                        if alvo in limpar(n):
-                            links_encontrados.append(u.strip())
+                        if alvo in limpar(n): candidatos.append(u.strip())
 
-    # 2. PEGA DO BANCO DE DADOS
+    # 2. DB
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ?", (f'%{alvo}%',))
-            for row in c.fetchall():
-                links_encontrados.append(row[0])
+            for row in c.fetchall(): candidatos.append(row[0])
             conn.close()
         except: pass
 
-    # 3. VARRE TODAS AS APIs E JUNTA OS LINKS
+    # 3. APIs
     for srv in SERVIDORES_API:
         try:
-            url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-            r = requests.get(url_api, timeout=3).json()
+            # Timeout de busca na API bem curto para não acumular CPU
+            r = requests.get(f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams", timeout=2).json()
             for item in r:
                 if alvo in limpar(item.get('name', '')):
-                    v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                    links_encontrados.append(v_url)
+                    candidatos.append(f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4")
         except: continue
 
-    # ==========================================
-    # HORA DA VERDADE: TESTAR QUAL LINK RESPONDE
-    # ==========================================
-    if not links_encontrados:
-        return "Nenhum link encontrado em nenhuma fonte", 404
+    if not candidatos:
+        return "Nao encontrado", 404
 
-    print(f"📊 Encontrei {len(links_encontrados)} links. Testando o melhor...")
-
-    # Tenta rodar cada link encontrado até um funcionar
-    for url in links_encontrados:
+    # TESTE SERIAL: Tenta um por um. O primeiro que der OK, ele entrega.
+    for url in candidatos:
+        print(f"🚀 Testando: {url[:50]}...")
         resultado = executar_proxy(url)
         if resultado:
             return resultado
 
-    # Se todos falharem no proxy, tenta o redirect do último achado como última esperança
-    return redirect(links_encontrados[0])
+    # Se tudo falhar no teste, manda o redirect do primeiro da lista pra tentar a sorte
+    return redirect(candidatos[0])
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
