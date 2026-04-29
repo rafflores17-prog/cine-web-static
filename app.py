@@ -1,221 +1,100 @@
-from flask import Flask, request, Response, stream_with_context, redirect
+from flask import Flask, request, Response, stream_with_context, redirect, jsonify
 import requests
 import sqlite3
 import os
 import re
 import unicodedata
 import random
-import datetime
 
 app = Flask(__name__)
 
-# =========================
-# CONFIG
-# =========================
-
 DB_PATH = "filmes.db"
-LOG_FILE = "logs_erros.txt"
-
-CHUNK_SIZE = 1024 * 256
-TIMEOUT = (8, 300)
 
 # =========================
-# AGENTES IPTV / CHROME
+# BUSCA PRECISA (ID ÚNICO)
 # =========================
 
-AGENTES = [
-    "EPPIPROPLAYER/1.0.8",
-    "OTT Navigator",
-    "VLC/3.0.20",
-    "ExoPlayerLib/2.19.1",
-    "Dalvik/2.1.0",
-    "Mozilla/5.0 (Android 14) Chrome/120 Mobile"
-]
-
-# =========================
-# LOG
-# =========================
-
-def log(err, title="", url=""):
-    try:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"\n{datetime.datetime.now()}\n{title}\n{url}\n{err}\n")
-    except:
-        pass
-
-# =========================
-# LIMPEZA
-# =========================
-
-def limpar(txt):
-    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt))
-                  if unicodedata.category(c) != 'Mn')
-    txt = re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)
-    txt = re.sub(r'\s+', ' ', txt)
-    return txt.strip().lower()
-
-# =========================
-# CRIA DB AUTOMÁTICO
-# =========================
-
-def init_db():
+def get_db():
     conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    conn.row_factory = sqlite3.Row # Isso ajuda a pegar pelo nome da coluna
+    return conn
 
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS filmes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT,
-        nome_busca TEXT,
-        url TEXT
-    )
-    """)
+@app.route("/pesquisar")
+def pesquisar():
+    query = request.args.get("q")
+    if not query: return jsonify([])
 
-    conn.commit()
+    termo = limpar(query)
+    conn = get_db()
+    
+    # Busca inteligente: Prioriza o que começa com o nome, depois o que contém
+    cursor = conn.execute("""
+        SELECT id, nome FROM filmes 
+        WHERE nome_busca LIKE ? 
+        ORDER BY (nome_busca = ?) DESC, nome_busca ASC LIMIT 10
+    """, (f"%{termo}%", termo))
+    
+    resultados = [{"id": r["id"], "nome": r["nome"]} for r in cursor.fetchall()]
+    conn.close()
+    return jsonify(resultados)
+
+# =========================
+# PLAY POR ID (O PULO DO GATO)
+# =========================
+
+@app.route("/assistir/<int:filme_id>")
+def assistir(filme_id):
+    conn = get_db()
+    res = conn.execute("SELECT nome, url FROM filmes WHERE id = ?", (filme_id,)).fetchone()
     conn.close()
 
-init_db()
+    if not res:
+        return "Filme não encontrado no banco", 404
+
+    return stream(res["url"], res["nome"])
 
 # =========================
-# ROBÔ: ORGANIZAR TXT -> DB
-# =========================
-
-def importar_txt_para_db(txt_file):
-    if not os.path.exists(txt_file):
-        return
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    with open(txt_file, "r", encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            if "|" in line:
-                nome, url = line.split("|", 1)
-                nome_limpo = limpar(nome)
-
-                c.execute("""
-                    INSERT INTO filmes (nome, nome_busca, url)
-                    VALUES (?, ?, ?)
-                """, (nome.strip(), nome_limpo, url.strip()))
-
-    conn.commit()
-    conn.close()
-
-# =========================
-# BUSCA (SEMPRE POR ID REAL)
-# =========================
-
-def buscar_filme(titulo):
-    titulo = limpar(titulo)
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # 🔥 exato primeiro
-    c.execute("SELECT id, nome, url FROM filmes WHERE nome_busca = ? LIMIT 1", (titulo,))
-    res = c.fetchone()
-
-    if res:
-        conn.close()
-        return res
-
-    # 🔥 fallback seguro (sem confundir franquia)
-    c.execute("SELECT id, nome, url FROM filmes WHERE nome_busca LIKE ? LIMIT 5", (f"{titulo}%",))
-    res = c.fetchall()
-
-    conn.close()
-
-    if res:
-        return res[0]
-
-    return None
-
-# =========================
-# STREAM ROBUSTO (ANTI-CRASH CHROME)
+# STREAMING SEM TRAVAMENTO
 # =========================
 
 def stream(url, title):
-
     try:
-        agent = random.choice(AGENTES)
-
         headers = {
-            "User-Agent": agent,
-            "Accept": "*/*",
-            "Connection": "keep-alive",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
             "Accept-Encoding": "identity",
-            "Referer": url
+            "Range": request.headers.get("Range", "bytes=0-")
         }
 
-        range_header = request.headers.get("Range")
-        if range_header:
-            headers["Range"] = range_header
+        r = requests.get(url, headers=headers, stream=True, timeout=15)
 
-        r = requests.get(
-            url,
-            headers=headers,
-            stream=True,
-            timeout=TIMEOUT,
-            allow_redirects=True
-        )
-
+        # Se o IPTV bloquear o servidor, faz o redirect direto (fallback)
         if r.status_code >= 400:
-            log("HTTP ERROR", title, url)
             return redirect(url)
 
-        status = 206 if range_header else 200
-
         def generate():
-            for chunk in r.iter_content(CHUNK_SIZE):
-                if chunk:
-                    yield chunk
+            for chunk in r.iter_content(chunk_size=1024*512):
+                yield chunk
 
         return Response(
             stream_with_context(generate()),
-            status=status,
+            status=r.status_code,
+            content_type=r.headers.get("Content-Type", "video/mp4"),
             headers={
-                "Content-Type": r.headers.get("Content-Type", "video/mp4"),
                 "Accept-Ranges": "bytes",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "no-cache"
+                "Access-Control-Allow-Origin": "*"
             }
         )
-
-    except Exception as e:
-        log(str(e), title, url)
+    except:
         return redirect(url)
 
-# =========================
-# SEARCH (RETORNA LISTA ORGANIZADA)
-# =========================
-
-@app.route("/buscar")
-def buscar():
-
-    titulo = request.args.get("titulo")
-
-    if not titulo:
-        return "vazio", 400
-
-    filme = buscar_filme(titulo)
-
-    if not filme:
-        return "não encontrado", 404
-
-    _id, nome, url = filme
-
-    return stream(url, nome)
-
-# =========================
-# IMPORT AUTOMÁTICO EXEMPLO
-# =========================
-
-@app.route("/importar")
-def importar():
-    importar_txt_para_db("filmes_site.txt")
-    return "OK importado"
-
-# =========================
+def limpar(txt):
+    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
+    return re.sub(r'\s+', ' ', re.sub(r'[^a-zA-Z0-9\s]', ' ', txt)).strip().lower()
 
 if __name__ == "__main__":
+    # Garante que o DB existe antes de rodar
+    init_conn = sqlite3.connect(DB_PATH)
+    init_conn.execute("CREATE TABLE IF NOT EXISTS filmes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, nome_busca TEXT, url TEXT)")
+    init_conn.close()
+    
     app.run(host="0.0.0.0", port=8000)
