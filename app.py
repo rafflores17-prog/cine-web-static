@@ -5,18 +5,25 @@ import random
 import os
 import unicodedata
 import re
+import datetime
 
 app = Flask(__name__)
+
+# =========================
+# CONFIG
+# =========================
+
+LOG_FILE = "logs_erros.txt"
 
 # =========================
 # AGENTES
 # =========================
 
 AGENTES_VIP = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Mozilla/5.0",
     "okhttp/4.12.0",
-    "VLC/3.0.4 LibVLC/3.0.4",
-    "Dalvik/2.1.0 (Linux; Android 14)",
+    "VLC/3.0.4",
+    "Dalvik/2.1.0"
 ]
 
 # =========================
@@ -24,34 +31,17 @@ AGENTES_VIP = [
 # =========================
 
 SERVIDORES_API = [
+
     {
-        "nome": "Mnba",
-        "host": "http://mnba.shop:80",
-        "user": "danicamara",
-        "pass": "acg2010v",
-    },
-    {
-        "nome": "Dnsrot",
-        "host": "http://play.dnsrot.vip:80",
-        "user": "sheilalima11",
-        "pass": "s6dfkck1jlq",
-    },
+        "nome": "Srv1",
+        "host": "http://servidor1:80",
+        "user": "user",
+        "pass": "pass"
+    }
+
 ]
 
 API_CACHE = {}
-
-# =========================
-# FRANQUIAS
-# =========================
-
-FRANQUIAS_DIRETO_API = [
-    "american pie",
-    "velozes e furiosos",
-    "harry potter",
-    "senhor dos aneis",
-    "star wars",
-    "matrix",
-]
 
 # =========================
 # LIMPAR TEXTO
@@ -83,17 +73,49 @@ def limpar_texto(texto):
     ).strip().lower()
 
 # =========================
-# EXTRAIR NÚMERO
+# EXTRAIR NUMERO
 # =========================
 
 def extrair_numero(texto):
 
-    numeros = re.findall(r'\b\d+\b', texto)
+    numeros = re.findall(
+        r'\b\d+\b',
+        texto
+    )
 
     if numeros:
         return numeros[0]
 
     return None
+
+# =========================
+# LOG ERROS
+# =========================
+
+def registrar_log(titulo, url, erro):
+
+    try:
+
+        agora = datetime.datetime.now()
+
+        linha = (
+            f"\n{agora}\n"
+            f"FILME: {titulo}\n"
+            f"URL: {url}\n"
+            f"ERRO: {erro}\n"
+            "----------------------\n"
+        )
+
+        with open(
+            LOG_FILE,
+            "a",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(linha)
+
+    except:
+        pass
 
 # =========================
 # CARREGAR TXT
@@ -115,10 +137,7 @@ def ler_txt(caminho):
 
                 if "|" in linha:
 
-                    n, u = linha.split(
-                        "|",
-                        1
-                    )
+                    n, u = linha.split("|", 1)
 
                     acervo[
                         limpar_texto(n)
@@ -126,13 +145,13 @@ def ler_txt(caminho):
 
     return acervo
 
-print("Carregando acervos...")
+print("Carregando listas...")
 
 VIP_CACHE = ler_txt("vips.txt")
 
-GIGANTE_CACHE = ler_txt("filmes_site.txt")
+GIGANTE_CACHE = ler_txt("Filmes_site.txt")
 
-print("Acervos carregados.")
+print("Listas carregadas.")
 
 # =========================
 # BUSCA SEGURA
@@ -140,19 +159,25 @@ print("Acervos carregados.")
 
 def busca_segura(t_limpo, acervo):
 
-    numero_busca = extrair_numero(t_limpo)
+    numero_busca = extrair_numero(
+        t_limpo
+    )
 
     for nome_db, url in acervo.items():
 
         if t_limpo == nome_db:
             return url
 
-        if nome_db.startswith(t_limpo + " "):
+        if nome_db.startswith(
+            t_limpo + " "
+        ):
             return url
 
         if numero_busca:
 
-            numero_nome = extrair_numero(nome_db)
+            numero_nome = extrair_numero(
+                nome_db
+            )
 
             if (
                 numero_nome
@@ -167,17 +192,16 @@ def busca_segura(t_limpo, acervo):
 # PROXY
 # =========================
 
-def executar_proxy(url_video):
-
-    if "archive.org" in url_video.lower():
-        return redirect(url_video, code=302)
+def executar_proxy(url_video, titulo):
 
     agente = random.choice(
         AGENTES_VIP
     )
 
     headers = {
+
         "User-Agent": agente,
+
         "Connection": "keep-alive"
     }
 
@@ -197,6 +221,16 @@ def executar_proxy(url_video):
             timeout=(10, 120),
             allow_redirects=True
         )
+
+        if r.status_code >= 400:
+
+            registrar_log(
+                titulo,
+                url_video,
+                "HTTP erro"
+            )
+
+            return None
 
         content_type = r.headers.get(
             "Content-Type",
@@ -224,40 +258,26 @@ def executar_proxy(url_video):
             "X-Content-Type-Options": "nosniff"
         }
 
-        if "Content-Range" in r.headers:
-
-            resp_headers[
-                "Content-Range"
-            ] = r.headers[
-                "Content-Range"
-            ]
-
-        if "Content-Length" in r.headers:
-
-            resp_headers[
-                "Content-Length"
-            ] = r.headers[
-                "Content-Length"
-            ]
-
         return Response(
+
             stream_with_context(
                 generate()
             ),
+
             status=r.status_code,
+
             headers=resp_headers
         )
 
     except Exception as e:
 
-        print(
-            "Erro proxy:",
-            e
+        registrar_log(
+            titulo,
+            url_video,
+            str(e)
         )
 
-        return redirect(
-            url_video
-        )
+        return None
 
 # =========================
 # BUSCA NO DB
@@ -292,56 +312,23 @@ def buscar_no_db(t_limpo):
 
         res = c.fetchone()
 
-        if res:
-
-            conn.close()
-
-            return res[0]
-
-        numero_busca = extrair_numero(
-            t_limpo
-        )
-
-        if numero_busca:
-
-            c.execute(
-                """
-                SELECT url, nome_busca
-                FROM filmes
-                WHERE nome_busca LIKE ?
-                """,
-                (
-                    f"%{numero_busca}%",
-                )
-            )
-
-            resultados = c.fetchall()
-
-            for url, nome in resultados:
-
-                numero_nome = extrair_numero(
-                    nome
-                )
-
-                if numero_nome == numero_busca:
-
-                    conn.close()
-
-                    return url
-
         conn.close()
+
+        if res:
+            return res[0]
 
     except Exception as e:
 
-        print(
-            "Erro DB:",
-            e
+        registrar_log(
+            t_limpo,
+            "DB",
+            str(e)
         )
 
     return None
 
 # =========================
-# BUSCA NAS APIs
+# BUSCA API
 # =========================
 
 def buscar_nas_apis(t_limpo):
@@ -378,8 +365,6 @@ def buscar_nas_apis(t_limpo):
                     srv["nome"]
                 ] = dados
 
-            # MATCH EXATO
-
             for item in dados:
 
                 nome_api = limpar_texto(
@@ -395,44 +380,18 @@ def buscar_nas_apis(t_limpo):
                         f"{item.get('stream_id')}.mp4"
                     )
 
-            # MATCH POR NÚMERO
-
-            if numero_busca:
-
-                for item in dados:
-
-                    nome_api = limpar_texto(
-                        item.get("name", "")
-                    )
-
-                    numero_nome = extrair_numero(
-                        nome_api
-                    )
-
-                    if (
-                        numero_nome
-                        and numero_nome == numero_busca
-                        and t_limpo.split()[0] in nome_api
-                    ):
-
-                        return (
-                            f"{srv['host']}/movie/"
-                            f"{srv['user']}/"
-                            f"{srv['pass']}/"
-                            f"{item.get('stream_id')}.mp4"
-                        )
-
         except Exception as e:
 
-            print(
-                "Erro API:",
-                e
+            registrar_log(
+                t_limpo,
+                "API",
+                str(e)
             )
 
     return None
 
 # =========================
-# ROTA PRINCIPAL
+# ROTA
 # =========================
 
 @app.route("/buscar")
@@ -456,84 +415,45 @@ def buscar():
         t_limpo
     )
 
-    # VIP
+    fontes = [
 
-    url = busca_segura(
-        t_limpo,
-        VIP_CACHE
-    )
+        busca_segura(
+            t_limpo,
+            VIP_CACHE
+        ),
 
-    if url:
-
-        print("VIP")
-
-        return executar_proxy(
-            url
-        )
-
-    # FRANQUIA
-
-    is_franquia = any(
-        f in t_limpo
-        for f in FRANQUIAS_DIRETO_API
-    )
-
-    if is_franquia:
-
-        url = buscar_nas_apis(
+        buscar_nas_apis(
             t_limpo
+        ),
+
+        buscar_no_db(
+            t_limpo
+        ),
+
+        busca_segura(
+            t_limpo,
+            GIGANTE_CACHE
         )
+
+    ]
+
+    for url in fontes:
 
         if url:
 
-            print("API franquia")
-
-            return executar_proxy(
-                url
+            resp = executar_proxy(
+                url,
+                titulo
             )
 
-    # DB
+            if resp:
+                return resp
 
-    url = buscar_no_db(
-        t_limpo
+    registrar_log(
+        titulo,
+        "nenhuma fonte",
+        "Filme não encontrado"
     )
-
-    if url:
-
-        print("DB")
-
-        return executar_proxy(
-            url
-        )
-
-    # API
-
-    url = buscar_nas_apis(
-        t_limpo
-    )
-
-    if url:
-
-        print("API")
-
-        return executar_proxy(
-            url
-        )
-
-    # GIGANTE
-
-    url = busca_segura(
-        t_limpo,
-        GIGANTE_CACHE
-    )
-
-    if url:
-
-        print("GIGANTE")
-
-        return executar_proxy(
-            url
-        )
 
     return "Filme não encontrado", 404
 
