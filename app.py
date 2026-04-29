@@ -1,6 +1,6 @@
 # ==========================================
-# MOTOR CINE MEGA PRO - MODO SOBREVIVÊNCIA + BUSCA INTELIGENTE
-# Prioridade: serv99.xyz | Auto-recuperação | Busca Fuzzy no DB
+# MOTOR CINE MEGA PRO - MODO SOBREVIVÊNCIA + DIFFLIB
+# Prioridade: serv99.xyz | Auto-recuperação | Busca de Alta Precisão
 # Desenvolvido por: @ApkBugado
 # ==========================================
 
@@ -15,6 +15,7 @@ import re
 import datetime
 import uvicorn
 import asyncio
+import difflib  # A nova inteligência artificial nativa do Python
 
 app = FastAPI(title="Motor Cine Mega - API Async Pro")
 
@@ -55,11 +56,10 @@ def registrar_log(titulo, url, erro):
 def limpar_texto(texto):
     if not texto:
         return ""
-    # Remove acentos
     texto = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
     texto = texto.lower()
     
-    # Remove palavras que sujam a busca do DB
+    # Remove lixo do nome que atrapalha a porcentagem
     palavras_lixo = ['dublado', 'legendado', 'nacional', '1080p', '720p', '4k', 'fhd', 'hd']
     for lixo in palavras_lixo:
         texto = texto.replace(lixo, '')
@@ -68,26 +68,26 @@ def limpar_texto(texto):
     texto = re.sub(r'\s+', ' ', texto)
     return texto.strip()
 
+# A NOVA MÁGICA PROFISSIONAL DE COMPARAÇÃO
 def similaridade(a, b):
-    # Se um texto estiver contido inteiramente no outro (ex: "Jumanji" dentro de "Jumanji 2017")
-    if a in b or b in a:
-        return 0.9 
-
+    # 1. Base: Escaneia as frases letra por letra
+    score = difflib.SequenceMatcher(None, a, b).ratio()
+    
     a_set = set(a.split())
     b_set = set(b.split())
     
-    if not a_set or not b_set:
-        return 0
-        
-    inter = a_set.intersection(b_set)
-    score = len(inter) / max(len(a_set), len(b_set))
-    
-    # Penaliza se os anos (números) forem diferentes
-    nums_a = [c for c in a.split() if c.isdigit()]
-    nums_b = [c for c in b.split() if c.isdigit()]
-    if nums_a and nums_b and nums_a != nums_b:
-        score *= 0.5
+    # 2. Bônus de Palavras Chave (ignora palavras pequenas como 'a', 'o', 'de')
+    b_set_limpo = {w for w in b_set if len(w) > 2}
+    if b_set_limpo and b_set_limpo.issubset(a_set):
+        score = max(score, 0.85)
 
+    # 3. Guilhotina do Ano: Se os anos (ex: 2017 e 2020) não baterem, destrói a nota!
+    anos_a = [w for w in a_set if w.isdigit() and len(w) == 4]
+    anos_b = [w for w in b_set if w.isdigit() and len(w) == 4]
+    
+    if anos_a and anos_b and anos_a[0] != anos_b[0]:
+        score *= 0.1 # Cai para quase zero
+        
     return score
 
 # =========================
@@ -129,12 +129,12 @@ def buscar_txt(titulo_limpo, acervo):
             best_score = score
             best = url
             
-    if best_score >= 0.6:
+    if best_score >= 0.65: # Exige 65% de precisão mínima
         return best
     return None
 
 # =========================
-# BUSCA INTELIGENTE NO BANCO DE DADOS (NOVO ALGORITMO)
+# BUSCA INTELIGENTE NO BANCO DE DADOS
 # =========================
 def buscar_db_todos(titulo_limpo):
     urls = []
@@ -145,7 +145,6 @@ def buscar_db_todos(titulo_limpo):
         conn = sqlite3.connect("filmes.db")
         c = conn.cursor()
         
-        # Puxa tudo para calcular a similaridade (evita o erro do nome não exato)
         c.execute("SELECT nome_busca, url FROM filmes")
         todos_filmes = c.fetchall()
         
@@ -156,11 +155,9 @@ def buscar_db_todos(titulo_limpo):
             nome_limpo = limpar_texto(nome_db)
             score = similaridade(titulo_limpo, nome_limpo)
             
-            # Se a similaridade for boa, guarda o link
             if score >= 0.65: 
                 melhores_resultados.append((score, url_db))
         
-        # Ordena para garantir que os mais parecidos fiquem no topo
         melhores_resultados.sort(key=lambda x: x[0], reverse=True)
         urls = [item[1] for item in melhores_resultados]
             
@@ -281,7 +278,6 @@ async def buscar(request: Request):
     if not urls_unicas:
         return Response(content="Filme não encontrado", status_code=404)
 
-    # Ordena: Se tem o servidor VIP (serv99.xyz), joga pro topo.
     urls_ordenadas = sorted(urls_unicas, key=lambda x: 0 if SERVIDOR_PRIORIDADE in x else 1)
 
     return await testar_e_executar_proxy(urls_ordenadas, titulo, request)
