@@ -31,7 +31,6 @@ CACHE_STREAM = {}
 # =========================
 
 AGENTES = [
-
     # IPTV REAL
     "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
     "PurplePlayer/1.2.82",
@@ -185,29 +184,29 @@ def buscar_db(titulo_limpo):
         return None
 
 # =========================
-# 🔥 MOTOR NETFLIX PRO LITE
+# 🔥 MOTOR NETFLIX PRO LITE (CORRIGIDO)
 # =========================
 
 def executar_proxy(url_video, titulo):
 
     try:
-
         # 🔥 CACHE (evita travar em requests repetidos)
         if url_video in CACHE_STREAM:
             return redirect(url_video)
 
-        agente = random.choice(AGENTES)
+        # Detecta se é um player externo para repassar o User-Agent real
+        ua_cliente = request.headers.get("User-Agent", "")
+        if any(player in ua_cliente for player in ["VLC", "ExoPlayer", "Player", "Kodi"]):
+            agente = ua_cliente
+        else:
+            agente = random.choice(AGENTES)
 
         range_header = request.headers.get("Range")
 
         headers = {
             "User-Agent": agente,
             "Accept": "*/*",
-            "Accept-Encoding": "identity",
             "Connection": "keep-alive",
-            "Accept-Language": "en-US,en;q=0.9",
-
-            # simula player real
             "Referer": url_video,
             "Origin": "/".join(url_video.split("/")[:3])
         }
@@ -223,42 +222,41 @@ def executar_proxy(url_video, titulo):
             allow_redirects=True
         )
 
+        # Removemos a conversão forçada de 200 para 206 que causava erro no Chrome
         status = r.status_code
-
-        # 🔥 FIX NETFLIX SEEK
-        if range_header and status == 200:
-            status = 206
 
         if status not in (200, 206):
             registrar_log(titulo, url_video, f"HTTP {status}")
             return redirect(url_video)
-
-        def generate():
-            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-                if chunk:
-                    yield chunk
 
         headers_resp = {
             "Content-Type": r.headers.get("Content-Type", "video/mp4"),
             "Accept-Ranges": "bytes",
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive"
         }
 
         if "Content-Range" in r.headers:
             headers_resp["Content-Range"] = r.headers["Content-Range"]
-
         if "Content-Length" in r.headers:
             headers_resp["Content-Length"] = r.headers["Content-Length"]
 
-        # salva cache leve
+        def generate():
+            try:
+                for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                    if chunk:
+                        yield chunk
+            except Exception:
+                pass # Evita o registo de erro no log se o visualizador fechar o stream
+
+        # Salva cache leve
         CACHE_STREAM[url_video] = True
 
         return Response(
             stream_with_context(generate()),
             status=status,
-            headers=headers_resp
+            headers=headers_resp,
+            direct_passthrough=True # Garante a entrega nativa e sem estrangulamento
         )
 
     except Exception as e:
