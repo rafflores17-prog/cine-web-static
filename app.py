@@ -1,10 +1,11 @@
-from flask import Flask, request, Response, stream_with_context
+
+from flask import Flask, request, Response, stream_with_context, redirect
 import requests
 import sqlite3
+import random
 import os
 import unicodedata
 import re
-import random
 import datetime
 
 app = Flask(__name__)
@@ -13,194 +14,382 @@ app = Flask(__name__)
 # CONFIG
 # =========================
 
-DB_FILE = "filmes.db"
-VIP_FILE = "vips.txt"
 LOG_FILE = "logs_erros.txt"
 
-TIMEOUT = (5, 60)
-CHUNK_SIZE = 1024 * 64  # 🔥 seguro (64KB)
+TIMEOUT_CONNECT = 10
+TIMEOUT_READ = 180
+
+CHUNK_SIZE = 1024 * 1024
+
+# =========================
+# AGENTES
+# =========================
 
 AGENTES = [
+
     "Mozilla/5.0",
     "okhttp/4.12.0",
-    "VLC/3.0",
+    "VLC/3.0.4",
     "Dalvik/2.1.0"
+
 ]
 
 # =========================
 # LOG
 # =========================
 
-def log(titulo, url, erro):
+def registrar_log(titulo, url, erro):
+
     try:
+
+        agora = datetime.datetime.now()
+
+        linha = (
+            f"\n{agora}\n"
+            f"FILME: {titulo}\n"
+            f"URL: {url}\n"
+            f"ERRO: {erro}\n"
+            "----------------------\n"
+        )
+
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"\n{datetime.datetime.now()}\n{titulo}\n{url}\n{erro}\n")
+
+            f.write(linha)
+
     except:
         pass
 
 # =========================
-# NORMALIZAR TEXTO
+# LIMPAR TEXTO
 # =========================
 
-def normalizar(t):
-    if not t:
+def limpar_texto(texto):
+
+    if not texto:
         return ""
 
-    t = ''.join(
-        c for c in unicodedata.normalize("NFD", str(t))
-        if unicodedata.category(c) != "Mn"
+    texto = ''.join(
+        c for c in unicodedata.normalize(
+            'NFD',
+            str(texto)
+        )
+        if unicodedata.category(c) != 'Mn'
     )
 
-    t = re.sub(r"[^a-zA-Z0-9\s]", " ", t)
-    t = re.sub(r"\s+", " ", t)
+    texto = re.sub(
+        r'[^a-zA-Z0-9\s]',
+        ' ',
+        texto
+    )
 
-    return t.strip().lower()
+    texto = re.sub(
+        r'\s+',
+        ' ',
+        texto
+    )
+
+    return texto.strip().lower()
 
 # =========================
-# DB SEARCH (PRIORIDADE TOTAL)
+# CARREGAR TXT COM PROTEÇÃO
 # =========================
 
-def buscar_db(nome):
+def carregar_txt(nome):
+
+    arquivos = [
+
+        nome,
+        nome.lower(),
+        nome.upper()
+
+    ]
+
+    for arq in arquivos:
+
+        if os.path.exists(arq):
+
+            return ler_txt(arq)
+
+    print("Arquivo não encontrado:", nome)
+
+    return {}
+
+def ler_txt(caminho):
+
+    acervo = {}
+
     try:
-        if not os.path.exists(DB_FILE):
-            return None
 
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
+        with open(
+            caminho,
+            "r",
+            encoding="utf-8"
+        ) as f:
 
-        n = normalizar(nome)
+            for linha in f:
 
-        # 🔥 exato primeiro
-        c.execute("""
-            SELECT url FROM filmes
-            WHERE nome_busca = ?
-            LIMIT 1
-        """, (n,))
+                if "|" in linha:
 
-        r = c.fetchone()
+                    nome, url = linha.split("|", 1)
 
-        if r:
-            conn.close()
-            return r[0]
+                    nome_limpo = limpar_texto(nome)
 
-        # 🔥 fallback LIKE
-        c.execute("""
-            SELECT url FROM filmes
-            WHERE nome_busca LIKE ?
-            LIMIT 1
-        """, (f"%{n}%",))
-
-        r = c.fetchone()
-
-        conn.close()
-
-        return r[0] if r else None
+                    acervo[nome_limpo] = url.strip()
 
     except Exception as e:
-        log(nome, "DB", str(e))
-        return None
+
+        registrar_log(
+            "LER_TXT",
+            caminho,
+            str(e)
+        )
+
+    return acervo
+
+print("Carregando listas...")
+
+VIP_CACHE = carregar_txt("vips.txt")
+
+SITE_CACHE = carregar_txt("filmes_site.txt")
+
+print("Listas carregadas.")
 
 # =========================
-# VIP TXT (SECUNDÁRIO)
+# PROXY ULTRA ESTÁVEL
 # =========================
 
-def buscar_vip(nome):
+def executar_proxy(url_video, titulo):
+
     try:
-        if not os.path.exists(VIP_FILE):
-            return None
 
-        n = normalizar(nome)
+        agente = random.choice(AGENTES)
 
-        with open(VIP_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                if "|" in line:
-                    t, url = line.split("|", 1)
-                    if normalizar(t) == n:
-                        return url.strip()
-
-    except Exception as e:
-        log(nome, "VIP", str(e))
-
-    return None
-
-# =========================
-# STREAM SEGURO (ANTI CRASH GUNICORN)
-# =========================
-
-def stream(url, titulo):
-    try:
         headers = {
-            "User-Agent": random.choice(AGENTES),
-            "Connection": "keep-alive",
-            "Accept": "*/*"
+
+            "User-Agent": agente,
+            "Connection": "keep-alive"
+
         }
 
-        if "Range" in request.headers:
-            headers["Range"] = request.headers["Range"]
+        range_header = request.headers.get("Range")
+
+        if range_header:
+
+            headers["Range"] = range_header
 
         r = requests.get(
-            url,
+
+            url_video,
             headers=headers,
             stream=True,
-            timeout=TIMEOUT,
+            timeout=(TIMEOUT_CONNECT, TIMEOUT_READ),
             allow_redirects=True
+
         )
 
         if r.status_code >= 400:
-            log(titulo, url, f"HTTP {r.status_code}")
-            return ("erro stream", 502)
+
+            registrar_log(
+                titulo,
+                url_video,
+                f"HTTP {r.status_code}"
+            )
+
+            return redirect(url_video)
+
+        content_type = r.headers.get(
+            "Content-Type",
+            "video/mp4"
+        )
+
+        content_length = r.headers.get(
+            "Content-Length"
+        )
+
+        content_range = r.headers.get(
+            "Content-Range"
+        )
 
         def generate():
-            try:
-                for chunk in r.iter_content(CHUNK_SIZE):
-                    if chunk:
-                        yield chunk
-            except Exception as e:
-                log(titulo, url, str(e))
+
+            for chunk in r.iter_content(
+                chunk_size=CHUNK_SIZE
+            ):
+
+                if chunk:
+
+                    yield chunk
+
+        resp_headers = {
+
+            "Content-Type": content_type,
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Connection": "keep-alive",
+            "Cache-Control": "no-cache",
+            "X-Content-Type-Options": "nosniff"
+
+        }
+
+        if content_length:
+
+            resp_headers["Content-Length"] = content_length
+
+        if content_range:
+
+            resp_headers["Content-Range"] = content_range
 
         return Response(
             stream_with_context(generate()),
             status=r.status_code,
-            headers={
-                "Content-Type": r.headers.get("Content-Type", "video/mp4"),
-                "Accept-Ranges": "bytes",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "no-cache"
-            }
+            headers=resp_headers
         )
 
     except Exception as e:
-        log(titulo, url, str(e))
-        return ("erro geral", 500)
+
+        registrar_log(
+            titulo,
+            url_video,
+            str(e)
+        )
+
+        return redirect(url_video)
+
+# =========================
+# BUSCA TXT INTELIGENTE
+# =========================
+
+def buscar_txt(titulo_limpo, acervo):
+
+    if titulo_limpo in acervo:
+
+        return acervo[titulo_limpo]
+
+    for nome, url in acervo.items():
+
+        if nome.startswith(titulo_limpo):
+
+            return url
+
+    return None
+
+# =========================
+# BUSCA DB SEGURA
+# =========================
+
+def buscar_db(titulo_limpo):
+
+    try:
+
+        if not os.path.exists("filmes.db"):
+
+            return None
+
+        conn = sqlite3.connect("filmes.db")
+
+        c = conn.cursor()
+
+        c.execute(
+
+            """
+            SELECT url
+            FROM filmes
+            WHERE nome_busca = ?
+            LIMIT 1
+            """,
+
+            (titulo_limpo,)
+
+        )
+
+        res = c.fetchone()
+
+        conn.close()
+
+        if res:
+
+            return res[0]
+
+    except Exception as e:
+
+        registrar_log(
+            titulo_limpo,
+            "DB",
+            str(e)
+        )
+
+    return None
 
 # =========================
 # ROTA PRINCIPAL
 # =========================
 
 @app.route("/buscar")
+
 def buscar():
 
     titulo = request.args.get("titulo")
 
     if not titulo:
-        return "sem titulo", 400
 
-    print("BUSCANDO:", titulo)
+        return "Título vazio", 400
 
-    url = (
-        buscar_db(titulo)
-        or buscar_vip(titulo)
+    titulo_limpo = limpar_texto(titulo)
+
+    print("Buscando:", titulo_limpo)
+
+    fontes = [
+
+        buscar_txt(
+            titulo_limpo,
+            VIP_CACHE
+        ),
+
+        buscar_db(
+            titulo_limpo
+        ),
+
+        buscar_txt(
+            titulo_limpo,
+            SITE_CACHE
+        )
+
+    ]
+
+    for url in fontes:
+
+        if url:
+
+            resp = executar_proxy(
+                url,
+                titulo
+            )
+
+            if resp:
+
+                return resp
+
+    registrar_log(
+        titulo,
+        "nenhuma fonte",
+        "Filme não encontrado"
     )
 
-    if not url:
-        return "não encontrado", 404
-
-    return stream(url, titulo)
+    return "Filme não encontrado", 404
 
 # =========================
 
 if __name__ == "__main__":
+
     app.run(
+
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000))
+
+        port=int(
+            os.environ.get(
+                "PORT",
+                8000
+            )
+        )
+
     )
