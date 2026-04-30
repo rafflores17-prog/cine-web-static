@@ -10,6 +10,9 @@ app = Flask(__name__)
 DB_PATH = "filmes.db"
 CHUNK_SIZE = 1024 * 128  # 128KB para estabilidade no streaming
 
+# 🕵️ LISTA NEGRA DE BOTS (Para o MJ12bot parar de sugar sua CPU)
+BOTS_BLOQUEADOS = ["mj12bot", "ahrefsbot", "dotbot", "semrushbot", "petalbot", "thinkbot"]
+
 # 🛡️ APIS DE ELITE (MNBA, DNSROT, KMEDIAPLAY)
 SERVIDORES_API = [
     {"nome": "Mnba", "host": "http://mnba.shop:80", "user": "danicamara", "pass": "acg2010v"},
@@ -30,6 +33,11 @@ def limpar(txt):
     if not txt: return ""
     txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
     return re.sub(r'[^a-z0-9]', '', txt.lower())
+
+# 📄 ROTA ROBOTS.TXT (Diz para os bots educados saírem fora)
+@app.route("/robots.txt")
+def robots():
+    return Response("User-agent: *\nDisallow: /", mimetype="text/plain")
 
 def executar_proxy(url_video):
     # Archive e Blogspot vão direto (Redirect 302) para poupar o servidor
@@ -78,6 +86,11 @@ def executar_proxy(url_video):
 
 @app.route("/buscar")
 def buscar():
+    # 🕵️ O ESCUDO: Bloqueia o MJ12bot antes dele processar qualquer busca
+    ua = request.headers.get('User-Agent', '').lower()
+    if any(bot in ua for bot in BOTS_BLOQUEADOS):
+        return "Acesso negado", 403
+
     titulo = request.args.get("titulo")
     if not titulo: return "Título vazio", 400
     alvo = limpar(titulo)
