@@ -1,63 +1,104 @@
-import os, random, requests, unicodedata, re, time
 from flask import Flask, request, Response, stream_with_context, redirect
+import requests
+import sqlite3
+import random
+import os
+import unicodedata
+import re
 
 app = Flask(__name__)
+DB_PATH = "filmes.db"
+CHUNK_SIZE = 1024 * 128 # Aumentado para 128KB para melhor fluidez
 
-# FONTES ATUALIZADAS - FOCO NA ESTABILIDADE
-FONTES = {
-    "1": {"host": "http://serv99.xyz:8880", "user": "1764371", "pass": "2419902"},
-    "2": {"host": "http://nxpanelxr51.info", "user": "sandroalvares2", "pass": "T9er2T"}
-}
+# 🛡️ AS MELHORES APIS (As que rodam bem e são estáveis)
+SERVIDORES_API = [
+    {"nome": "Mnba", "host": "http://mnba.shop:80", "user": "danicamara", "pass": "acg2010v"},
+    {"nome": "Dnsrot", "host": "http://play.dnsrot.vip:80", "user": "sheilalima11", "pass": "s6dfkck1jlq"},
+    {"nome": "Kmediaplay", "host": "http://kmediaplay.click:80", "user": "Indio1432", "pass": "indio1433"}
+]
 
-BOTS_PROIBIDOS = ["mj12bot", "ahrefsbot", "dotbot", "semrushbot", "googlebot"]
-cache_links = {}
+# 🚀 AGENTES VIP PRESERVADOS (O segredo do play está aqui)
+AGENTES_VIP = [
+    "EPPIPROPLAYER/1.0.8 (Linux;Android 14) AndroidXMedia3/1.5.1",
+    "purpleplayer/1.2.82",
+    "Dalvik/2.1.0 (Linux; U; Android 14; 2312FPCA6G Build/UP1A.231005.007)",
+    "VLC/3.0.4 LibVLC/3.0.4",
+    "okhttp/4.12.0"
+]
 
-def limpar_extremo(txt):
+def limpar(txt):
     if not txt: return ""
-    # Remove TUDO que não é letra ou número (incluindo espaços e acentos)
-    txt = re.sub(r'\(\d{4}\)', '', str(txt))
-    txt = ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
+    txt = ''.join(c for c in unicodedata.normalize('NFD', str(txt)) if unicodedata.category(c) != 'Mn')
     return re.sub(r'[^a-z0-9]', '', txt.lower())
 
-@app.route("/play")
-def play():
-    ua = request.headers.get('User-Agent', '').lower()
-    if any(bot in ua for bot in BOTS_PROIBIDOS): return "Bot Block", 403
+def executar_proxy(url_video):
+    if any(x in url_video.lower() for x in ["archive.org", "googlevideo", "blogspot"]):
+        return redirect(url_video)
 
-    titulo = request.args.get("titulo")
-    # Se não vier fonte, ou se a fonte 2 falhar, o sistema pode tentar a 1 automaticamente
-    fonte_id = request.args.get("fonte", "1")
-    
-    alvo = limpar_extremo(titulo)
-    chave_cache = f"{alvo}_{fonte_id}"
-    
-    if chave_cache in cache_links:
-        timestamp, link_salvo = cache_links[chave_cache]
-        if time.time() - timestamp < 3600: # 1 hora de cache (Mais fôlego)
-            return redirect(link_salvo)
+    headers = {
+        "User-Agent": random.choice(AGENTES_VIP),
+        "Connection": "keep-alive",
+        "Range": request.headers.get("Range", "bytes=0-")
+    }
 
-    srv = FONTES.get(fonte_id)
     try:
-        url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
-        # Timeout aumentado para 8 segundos para dar chance da API responder
-        r = requests.get(url_api, timeout=8)
-        dados = r.json()
-        
-        for item in dados:
-            nome_api = limpar_extremo(item.get('name', ''))
-            # BUSCA TOTAL: Se o que você quer está no nome, ou o nome está no que você quer
-            if alvo in nome_api or nome_api in alvo:
-                v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
-                cache_links[chave_cache] = (time.time(), v_url)
-                return redirect(v_url)
-    except:
-        pass
-    
-    return "Nao encontrado", 404
+        r = requests.get(url_video, headers=headers, stream=True, timeout=(5, 300), allow_redirects=True)
+        if r.status_code >= 400: return redirect(url_video)
 
-@app.route("/")
-def index():
-    return "Cine Mega v51 - Sistema Online"
+        def generate():
+            try:
+                for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                    if chunk: yield chunk
+            except: pass
+            finally: r.close()
+
+        resp = Response(stream_with_context(generate()), status=r.status_code)
+        resp.headers["Content-Type"] = "video/mp4"
+        resp.headers["Accept-Ranges"] = "bytes"
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        return resp
+    except:
+        return redirect(url_video)
+
+@app.route("/buscar")
+def buscar():
+    titulo = request.args.get("titulo")
+    if not titulo: return "Título vazio", 400
+    alvo = limpar(titulo)
+
+    # 1. VIP e TXT (Prioridade Máxima)
+    for arq in ["vips.txt", "filmes_site.txt"]:
+        if os.path.exists(arq):
+            with open(arq, "r", encoding="utf-8", errors="ignore") as f:
+                for linha in f:
+                    if "|" in linha:
+                        n, u = linha.split("|", 1)
+                        if alvo in limpar(n): return executar_proxy(u.strip())
+
+    # 2. BANCO DE DADOS (Busca por search_name ou name)
+    if os.path.exists(DB_PATH):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT url FROM filmes WHERE nome_busca LIKE ? OR nome_busca = ? LIMIT 1", (f'%{alvo}%', alvo))
+            res = c.fetchone()
+            conn.close()
+            if res: return executar_proxy(res[0])
+        except: pass
+
+    # 3. APIs DE ELITE (Reforço Final)
+    for srv in SERVIDORES_API:
+        try:
+            url_api = f"{srv['host']}/player_api.php?username={srv['user']}&password={srv['pass']}&action=get_vod_streams"
+            r = requests.get(url_api, timeout=4).json()
+            for item in r:
+                if alvo in limpar(item.get('name', '')):
+                    v_url = f"{srv['host']}/movie/{srv['user']}/{srv['pass']}/{item.get('stream_id')}.mp4"
+                    return executar_proxy(v_url)
+        except: continue
+
+    return "Não encontrado", 404
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), threaded=True)
