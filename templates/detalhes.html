@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
 <title>{{ filme.title }}</title>
 
 <script>
@@ -16,7 +15,6 @@ s.src='https://n6wxm.com/vignette.min.js'
 
 <style>
 * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-
 body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
 
 .fundo-animado {
@@ -28,118 +26,85 @@ body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-s
 }
 
 @keyframes movimentoFundo { from { transform: scale(1); } to { transform: scale(1.15); } }
-
 .container { padding: 15px; max-width: 600px; margin: 0 auto; text-align: center; }
 
-/* 🔴 NOVO BOTÃO VOLTAR VERMELHO */
 .back-btn { 
     background: #e50914; color: #fff; text-decoration: none; font-size: 13px; 
     font-weight: bold; float: left; margin-bottom: 15px; padding: 8px 16px; 
-    border-radius: 6px; box-shadow: 0 4px 10px rgba(229, 9, 20, 0.4); transition: 0.2s;
+    border-radius: 6px; box-shadow: 0 4px 10px rgba(229, 9, 20, 0.4);
 }
-.back-btn:active { transform: scale(0.95); }
 
 .capinha {
     width: 175px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    margin: 45px auto 10px auto; display: block;
-    border: 1px solid rgba(255,255,255,0.2); pointer-events: none;
+    margin: 45px auto 10px auto; display: block; border: 1px solid rgba(255,255,255,0.2);
 }
 
 .info-topo { font-size: 13px; color: #00ff88; font-weight: bold; margin-bottom: 15px; }
+.player-box { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; margin: 15px 0; overflow: hidden; border: 1px solid #333; }
+video, iframe { width: 100%; height: 100%; border: none; }
 
-.player-box {
-    width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px;
-    margin: 15px 0; overflow: hidden; border: 1px solid #333; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-}
-
-video, iframe { width: 100%; height: 100%; border: none; background: #000; outline: none; }
-
-.btn-play {
-    display: block; width: 100%; box-sizing: border-box; padding: 16px;
-    background: #e50914; color: #fff; text-decoration: none; border-radius: 50px;
-    font-weight: bold; font-size: 18px; margin: 20px auto; border: none; text-align: center;
-}
-
-/* 📥 NOVO BOTÃO SECUNDÁRIO (BAIXAR / EXTERNO) */
 .btn-secundario {
     display: block; width: 100%; box-sizing: border-box; padding: 14px;
     background: rgba(34, 34, 34, 0.8); color: #fff; text-decoration: none; border-radius: 50px;
-    font-weight: bold; font-size: 15px; margin: 10px auto 20px auto; border: 1px solid #444; 
-    text-align: center; transition: 0.2s; backdrop-filter: blur(5px);
+    font-weight: bold; font-size: 15px; margin: 10px auto 20px auto; border: 1px solid #444; text-align: center;
 }
-.btn-secundario:active { transform: scale(0.96); background: #333; }
 
 .sinopse-box {
     background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px; text-align: justify;
-    font-size: 14px; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1); margin-top: 10px;
+    font-size: 14px; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1);
 }
 
-.sinopse-label { display: block; color: #888; font-weight: bold; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; }
+/* 🚀 NOVO: GRID DE RECOMENDADOS (VOCÊ PODE GOSTAR) */
+.rec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+.rec-card img { width: 100%; border-radius: 8px; border: 1px solid #333; }
 </style>
 </head>
 
-<body oncontextmenu="return false;">
-
+<body>
 <div class="fundo-animado"></div>
-
 <div class="container">
-
     <a href="/" class="back-btn">⬅ VOLTAR</a>
     <div style="clear: both;"></div>
 
     <img src="{{ img }}{{ filme.poster_path }}" class="capinha">
-
-    <h1 style="font-size: 26px; margin: 10px 0 5px 0; font-weight: 900;">
-        {{ filme.title }}
-    </h1>
+    <h1 style="font-size: 26px; margin: 10px 0;">{{ filme.title }}</h1>
 
     <div class="info-topo">
         ⭐ {{ "%.1f"|format(filme.vote_average) }} | {{ filme.release_date[:4] }} | FULL HD
     </div>
 
     <div class="player-box">
-        {% if trailer_key %}
-            <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0&playsinline=1" allowfullscreen></iframe>
-        {% else %}
-            <div style="padding-top: 80px; color: #555;">Trailer Indisponível</div>
-        {% endif %}
+        <video id="player" controls playsinline poster="{{ bg }}{{ filme.backdrop_path }}" preload="metadata">
+            <source src="{{ play_link }}" type="video/mp4">
+        </video>
     </div>
+    
+    <a href="{{ play_link }}" target="_blank" class="btn-secundario">📥 BAIXAR / ABRIR EXTERNO</a>
 
-    {% if play_link %}
+    {% if trailer_key %}
+        <p style="text-align: left; color: #ffcc00; font-weight: bold; margin-top: 20px;">📺 ASSISTIR TRAILER:</p>
         <div class="player-box">
-            <video id="player" controls playsinline webkit-playsinline preload="metadata" poster="{{ bg }}{{ filme.backdrop_path }}" controlsList="nodownload">
-                <source src="{{ play_link }}" type="video/mp4">
-                Seu navegador não suporta vídeo.
-            </video>
+            <iframe src="https://www.youtube.com/embed/{{ trailer_key }}?rel=0" allowfullscreen></iframe>
         </div>
-        
-        <a href="{{ play_link }}" target="_blank" class="btn-secundario">📥 BAIXAR / ABRIR EXTERNO</a>
-    {% else %}
-        <a class="btn-play">▶️ FILME INDISPONÍVEL</a>
     {% endif %}
 
     <div class="sinopse-box">
-        <span class="sinopse-label">Sinopse</span>
-        {{ filme.overview or "A sinopse deste filme ainda não foi traduzida." }}
+        <span style="color: #888; font-size: 12px; font-weight: bold; text-transform: uppercase;">Sinopse</span><br>
+        {{ filme.overview or "Sinopse não disponível." }}
     </div>
 
+    <p style="text-align: left; color: #ffcc00; font-weight: bold; margin-top: 30px;">🎬 VOCÊ PODE GOSTAR:</p>
+    <div class="rec-grid">
+        {% for rec in recomendados %}
+            <a href="/filme/{{ rec.id }}" class="rec-card">
+                <img src="{{ img }}{{ rec.poster_path }}" alt="{{ rec.title }}">
+            </a>
+        {% endfor %}
+    </div>
 </div>
 
 <script>
-(function(s){
-s.dataset.zone='10920008',
-s.src='https://nap5k.com/tag.min.js'
-})
-([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
+(function(s){ s.dataset.zone='10920008', s.src='https://nap5k.com/tag.min.js' })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
 </script>
-
-<script>
-(function(s){
-s.dataset.zone='10920000',
-s.src='https://al5sm.com/tag.min.js'
-})
-([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
-</script>
-
 </body>
 </html>
