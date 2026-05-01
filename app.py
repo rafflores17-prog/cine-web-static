@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-import difflib # ✨ A Bilioteca de Inteligência Sniper!
+import difflib
 from flask import Flask, request, redirect
 
 app = Flask(__name__)
@@ -9,21 +9,31 @@ app = Flask(__name__)
 M3U_URL = "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/lista.m3u" 
 ARQUIVO_MANUAL = "manual.txt" 
 
-# Agora usamos um catálogo ÚNICO para o manual não bloquear a M3U
 catalogo_filmes = {}
 
 def limpar(nome):
     nome = str(nome).lower()
-    # Converte números romanos das franquias TMDB para bater com a M3U
-    nome = nome.replace("parte ii", "2").replace("parte iii", "3").replace("parte iv", "4")
-    # Limpa tags
+    
+    # 1. Tira palavras inúteis que o TMDB manda
+    nome = re.sub(r'\bparte\b', '', nome)
+    
+    # 2. TRADUTOR TMDB -> M3U (A mágica das franquias)
+    # Transforma algarismos romanos em números normais
+    nome = re.sub(r'\bii\b', '2', nome)
+    nome = re.sub(r'\biii\b', '3', nome)
+    nome = re.sub(r'\biv\b', '4', nome)
+    nome = re.sub(r'\bv\b', '5', nome)
+    nome = re.sub(r'\bvi\b', '6', nome)
+    
+    # 3. A sua lógica original de limpeza do script
     nome = re.sub(r"\[.*?\]", "", nome)
     nome = re.sub(r"\(.*?\)", "", nome)
     nome = nome.replace(".", " ").replace("-", " ").replace(":", " ")
+    
+    # Remove espaços duplos
     return " ".join(nome.split()).strip()
 
 def carregar_arquivos():
-    # 1. Carrega M3U da Nuvem
     print("⏳ Iniciando carga da lista M3U da Nuvem...")
     try:
         r = requests.get(M3U_URL, stream=True, timeout=60)
@@ -43,7 +53,7 @@ def carregar_arquivos():
     except Exception as e:
         print(f"❌ ERRO ao baixar lista M3U: {e}")
 
-    # 2. Carrega Manual (Mescla junto com a M3U, ganhando prioridade se o nome for igual)
+    # Manual sobrescreve a M3U sem quebrar a lógica das franquias
     if os.path.exists(ARQUIVO_MANUAL):
         try:
             contador = 0
@@ -51,7 +61,6 @@ def carregar_arquivos():
                 for linha in f:
                     if "|" in linha:
                         nome_sujo, link = linha.split("|", 1)
-                        # Se já existir, o link manual substitui o da nuvem!
                         catalogo_filmes[limpar(nome_sujo)] = link.strip()
                         contador += 1
             print(f"✅ MANUAL: {contador} filmes injetados com sucesso!")
@@ -59,31 +68,28 @@ def carregar_arquivos():
 
 carregar_arquivos()
 
-# 🎯 FUNÇÃO SNIPER
+# Função Sniper com foco em números de franquia
 def buscar_sniper(titulo_buscado):
-    # 1. Match Perfeito (Na Mosca)
+    # 1. Match Perfeito (De Volta para o Futuro 2 == De Volta para o Futuro 2)
     if titulo_buscado in catalogo_filmes:
         return catalogo_filmes[titulo_buscado], "Exato"
 
     melhor_link = None
     maior_score = 0.0
-
-    # Pega os números do título (Ex: o "2" do American Pie 2)
+    
+    # Pega o número do filme que a Vercel pediu
     nums_busca = set(re.findall(r'\b\d+\b', titulo_buscado))
 
-    # 2. Match por Similaridade Matemática
     for nome_cat, link in catalogo_filmes.items():
         if nome_cat in titulo_buscado or titulo_buscado in nome_cat:
-            # Calcula o grau de semelhança entre os títulos (Ex: 80% igual)
             score = difflib.SequenceMatcher(None, titulo_buscado, nome_cat).ratio()
             
-            # Pega os números do título que está no M3U
+            # Pega o número do filme que está na M3U
             nums_cat = set(re.findall(r'\b\d+\b', nome_cat))
             
-            # 🚨 TRAVA DE FRANQUIA: Se um é o "2" e o outro não tem número, penaliza MUITO!
+            # Trava para não tocar o filme 1 no lugar do 2, e vice-versa
             if nums_busca and nums_cat and nums_busca != nums_cat:
                 score -= 1.0 
-            # 🚀 BÔNUS DE FRANQUIA: Se o número bateu, dá prioridade total!
             elif nums_busca and nums_busca == nums_cat:
                 score += 1.0
 
@@ -91,7 +97,6 @@ def buscar_sniper(titulo_buscado):
                 maior_score = score
                 melhor_link = link
 
-    # Só retorna se for uma busca válida
     if melhor_link and maior_score > 0.3:
         return melhor_link, f"Precisão {maior_score:.2f}"
         
@@ -105,7 +110,6 @@ def buscar():
     if not titulo_limpo:
         return "Nenhum título", 400
 
-    # Usa o Sniper pra achar o link correto
     link, tipo = buscar_sniper(titulo_limpo)
     if link:
         print(f"🎬 ENCONTRADO ({tipo}): {titulo_limpo}")
