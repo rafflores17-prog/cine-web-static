@@ -5,9 +5,8 @@ from flask import Flask, request, redirect
 
 app = Flask(__name__)
 
-# O SEU LINK DIRETO DO GITHUB RELEASES
 M3U_URL = "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/lista.m3u" 
-ARQUIVO_MANUAL = "manual.txt" # Arquivo local para filmes manuais
+ARQUIVO_MANUAL = "manual.txt" 
 
 catalogo_filmes = {}
 catalogo_manual = {}
@@ -19,7 +18,6 @@ def limpar(nome):
     return nome.strip().lower()
 
 def carregar_arquivos():
-    # 1. Carrega os filmes manuais primeiro (Prioridade)
     if os.path.exists(ARQUIVO_MANUAL):
         print("⏳ Carregando filmes do backup manual...")
         with open(ARQUIVO_MANUAL, "r", encoding="utf-8", errors="ignore") as f:
@@ -29,7 +27,6 @@ def carregar_arquivos():
                     catalogo_manual[limpar(nome_sujo)] = link.strip()
         print(f"✅ {len(catalogo_manual)} filmes manuais carregados!")
 
-    # 2. Carrega a lista M3U de 60MB da Nuvem
     print("⏳ Iniciando carga da lista M3U da Nuvem...")
     try:
         r = requests.get(M3U_URL, stream=True, timeout=60)
@@ -50,8 +47,32 @@ def carregar_arquivos():
     except Exception as e:
         print(f"❌ ERRO ao baixar lista M3U: {e}")
 
-# Executa as cargas assim que o Koyeb liga
 carregar_arquivos()
+
+# 🎯 FUNÇÃO SNIPER: Acha o filme certo e ignora os errados
+def encontrar_link_preciso(titulo_limpo, catalogo):
+    # 1. MATCH EXATO (Ex: Buscou "american pie", achou "american pie")
+    if titulo_limpo in catalogo:
+        return catalogo[titulo_limpo], "Exato"
+        
+    # 2. COMEÇA COM (Ex: Buscou "american pie", achou "american pie dublado hd")
+    for nome_cat, link in catalogo.items():
+        if nome_cat.startswith(titulo_limpo):
+            return link, "Começa com"
+
+    # 3. MATCH PARCIAL SEGURO (Pega a palavra mais longa para não confundir)
+    melhor_link = None
+    tamanho_match = 0
+    for nome_cat, link in catalogo.items():
+        if len(nome_cat) > 3 and nome_cat in titulo_limpo:
+            if len(nome_cat) > tamanho_match:
+                melhor_link = link
+                tamanho_match = len(nome_cat)
+    
+    if melhor_link:
+        return melhor_link, "Contém"
+        
+    return None, None
 
 @app.route("/buscar")
 def buscar():
@@ -61,20 +82,20 @@ def buscar():
     if not titulo_limpo:
         return "Nenhum título enviado", 400
 
-    # 1. Tenta achar no Backup Manual primeiro
-    for nome_cat, link in catalogo_manual.items():
-        if titulo_limpo in nome_cat or nome_cat in titulo_limpo:
-            print(f"🎬 FILME MANUAL ENCONTRADO: {nome_cat}")
-            return redirect(link)
+    # 1. Bate no MANUAL primeiro com a Lógica Sniper
+    link, tipo = encontrar_link_preciso(titulo_limpo, catalogo_manual)
+    if link:
+        print(f"🎬 MANUAL ({tipo}): {titulo_limpo}")
+        return redirect(link)
 
-    # 2. Tenta achar na Nuvem M3U
-    for nome_cat, link in catalogo_filmes.items():
-        if titulo_limpo in nome_cat or nome_cat in titulo_limpo:
-            print(f"🎬 FILME M3U ENCONTRADO: {nome_cat}")
-            return redirect(link)
+    # 2. Bate na M3U com a Lógica Sniper
+    link, tipo = encontrar_link_preciso(titulo_limpo, catalogo_filmes)
+    if link:
+        print(f"🎬 M3U ({tipo}): {titulo_limpo}")
+        return redirect(link)
 
     print(f"❌ NÃO LOCALIZADO: {titulo_limpo}")
-    return "Filme não encontrado na lista.", 404
+    return "Filme não encontrado.", 404
 
 @app.route("/")
 def index():
