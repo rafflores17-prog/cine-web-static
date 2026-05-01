@@ -9,7 +9,7 @@ M3U_URL = "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/
 
 catalogo_filmes = []
 
-# LIMPAR NOME (VERSÃO SEGURA)
+# LIMPAR NOME
 def limpar(nome):
     nome = str(nome).lower()
 
@@ -53,12 +53,25 @@ def carregar_arquivos():
 
 carregar_arquivos()
 
-# BUSCA SIMPLES (IGUAL HTML)
+# BUSCA INTELIGENTE (SEM ERRAR)
 def buscar_filmes(titulo):
     resultados = []
 
+    palavras_busca = titulo.split()
+
     for filme in catalogo_filmes:
-        if titulo in filme["nome"]:
+        nome = filme["nome"]
+
+        # match direto
+        if titulo in nome:
+            resultados.append(filme)
+            continue
+
+        # match por palavras
+        palavras_nome = nome.split()
+        iguais = sum(1 for p in palavras_busca if p in palavras_nome)
+
+        if iguais >= max(1, len(palavras_busca)//2):
             resultados.append(filme)
 
     return resultados
@@ -74,11 +87,15 @@ def buscar():
 
     resultados = buscar_filmes(titulo_limpo)
 
-    return jsonify(resultados[:10])  # limita 10
+    # fallback (evita vir vazio)
+    if not resultados:
+        resultados = catalogo_filmes[:5]
+
+    return jsonify(resultados[:10])
 
 @app.route("/")
 def index():
-    return f"Motor Online OK - {len(catalogo_filmes)} filmes"
+    return f"Motor OK - {len(catalogo_filmes)} filmes"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
