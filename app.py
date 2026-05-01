@@ -1,28 +1,49 @@
 import os
 import re
 import requests
-from flask import Flask, request, jsonify
+import difflib
+from flask import Flask, request, redirect
 
 app = Flask(__name__)
 
 M3U_URL = "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/lista.m3u"
+ARQUIVO_MANUAL = "manual.txt"
 
-catalogo_filmes = []
+catalogo_filmes = {}
 
-# LIMPAR NOME
+# 🔥 LIMPEZA FORTE (PADRÃO ÚNICO)
 def limpar(nome):
     nome = str(nome).lower()
 
-    nome = re.sub(r'\(.*?\)', '', nome)
-    nome = re.sub(r'\[.*?\]', '', nome)
+    # remove coisas inúteis
+    nome = re.sub(r'\b(dublado|legendado|hd|fullhd|1080p|720p)\b', '', nome)
 
-    nome = nome.replace(":", "")
-    nome = nome.replace("-", " ")
-    nome = nome.replace(".", " ")
+    # remove símbolos
+    nome = re.sub(r"\[.*?\]", "", nome)
+    nome = re.sub(r"\(.*?\)", "", nome)
 
-    return " ".join(nome.split())
+    # troca separadores
+    nome = nome.replace(".", " ").replace("-", " ").replace(":", " ")
 
-# CARREGAR M3U
+    # remove "parte"
+    nome = re.sub(r'\bparte\b', '', nome)
+
+    # romanos → números
+    romanos = {
+        " ii ": " 2 ",
+        " iii ": " 3 ",
+        " iv ": " 4 ",
+        " v ": " 5 ",
+        " vi ": " 6 "
+    }
+    for k, v in romanos.items():
+        nome = nome.replace(k, v)
+
+    # remove espaços duplicados
+    return " ".join(nome.split()).strip()
+
+
+# 🔥 CARREGA M3U
 def carregar_arquivos():
     print("⏳ Carregando M3U...")
 
@@ -31,71 +52,99 @@ def carregar_arquivos():
         linhas = r.text.splitlines()
 
         for i in range(len(linhas)):
-            linha = linhas[i].strip()
-
-            if linha.startswith("#EXTINF"):
-                nome_sujo = linha.split(",")[-1].strip()
+            if linhas[i].startswith("#EXTINF"):
+                nome_sujo = linhas[i].split(",")[-1].strip()
                 nome_limpo = limpar(nome_sujo)
 
                 if i + 1 < len(linhas):
                     link = linhas[i + 1].strip()
 
-                    if "/movie/" in link:
-                        catalogo_filmes.append({
-                            "nome": nome_limpo,
-                            "link": link
-                        })
+                    if "/movie/" in link and link.endswith(".mp4"):
+                        catalogo_filmes[nome_limpo] = link
 
-        print(f"✅ {len(catalogo_filmes)} filmes carregados")
+        print(f"✅ {len(catalogo_filmes)} filmes carregados!")
 
     except Exception as e:
-        print("❌ ERRO:", e)
+        print("❌ ERRO M3U:", e)
+
+    # manual (override)
+    if os.path.exists(ARQUIVO_MANUAL):
+        try:
+            with open(ARQUIVO_MANUAL, "r", encoding="utf-8") as f:
+                for linha in f:
+                    if "|" in linha:
+                        nome, link = linha.split("|", 1)
+                        catalogo_filmes[limpar(nome)] = link.strip()
+        except:
+            pass
+
 
 carregar_arquivos()
 
-# BUSCA INTELIGENTE (SEM ERRAR)
-def buscar_filmes(titulo):
-    resultados = []
 
-    palavras_busca = titulo.split()
+# 🚀 BUSCA NOVA (INTELIGENTE)
+def buscar_sniper(titulo_buscado):
+    melhor_link = None
+    melhor_score = 0.0
 
-    for filme in catalogo_filmes:
-        nome = filme["nome"]
+    palavras_busca = set(titulo_buscado.split())
+    nums_busca = set(re.findall(r'\d+', titulo_buscado))
 
-        # match direto
-        if titulo in nome:
-            resultados.append(filme)
+    for nome_cat, link in catalogo_filmes.items():
+        palavras_cat = set(nome_cat.split())
+        nums_cat = set(re.findall(r'\d+', nome_cat))
+
+        # ❌ trava erro de franquia
+        if nums_busca and nums_cat and nums_busca != nums_cat:
             continue
 
-        # match por palavras
-        palavras_nome = nome.split()
-        iguais = sum(1 for p in palavras_busca if p in palavras_nome)
+        # 🔥 match por palavras (ESSENCIAL)
+        inter = palavras_busca.intersection(palavras_cat)
+        score_palavra = len(inter) / max(len(palavras_busca), 1)
 
-        if iguais >= max(1, len(palavras_busca)//2):
-            resultados.append(filme)
+        # 🔥 similaridade geral
+        score_texto = difflib.SequenceMatcher(None, titulo_buscado, nome_cat).ratio()
 
-    return resultados
+        # 🔥 score final (peso maior palavras)
+        score = (score_palavra * 0.75) + (score_texto * 0.25)
 
-# ENDPOINT
+        # bônus se contém tudo
+        if palavras_busca.issubset(palavras_cat):
+            score += 0.2
+
+        if score > melhor_score:
+            melhor_score = score
+            melhor_link = link
+
+    # 🔥 limite mínimo (evita filme errado)
+    if melhor_score >= 0.6:
+        return melhor_link, f"Score {melhor_score:.2f}"
+
+    return None, None
+
+
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo", "")
     titulo_limpo = limpar(titulo)
 
     if not titulo_limpo:
-        return jsonify([])
+        return "Erro: vazio", 400
 
-    resultados = buscar_filmes(titulo_limpo)
+    link, tipo = buscar_sniper(titulo_limpo)
 
-    # fallback (evita vir vazio)
-    if not resultados:
-        resultados = catalogo_filmes[:5]
+    if link:
+        print(f"🎬 OK ({tipo}): {titulo_limpo}")
+        return redirect(link)
 
-    return jsonify(resultados[:10])
+    print(f"❌ NÃO ENCONTRADO: {titulo_limpo}")
+    return "Filme não encontrado", 404
+
 
 @app.route("/")
 def index():
-    return f"Motor OK - {len(catalogo_filmes)} filmes"
+    return f"🎬 Cine Mega Motor OK | Total: {len(catalogo_filmes)}"
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
