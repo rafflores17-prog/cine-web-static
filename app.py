@@ -6,7 +6,7 @@ from flask import Flask, request, redirect
 
 app = Flask(__name__)
 
-# CONFIGURAÇÕES DE DADOS
+# CONFIGURAÇÕES
 M3U_URL = "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/lista.m3u"
 ARQUIVO_MANUAL = "manual.txt"
 
@@ -14,17 +14,17 @@ catalogo_filmes = {}
 
 def limpar(nome):
     nome = str(nome).lower()
-    # Traduz numeração romana (TMDB) para números (M3U)
+    # Traduz numeração romana para bater com a M3U
     nome = re.sub(r'\bii\b', '2', nome).replace('parte ii', '2')
     nome = re.sub(r'\biii\b', '3', nome).replace('parte iii', '3')
     nome = re.sub(r'\biv\b', '4', nome)
-    # Remove lixo de nomes
+    # Limpa sujeiras e tags
     nome = re.sub(r'\b(parte|filme|dublado|legendado|fhd|4k|hdtv)\b', '', nome)
     nome = re.sub(r"[\[\]\(\):.\-]", " ", nome)
     return " ".join(nome.split()).strip()
 
 def carregar_arquivos():
-    print("⏳ Carregando catálogo na memória RAM...")
+    print("⏳ Carregando catálogo na RAM...")
     try:
         r = requests.get(M3U_URL, stream=True, timeout=60)
         linhas = [l.decode('utf-8', errors='ignore') for l in r.iter_lines() if l]
@@ -51,6 +51,7 @@ carregar_arquivos()
 
 def buscar_sniper(titulo_buscado):
     titulo_limpo = limpar(titulo_buscado)
+    # 1. Match Direto
     if titulo_limpo in catalogo_filmes: return catalogo_filmes[titulo_limpo]
 
     num_busca = re.search(r'\b\d+\b', titulo_limpo)
@@ -61,7 +62,7 @@ def buscar_sniper(titulo_buscado):
         num_cat = re.search(r'\b\d+\b', nome_cat)
         num_cat = num_cat.group() if num_cat else None
 
-        # Bloqueio de Franquia: se os números não batem, pula fora
+        # Trava de Franquia: se os números não batem, não é o mesmo filme
         if num_busca != num_cat: continue
 
         score = difflib.SequenceMatcher(None, titulo_limpo, nome_cat).ratio()
@@ -78,7 +79,7 @@ def buscar():
     return "Não encontrado", 404
 
 @app.route("/")
-def index(): return f"Motor Ativo: {len(catalogo_filmes)} filmes", 200
+def index(): return f"Motor Cine Mega Ativo: {len(catalogo_filmes)} filmes", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
