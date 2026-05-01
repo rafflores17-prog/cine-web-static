@@ -15,13 +15,13 @@ def limpar(nome):
     nome = str(nome).lower()
     nome = re.sub(r'\bii\b', '2', nome).replace('parte ii', '2')
     nome = re.sub(r'\biii\b', '3', nome).replace('parte iii', '3')
-    nome = re.sub(r'\biv\b', '4', nome)
-    nome = re.sub(r'\b(19|20)\d{2}\b', '', nome) # Remove ano
+    # Remove palavras que enganam o motor
+    nome = re.sub(r'\b(walt disney|disney|pixar|marvel|apresenta|coleção)\b', '', nome)
     nome = re.sub(r"[\[\]\(\):.\-]", " ", nome)
     return " ".join(nome.split()).strip()
 
 def carregar_arquivos():
-    print("⏳ Carregando 19k filmes na RAM...")
+    print("⏳ Carregando catálogo...")
     try:
         r = requests.get(M3U_URL, stream=True, timeout=60)
         linhas = [l.decode('utf-8', errors='ignore') for l in r.iter_lines() if l]
@@ -49,7 +49,7 @@ carregar_arquivos()
 def buscar_sniper(titulo_buscado):
     titulo_limpo = limpar(titulo_buscado)
     
-    # 1. Prioridade Máxima: Nome Idêntico
+    # 1. Prioridade Total: Nome Exato
     if titulo_limpo in catalogo_filmes:
         return catalogo_filmes[titulo_limpo]
 
@@ -60,23 +60,20 @@ def buscar_sniper(titulo_buscado):
     maior_score = 0.0
 
     for nome_cat, link in catalogo_filmes.items():
+        # Trava de Franquia
         num_cat = re.search(r'\d+', nome_cat)
         num_cat = num_cat.group() if num_cat else None
-        
-        # Se os números (franquia) não batem, pula
         if num_busca != num_cat:
             continue
 
-        # Calcula similaridade
+        # Calcula similaridade matemática
         score = difflib.SequenceMatcher(None, titulo_limpo, nome_cat).ratio()
         
-        # 🚨 TRAVA DE PRECISÃO: Se a diferença de tamanho for muito grande, ignora.
-        # Evita que "Som da Morte" ache "Som da Morte: O Documentário da Disney"
-        dif_tamanho = abs(len(titulo_limpo) - len(nome_cat))
-        if len(titulo_limpo) < 20 and dif_tamanho > 10:
-            score -= 0.4 
-
-        if score > maior_score and score > 0.6:
+        # 🚨 FILTRO RIGOROSO: 
+        # Se for um filme curto (tipo Mario ou M3GAN), a precisão tem que ser altíssima
+        limite = 0.85 if len(titulo_limpo) < 15 else 0.75
+        
+        if score > maior_score and score >= limite:
             maior_score = score
             melhor_link = link
 
@@ -87,10 +84,11 @@ def buscar():
     titulo = request.args.get("titulo", "")
     link = buscar_sniper(titulo)
     if link:
-        print(f"🎬 SUCESSO: {titulo}")
+        print(f"🎬 ENCONTRADO: {titulo}")
         return redirect(link)
-    print(f"❌ NÃO LOCALIZADO: {titulo}")
-    return "Não encontrado", 404
+    
+    print(f"❌ REJEITADO (NOME NÃO CONFERE): {titulo}")
+    return "Filme não encontrado na sua lista M3U.", 404
 
 @app.route("/")
 def index():
