@@ -13,11 +13,10 @@ catalogo_filmes = {}
 
 def limpar(nome):
     nome = str(nome).lower()
-    # Traduz numeração romana para bater com a lista
     nome = re.sub(r'\bii\b', '2', nome).replace('parte ii', '2')
     nome = re.sub(r'\biii\b', '3', nome).replace('parte iii', '3')
-    # Remove anos e pontuação
-    nome = re.sub(r'\b(19|20)\d{2}\b', '', nome)
+    nome = re.sub(r'\biv\b', '4', nome)
+    nome = re.sub(r'\b(19|20)\d{2}\b', '', nome) # Remove ano
     nome = re.sub(r"[\[\]\(\):.\-]", " ", nome)
     return " ".join(nome.split()).strip()
 
@@ -35,11 +34,11 @@ def carregar_arquivos():
                     link = linhas[i + 1].strip()
                     if "/movie/" in link:
                         catalogo_filmes[nome_limpo] = link
-        print(f"✅ {len(catalogo_filmes)} Filmes carregados com sucesso!")
+        print(f"✅ Catálogo Pronto!")
     except Exception as e: print(f"❌ Erro: {e}")
 
     if os.path.exists(ARQUIVO_MANUAL):
-        with open(ARQUIVO_MANUAL, "r", encoding="utf-8") as f:
+        with open(ARQUIVO_MANUAL, "r", encoding="utf-8", errors="ignore") as f:
             for linha in f:
                 if "|" in linha:
                     n, l = linha.split("|", 1)
@@ -50,11 +49,10 @@ carregar_arquivos()
 def buscar_sniper(titulo_buscado):
     titulo_limpo = limpar(titulo_buscado)
     
-    # 1. TESTE DE IMPACTO: Match Exato (Certeza absoluta)
+    # 1. Prioridade Máxima: Nome Idêntico
     if titulo_limpo in catalogo_filmes:
         return catalogo_filmes[titulo_limpo]
 
-    # Extrai número para franquias
     num_busca = re.search(r'\d+', titulo_limpo)
     num_busca = num_busca.group() if num_busca else None
 
@@ -62,21 +60,23 @@ def buscar_sniper(titulo_buscado):
     maior_score = 0.0
 
     for nome_cat, link in catalogo_filmes.items():
-        # Verificação de número (Franquias)
         num_cat = re.search(r'\d+', nome_cat)
         num_cat = num_cat.group() if num_cat else None
         
+        # Se os números (franquia) não batem, pula
         if num_busca != num_cat:
             continue
 
-        # CALCULO DE SIMILARIDADE
+        # Calcula similaridade
         score = difflib.SequenceMatcher(None, titulo_limpo, nome_cat).ratio()
         
-        # BÔNUS DE PRECISÃO: Se o número de palavras for igual, o score sobe
-        if len(titulo_limpo.split()) == len(nome_cat.split()):
-            score += 0.15
+        # 🚨 TRAVA DE PRECISÃO: Se a diferença de tamanho for muito grande, ignora.
+        # Evita que "Som da Morte" ache "Som da Morte: O Documentário da Disney"
+        dif_tamanho = abs(len(titulo_limpo) - len(nome_cat))
+        if len(titulo_limpo) < 20 and dif_tamanho > 10:
+            score -= 0.4 
 
-        if score > maior_score and score > 0.65:
+        if score > maior_score and score > 0.6:
             maior_score = score
             melhor_link = link
 
@@ -89,13 +89,12 @@ def buscar():
     if link:
         print(f"🎬 SUCESSO: {titulo}")
         return redirect(link)
-    
-    print(f"❌ NÃO ENCONTRADO: {titulo}")
-    return "Filme não encontrado", 404
+    print(f"❌ NÃO LOCALIZADO: {titulo}")
+    return "Não encontrado", 404
 
 @app.route("/")
 def index():
-    return f"🎬 Motor Cine Mega Online! 19k filmes prontos.", 200
+    return f"Motor Ativo: {len(catalogo_filmes)} filmes", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
