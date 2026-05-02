@@ -1,96 +1,115 @@
 import os
 import re
 import requests
-import difflib
 from flask import Flask, request, redirect
 
 app = Flask(__name__)
 
+# Suas listas originais
 LISTAS_M3U = [
     "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/lista.m3u",
     "https://github.com/StartStatic1/meus-apks/releases/download/V_BACKUP2/lista2.m3u"
 ]
-ARQUIVO_MANUAL = "manual.txt"
+
+# Dicionário na memória: Guarda o nome do filme e TODOS os links associados a ele
 catalogo_filmes = {}
 
-def limpar(nome):
-    nome = str(nome).lower()
-    nome = re.sub(r'\bii\b', '2', nome).replace('parte ii', '2')
-    nome = re.sub(r'\biii\b', '3', nome).replace('parte iii', '3')
-    nome = re.sub(r'\b(19|20)\d{2}\b', '', nome)
-    nome = re.sub(r"[\[\]\(\):.\-!]", " ", nome)
-    return " ".join(nome.split()).strip()
+def limpar_texto(texto):
+    """Limpa o nome arrancando anos (1997), tags HD, FHD, legendado, etc."""
+    t = re.sub(r'\[.*?\]|\(.*?\)', '', str(texto))
+    t = re.sub(r'(?i)(1080p|720p|4k|fhd|hd|dual|dublado|legendado)', '', t)
+    t = re.sub(r'[^a-zA-Z0-9\s]', '', t)
+    return " ".join(t.split()).lower()
 
-def carregar_arquivos():
+def carregar_m3u():
     global catalogo_filmes
     catalogo_filmes = {}
-    print("⏳ Carregando listas na RAM...")
+    print("🚀 Iniciando Motor VIP e filtrando listas...")
     
-    # 1. Carrega o Manual Primeiro (Regra de Ouro)
-    if os.path.exists(ARQUIVO_MANUAL):
-        with open(ARQUIVO_MANUAL, "r", encoding="utf-8", errors="ignore") as f:
-            for linha in f:
-                if "|" in linha:
-                    n, l = linha.split("|", 1)
-                    catalogo_filmes[limpar(n)] = l.strip()
-
-    # 2. Carrega as Listas M3U
     for url in LISTAS_M3U:
         try:
-            r = requests.get(url, stream=True, timeout=60)
-            linhas = [l.decode('utf-8', errors='ignore') for l in r.iter_lines() if l]
+            r = requests.get(url, stream=True, timeout=30)
+            linhas = [l.decode('utf-8', errors='ignore').strip() for l in r.iter_lines() if l]
+            
             for i in range(len(linhas)):
-                if "#EXTINF" in linhas[i]:
-                    n_limpo = limpar(linhas[i].split(",")[-1])
-                    if i + 1 < len(linhas) and n_limpo not in catalogo_filmes:
-                        link = linhas[i + 1].strip()
-                        if "/movie/" in link:
-                            catalogo_filmes[n_limpo] = link
-        except: continue
-    print(f"✅ Catálogo pronto: {len(catalogo_filmes)} filmes.")
+                if linhas[i].startswith("#EXTINF"):
+                    # Pega o nome do filme e limpa toda a sujeira
+                    nome_sujo = linhas[i].split(",")[-1]
+                    nome_limpo = limpar_texto(nome_sujo)
+                    
+                    if i + 1 < len(linhas):
+                        link = linhas[i+1]
+                        if "movie" in link or ".mp4" in link or ".mkv" in link:
+                            # Se o filme não existe no dicionário, cria uma lista pra ele
+                            if nome_limpo not in catalogo_filmes:
+                                catalogo_filmes[nome_limpo] = []
+                            # Adiciona o link na lista de opções daquele filme
+                            catalogo_filmes[nome_limpo].append(link)
+        except Exception as e:
+            print(f"Erro ao carregar lista {url}: {e}")
+            
+    print(f"✅ Catálogo pronto! {len(catalogo_filmes)} títulos únicos na memória.")
 
-carregar_arquivos()
+# Carrega as listas assim que o servidor ligar
+carregar_m3u()
 
-def buscar_sniper(titulo_buscado):
-    titulo_limpo = limpar(titulo_buscado)
+def buscar_sniper_vip(titulo):
+    titulo_busca = limpar_texto(titulo)
+    links_encontrados = []
     
-    # 1. MATCH EXATO
-    if titulo_limpo in catalogo_filmes:
-        return catalogo_filmes[titulo_limpo]
+    # 1. Busca Direta
+    if titulo_busca in catalogo_filmes:
+        links_encontrados = catalogo_filmes[titulo_busca]
+    else:
+        # 2. Busca por contenção (se o nome estiver no meio de outras palavras)
+        for nome_cat, links in catalogo_filmes.items():
+            if titulo_busca in nome_cat:
+                links_encontrados.extend(links)
 
-    # 2. LÓGICA DO SEU BACKUP (Palavra-chave + Número)
-    palavras = titulo_limpo.split()
-    if palavras:
-        primeira_palavra = palavras[0]
-        for nome_cat, link in catalogo_filmes.items():
-            if primeira_palavra in nome_cat:
-                num_busca = re.search(r'\d+', titulo_limpo)
-                num_cat = re.search(r'\d+', nome_cat)
-                if num_busca and num_cat:
-                    if num_busca.group() == num_cat.group():
-                        return link
-                elif not num_busca and not num_cat:
-                    return link
+    if not links_encontrados:
+        return None
 
-    # 3. SIMILARIDADE (Ajustada para 0.6 para não falhar)
-    melhor_link, maior_score = None, 0.0
-    for nome_cat, link in catalogo_filmes.items():
-        score = difflib.SequenceMatcher(None, titulo_limpo, nome_cat).ratio()
-        if score > maior_score and score > 0.6:
-            maior_score, melhor_link = score, link
-    return melhor_link
+    # ===============================================================
+    # 🔥 A MÁGICA: SISTEMA DE PRIORIDADE DE SERVIDORES (VIP vs LIXO)
+    # ===============================================================
+    link_vip = None
+    link_secundario = None
+
+    for link in links_encontrados:
+        # SE TIVER IP PREMIUM, SERV99 OU O NOVO MASTER99999, É VIP! CAPTURA NA HORA.
+        if "209.131.122.80" in link or "serv99" in link or "master99999" in link:
+            link_vip = link
+            break # Achamos o ouro absoluto, para de procurar!
+            
+        # Se for o fontedecanais, a gente guarda só se não tiver NENHUMA outra opção
+        elif "fontedecanais" in link:
+            if not link_secundario:
+                link_secundario = link
+        
+        # Qualquer outro link aleatório ganha do fontedecanais
+        else:
+            link_secundario = link
+
+    # O sistema sempre devolve o VIP primeiro.
+    return link_vip if link_vip else link_secundario
 
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo", "")
-    link = buscar_sniper(titulo)
+    if not titulo:
+        return "Título não fornecido", 400
+        
+    link = buscar_sniper_vip(titulo)
+    
     if link:
+        # Redireciona o site direto pro MP4 bom
         return redirect(link)
-    return "Não encontrado", 404
+    else:
+        return "Filme indisponível nos servidores.", 404
 
 @app.route("/")
 def index():
-    return f"Motor Cine Mega: {len(catalogo_filmes)} filmes", 200
+    return f"🚀 Motor Cine Mega VIP Online! | Títulos Indexados: {len(catalogo_filmes)}", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
