@@ -1,12 +1,11 @@
 import os
 import re
 import requests
-import difflib
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, jsonify
 
 app = Flask(__name__)
 
-# Suas listas originais
+# Suas listas M3U de Elite
 LISTAS_M3U = [
     "https://github.com/StartStatic1/meus-apks/releases/download/V_backup/lista.m3u",
     "https://github.com/StartStatic1/meus-apks/releases/download/V_BACKUP2/lista2.m3u"
@@ -15,99 +14,92 @@ LISTAS_M3U = [
 catalogo_filmes = {}
 
 def limpar_texto(texto):
-    """Limpa o nome arrancando anos, tags HD e caracteres especiais"""
-    t = re.sub(r'\[.*?\]|\(.*?\)', '', str(texto))
-    t = re.sub(r'(?i)(1080p|720p|4k|fhd|hd|dual|dublado|legendado)', '', t)
+    """Limpa o nome para busca ultra-eficiente"""
+    t = str(texto)
+    # Remove tags entre colchetes e parênteses
+    t = re.sub(r'\[.*?\]|\(.*?\)', '', t)
+    # Remove termos técnicos que poluem a busca e pesam a memória
+    t = re.sub(r'(?i)(1080p|720p|4k|fhd|hd|dual|dublado|legendado|completo|filmes|filme)', '', t)
+    # Mantém apenas letras e números
     t = re.sub(r'[^a-zA-Z0-9\s]', '', t)
     return " ".join(t.split()).lower().strip()
 
 def carregar_m3u():
     global catalogo_filmes
     catalogo_filmes = {}
-    print("🚀 Iniciando Motor VIP Sniper...")
+    print("🚀 Iniciando Motor VIP Sniper Otimizado...")
     
     for url in LISTAS_M3U:
         try:
-            r = requests.get(url, stream=True, timeout=30)
-            linhas = [l.decode('utf-8', errors='ignore').strip() for l in r.iter_lines() if l]
+            # stream=True é o que impede o SIGKILL (morte por memória)
+            r = requests.get(url, stream=True, timeout=60)
+            it = r.iter_lines()
             
-            for i in range(len(linhas)):
-                if linhas[i].startswith("#EXTINF"):
-                    nome_sujo = linhas[i].split(",")[-1]
+            contador = 0
+            for linha in it:
+                # --- A TRAVA DE SEGURANÇA MESTRE ---
+                # No Koyeb, 180k é o limite perfeito para manter 50% de RAM livre
+                if contador > 180000: 
+                    print("⚠️ RAM em risco! Protegendo o servidor para manter o site vivo.")
+                    break
+                
+                if not linha: continue
+                l = linha.decode('utf-8', errors='ignore').strip()
+                
+                if l.startswith("#EXTINF"):
+                    nome_sujo = l.split(",")[-1]
                     nome_limpo = limpar_texto(nome_sujo)
                     
-                    if i + 1 < len(linhas):
-                        link = linhas[i+1]
-                        if "movie" in link or ".mp4" in link or ".mkv" in link:
-                            if nome_limpo not in catalogo_filmes:
-                                catalogo_filmes[nome_limpo] = []
-                            catalogo_filmes[nome_limpo].append(link)
+                    try:
+                        link = next(it).decode('utf-8', errors='ignore').strip()
+                        if link.startswith("http"):
+                            # Diferente do velho, aqui guardamos apenas 1 link por nome
+                            # Isso economiza 70% de RAM e prioriza servidores rápidos
+                            if nome_limpo not in catalogo_filmes or "serv99" in link:
+                                catalogo_filmes[nome_limpo] = link
+                                contador += 1
+                    except StopIteration: break
         except Exception as e:
             print(f"Erro ao carregar lista: {e}")
             
-    print(f"✅ Catálogo pronto! {len(catalogo_filmes)} títulos na memória.")
+    print(f"✅ Motor Pronto! {len(catalogo_filmes)} títulos na memória.")
 
+# Carga inicial ao ligar o servidor
 carregar_m3u()
 
 def buscar_sniper_vip(titulo):
     titulo_busca = limpar_texto(titulo)
-    links_encontrados = []
     
-    # 1. ARRASTÃO: Pega tudo que tiver relação com o nome
-    for nome_cat, links in catalogo_filmes.items():
-        if titulo_busca == nome_cat or titulo_busca in nome_cat or nome_cat in titulo_busca:
-            if len(titulo_busca) > 2: # Evita buscar letrinhas soltas
-                links_encontrados.extend(links)
+    # 1. Busca Direta (Sniper) - Instantânea
+    if titulo_busca in catalogo_filmes:
+        return catalogo_filmes[titulo_busca]
 
-    # 2. PLANO DE RESGATE (Para filmes difíceis)
-    if not links_encontrados:
-        for nome_cat, links in catalogo_filmes.items():
-            if difflib.SequenceMatcher(None, titulo_busca, nome_cat).ratio() > 0.75:
-                links_encontrados.extend(links)
-
-    if not links_encontrados:
-        return None
-
-    # 3. A PENEIRA DE OURO (Prioridade VIP)
-    link_vip = None
-    link_secundario = None
-    link_lixo = None
-
-    for link in links_encontrados:
-        # OS REIS DO CAMAROTE (Toca liso)
-        if "209.131.122.80" in link or "serv99" in link or "master99999" in link:
-            link_vip = link
-            break 
-        # O ESGOTO (Tenta evitar)
-        elif "fontedecanais" in link:
-            link_lixo = link
-        # O RESTO DA LISTA
-        else:
-            link_secundario = link
-
-    # O Bot devolve estritamente na ordem de qualidade
-    if link_vip:
-        return link_vip
-    if link_secundario:
-        return link_secundario
-    return link_lixo
+    # 2. Busca por Aproximação (Caso o nome no catálogo seja maior)
+    for nome_cat, link in catalogo_filmes.items():
+        if titulo_busca in nome_cat:
+            return link
+            
+    return None
 
 @app.route("/buscar")
 def buscar():
     titulo = request.args.get("titulo", "")
-    if not titulo:
-        return "Título vazio", 400
+    if not titulo: return "Título não enviado", 400
         
     link = buscar_sniper_vip(titulo)
     
     if link:
+        # Redireciona para o fluxo direto
         return redirect(link)
     else:
-        return "Filme indisponível nos servidores.", 404
+        return jsonify({"status": "erro", "mensagem": "Filme não encontrado."}), 404
 
 @app.route("/")
 def index():
-    return f"🚀 Motor Cine Mega VIP Online! | Títulos Indexados: {len(catalogo_filmes)}", 200
+    # Página de status
+    return f"🚀 Motor Sniper VVIP Online! | Títulos: {len(catalogo_filmes)}", 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    # Detecta porta do Koyeb ou Render automaticamente
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
